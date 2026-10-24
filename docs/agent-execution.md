@@ -85,6 +85,25 @@ when it needs it. Nothing secret is passed on a command line.
 The child runs as the leader of a **new process group**. That group is what makes
 stopping work: one signal reaches the agent and every tool it started.
 
+### Codex harness (opt-in)
+
+Set `GEWU_HARNESS=codex` before starting `gewu-multiverse` to run each agent through
+the installed `codex exec` CLI. The run still owns the workspace, clones, process
+group, confinement and the agent's `GIT_ASKPASS` identity, so commits and pushes are
+made by the same Forgejo account as the native harness. `GEWU_CODEX_BIN` can name a
+different Codex executable. The CLI receives the instruction on stdin, runs from the
+agent workspace, and writes its final message to the run directory before the
+supervisor records the outcome.
+
+Codex's own authentication/configuration is separate from the model key in
+`credentials.toml`. To keep all generated state below the workspace, set
+`CODEX_HOME` (or the run-specific `GEWU_CODEX_HOME` integration wrapper) to a
+workspace-local directory containing the Codex login/configuration. The native
+OpenAI-compatible loop remains the default when `GEWU_HARNESS` is unset. The Codex
+mode deliberately uses the CLI's non-interactive, no-approval execution because the
+multiverse process group and its confinement are the authority boundary; do not use
+this mode with an untrusted instruction.
+
 ## What one run does
 
 The child, in sequence:

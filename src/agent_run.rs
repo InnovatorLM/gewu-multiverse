@@ -2219,6 +2219,15 @@ fn run(plan: &RunPlan, run_dir: &Path, transcript: &mut Transcript, log: &mut Ru
         }
     }
 
+    // Codex is an opt-in execution harness. It receives the same instruction and
+    // workspace as the native loop, while the parent run still owns the process
+    // group, Git identity and credential boundary. Keeping this switch in the run
+    // environment makes old plans forward-compatible without changing their JSON
+    // shape or the default OpenAI-compatible behavior.
+    if std::env::var("GEWU_HARNESS").as_deref() == Ok("codex") {
+        return run_codex_harness(plan, &instruction, &shell, run_dir, transcript, log);
+    }
+
     // The Forgejo tools are declared only when the context file names at least one
     // clone that is still there and the agent's own token is present. The token is
     // read here, at the run, and never written or handed to the model.
@@ -2233,6 +2242,99 @@ fn run(plan: &RunPlan, run_dir: &Path, transcript: &mut Transcript, log: &mut Ru
         transcript,
         log,
     )
+}
+
+/// Run the agent through the installed Codex CLI while preserving multiverse's
+/// workspace and Git credentials. Codex owns its own model/tool loop; this process
+/// remains the supervisor and records the bounded final output in the normal run log.
+fn run_codex_harness(
+    plan: &RunPlan,
+    instruction: &[u8],
+    shell: &Shell,
+    run_dir: &Path,
+    transcript: &mut Transcript,
+    log: &mut RunLog,
+) -> RunEnd {
+    let prompt = String::from_utf8_lossy(instruction).into_owned();
+    let output_file = run_dir.join("codex-last-message.txt");
+    let executable = std::env::var_os("GEWU_CODEX_BIN").unwrap_or_else(|| "codex".into());
+    let mut command = Command::new(executable);
+    command
+        .arg("exec")
+        .arg("--json")
+        .arg("--ephemeral")
+        .arg("--skip-git-repo-check")
+        .arg("--dangerously-bypass-approvals-and-sandbox")
+        .arg("-C")
+        .arg(&shell.workspace)
+        .arg("-o")
+        .arg(&output_file)
+        .arg("-")
+        .current_dir(&shell.workspace)
+        .env("GEWU_AGENT", &plan.agent)
+        .env("GEWU_RUN_ID", &plan.run_id)
+        .env("GEWU_WORKSPACE", &shell.workspace)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .env(
+            "CODEX_HOME",
+            std::env::var_os("GEWU_CODEX_HOME")
+                .or_else(|| shell.home.clone().map(std::ffi::OsString::from))
+                .unwrap_or_else(|| plan.workspace.clone().into_os_string()),
+        );
+    if let Ok(askpass) = std::env::current_exe() {
+        let credential_path = shell
+            .askpass
+            .as_deref()
+            .unwrap_or(plan.credentials.as_path());
+        command
+            .env("GIT_ASKPASS", askpass)
+            .env(crate::workspace::ASKPASS_CREDENTIALS, credential_path)
+            .env(crate::workspace::ASKPASS_AGENT, &plan.agent);
+        if let Some(login) = shell.login.as_ref() {
+            command.env(crate::workspace::ASKPASS_LOGIN, login);
+        }
+    }
+    log.line("harness: codex exec");
+    let started = Instant::now();
+    let output = match command.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn() {
+        Ok(mut child) => {
+            if let Some(mut stdin) = child.stdin.take() {
+                let _ = stdin.write_all(prompt.as_bytes());
+            }
+            child.wait_with_output()
+        }
+        Err(error) => return RunEnd::failed(format!("the Codex harness cannot start: {error}")),
+    };
+    let output = match output {
+        Ok(output) => output,
+        Err(error) => return RunEnd::failed(format!("the Codex harness cannot be waited for: {error}")),
+    };
+    let mut text = String::from_utf8_lossy(&output.stdout).into_owned();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    if !stderr.trim().is_empty() {
+        text.push_str("\n");
+        text.push_str(&stderr);
+    }
+    let text = log.secret().redact(&text);
+    log.block(&text);
+    let summary = fs::read_to_string(&output_file)
+        .ok()
+        .map(|text| log.secret().redact(&text))
+        .filter(|text| !text.trim().is_empty())
+        .unwrap_or_else(|| model::first_clause(&text, 240));
+    let _ = fs::remove_file(&output_file);
+    if output.status.success() {
+        log.line(&format!("codex harness finished after {} ms", started.elapsed().as_millis()));
+        RunEnd::completed(if summary.trim().is_empty() { "Codex completed the instruction".to_owned() } else { summary.trim().to_owned() })
+    } else {
+        let reason = if summary.trim().is_empty() {
+            format!("Codex exited with {}", output.status)
+        } else {
+            summary.trim().to_owned()
+        };
+        let _ = transcript.append(&Record::model_call_failed(&plan.run_id, 1, "codex", &reason));
+        RunEnd::failed(reason)
+    }
 }
 
 /// Build the run's Forgejo tools, or say why they are off.
