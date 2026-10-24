@@ -400,3 +400,14 @@ command can still do anything the confinement above leaves open.
   until it is stopped. There is no timer and no cron.
 - **A per-agent model or a second Forgejo.** One address, model and key serve every
   agent; one bundled Forgejo serves the installation.
+
+### Hosts without Codex namespace support
+
+`GEWU_CODEX_SANDBOX` explicitly selects `workspace-write` (default), `read-only`,
+or `danger-full-access`. Invalid values refuse the run. There is no automatic
+fallback. On a container where Codex's bubblewrap namespace cannot start,
+`GEWU_CODEX_SANDBOX=danger-full-access` disables the inner Codex sandbox;
+Multiverse's configured outer confinement remains unchanged. With outer
+confinement `none`, this gives tools the invoking user's filesystem permissions.
+Use this only when that execution environment is intended. Every run logs the
+selected Codex sandbox mode.

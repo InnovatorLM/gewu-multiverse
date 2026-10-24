@@ -45,6 +45,7 @@ fn launch(root: &PathBuf, run: &PathBuf, fake: &PathBuf) -> std::process::Output
     Command::new(env!("CARGO_BIN_EXE_gewu-multiverse"))
         .arg("--run-agent")
         .arg(run)
+        .env_remove("GEWU_CODEX_SANDBOX")
         .env_remove("GEWU_HARNESS")
         .env_remove("CODEX_HOME")
         .env_remove("GEWU_CODEX_HOME")
@@ -235,6 +236,7 @@ done
     let out = Command::new(env!("CARGO_BIN_EXE_gewu-multiverse"))
         .arg("--run-agent")
         .arg(&run)
+        .env_remove("GEWU_CODEX_SANDBOX")
         .env_remove("GEWU_HARNESS")
         .env_remove("CODEX_HOME")
         .env_remove("GEWU_CODEX_HOME")
@@ -261,4 +263,39 @@ done
                 .contains("fixture-auth-secret-123456789")
         );
     }
+}
+
+#[test]
+fn explicit_sandbox_override_is_passed_and_invalid_values_fail_closed() {
+    let (root, run, fake) = fixture(
+        "sandbox",
+        r#"
+case " $* " in *" --sandbox danger-full-access "*) ;; *) exit 45 ;; esac
+cat >/dev/null
+while [ "$#" -gt 0 ]; do
+ if [ "$1" = -o ]; then shift; printf 'Completed.\n' > "$1"; fi
+ shift
+done
+"#,
+    );
+    let output = Command::new(env!("CARGO_BIN_EXE_gewu-multiverse"))
+        .args(["--run-agent", run.to_str().unwrap()])
+        .env_remove("GEWU_HARNESS")
+        .env("HOME", &root)
+        .env("GEWU_CODEX_HOME", &root)
+        .env("GEWU_CODEX_BIN", &fake)
+        .env("GEWU_CODEX_SANDBOX", "danger-full-access")
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let output = Command::new(env!("CARGO_BIN_EXE_gewu-multiverse"))
+        .args(["--run-agent", run.to_str().unwrap()])
+        .env_remove("GEWU_HARNESS")
+        .env("HOME", &root)
+        .env("GEWU_CODEX_HOME", &root)
+        .env("GEWU_CODEX_BIN", &fake)
+        .env("GEWU_CODEX_SANDBOX", "invalid")
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
 }

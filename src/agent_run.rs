@@ -2411,18 +2411,28 @@ fn run_codex_harness(
     ] {
         env.push(format!("{key}={}", q(&home.join(sub))));
     }
+    let sandbox = std::env::var("GEWU_CODEX_SANDBOX").unwrap_or_else(|_| "workspace-write".into());
+    if !matches!(
+        sandbox.as_str(),
+        "workspace-write" | "read-only" | "danger-full-access"
+    ) {
+        let _ = fs::remove_file(home.join("auth.json"));
+        let _ = fs::remove_file(home.join("provider-env.sh"));
+        return RunEnd::failed("invalid GEWU_CODEX_SANDBOX");
+    }
     let executable = std::env::var("GEWU_CODEX_BIN").unwrap_or_else(|_| "codex".into());
     let command = format!(
-        "export {}; . {}; timeout --kill-after=2s {}s {} exec --json --sandbox workspace-write -c 'approval_policy=\"never\"' -c 'sandbox_workspace_write.network_access=true' -c 'shell_environment_policy.inherit=\"all\"' --skip-git-repo-check -C {} -o {} - < {}",
+        "export {}; . {}; timeout --kill-after=2s {}s {} exec --json --sandbox {} -c 'approval_policy=\"never\"' -c 'sandbox_workspace_write.network_access=true' -c 'shell_environment_policy.inherit=\"all\"' --skip-git-repo-check -C {} -o {} - < {}",
         env.join(" "),
         q(&home.join("provider-env.sh")),
         plan.timeout_secs.max(1),
         shell_word(&executable),
+        shell_word(&sandbox),
         q(&shell.workspace),
         q(&home.join("last-message.txt")),
         q(&home.join("instruction.txt"))
     );
-    log.line("harness: codex exec (workspace-write, approval never)");
+    log.line(&format!("harness: codex exec ({sandbox}, approval never)"));
     if let Err(e) = transcript.append(&Record::tool_call(
         None,
         1,

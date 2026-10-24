@@ -48,3 +48,41 @@ The native max_turns limit does not govern Codex. Abruptly killed unconfined run
 can leave private runtime credential copies in their workspace; confined runs use
 the existing temporary tree cleanup. Provider availability and supported sandbox
 features remain required for a real Codex run.
+
+## Live DeepSeek validation (2026-10-25 session)
+
+Used only the workspace-designated dawnfm account, base URL
+`https://dawnfm.gravarc.cn/v1`, model `deepseek-v4.1-flash-1017`, and the
+Responses transport. No existing `/root/.codex` credentials were used.
+
+Two concurrent real `--run-agent` supervisors launched `/usr/local/bin/codex`
+with Codex as the default harness (GEWU_HARNESS unset). Each received a private
+provider configuration and its own workspace/runtime. Both created `proof.txt`,
+committed with their distinct configured Git author, pushed to distinct branches
+of a shared local bare Git remote, returned a final answer, and exited zero:
+
+| Agent | Seconds | Remote commit | Author |
+|---|---:|---|---|
+| alpha | 469.5 | 99f7e6424af205b8fde6f41b4678bc29974943f3 | gewu-alpha <alpha@agents.invalid> |
+| beta | 365.5 | f33f9cb9ecb7b9f0ce7914772833dccc0555027f | gewu-beta <beta@agents.invalid> |
+
+Evidence is stored locally below workspace `.tmp/deepseek-live-20261025/final/`:
+`results.json`, per-agent plans, Codex runtime configuration, run logs, transcripts,
+worktrees and the bare remote. Secrets are not included in this report or Git.
+
+The initial workspace-write run failed because this container does not permit
+bubblewrap namespaces. The successful run explicitly set
+`GEWU_CODEX_SANDBOX=danger-full-access`, with outer confinement `none` in the
+fixture. This is an explicit environment-specific relaxation, not a fallback;
+the source default remains workspace-write. Initial 40-second endpoint probes
+and 180-second agent attempts timed out; final runs used a 600-second bound.
+Provider latency must be accounted for when setting production run timeouts.
+
+Nine deterministic harness tests passed, including explicit sandbox selection
+and rejection of invalid sandbox values. `cargo check`, formatting and diff checks
+also passed. Earlier baseline test failures documented above remain outstanding.
+
+Scope: real supervisor-to-Codex-to-model-to-shell-to-Git execution for two agents.
+This does not validate the full interactive board scheduling, live Forgejo API,
+Forgejo AskPass network authentication, or every production confinement mode.
+The push target in this test was a local bare remote, not GitHub or Forgejo.
