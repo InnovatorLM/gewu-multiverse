@@ -2155,6 +2155,7 @@ fn run(plan: &RunPlan, run_dir: &Path, transcript: &mut Transcript, log: &mut Ru
     // redacted too. A run without a key cannot proceed: it would have nothing to think
     // with, and pretending otherwise would only hide the problem.
     let secret = match credentials::model_key(&plan.credentials, &plan.agent) {
+        Err(_) if codex_harness_selected() => Secret::new(String::new()),
         Ok(secret) => secret,
         Err(error) => {
             let reason = format!("the model key cannot be read: {error}");
@@ -2219,12 +2220,9 @@ fn run(plan: &RunPlan, run_dir: &Path, transcript: &mut Transcript, log: &mut Ru
         }
     }
 
-    // Codex is an opt-in execution harness. It receives the same instruction and
-    // workspace as the native loop, while the parent run still owns the process
-    // group, Git identity and credential boundary. Keeping this switch in the run
-    // environment makes old plans forward-compatible without changing their JSON
-    // shape or the default OpenAI-compatible behavior.
-    if std::env::var("GEWU_HARNESS").as_deref() == Ok("codex") {
+    // Codex is the default execution harness. The native loop remains available with
+    // GEWU_HARNESS=native for migration and deterministic endpoint tests.
+    if codex_harness_selected() {
         return run_codex_harness(plan, &instruction, &shell, run_dir, transcript, log);
     }
 
@@ -2244,9 +2242,17 @@ fn run(plan: &RunPlan, run_dir: &Path, transcript: &mut Transcript, log: &mut Ru
     )
 }
 
-/// Run the agent through the installed Codex CLI while preserving multiverse's
-/// workspace and Git credentials. Codex owns its own model/tool loop; this process
-/// remains the supervisor and records the bounded final output in the normal run log.
+/// Codex is the default; GEWU_HARNESS=native selects the legacy loop.
+pub fn codex_harness_selected() -> bool {
+    std::env::var("GEWU_HARNESS").as_deref() != Ok("native")
+}
+
+fn shell_word(text: &str) -> String {
+    format!("'{}'", text.replace('\'', "'\"'\"'"))
+}
+
+/// Use the existing confined shell, process ownership and AskPass path. No raw
+/// subprocess may bypass the run's confinement merely because it is Codex.
 fn run_codex_harness(
     plan: &RunPlan,
     instruction: &[u8],
@@ -2255,85 +2261,228 @@ fn run_codex_harness(
     transcript: &mut Transcript,
     log: &mut RunLog,
 ) -> RunEnd {
-    let prompt = String::from_utf8_lossy(instruction).into_owned();
-    let output_file = run_dir.join("codex-last-message.txt");
-    let executable = std::env::var_os("GEWU_CODEX_BIN").unwrap_or_else(|| "codex".into());
-    let mut command = Command::new(executable);
-    command
-        .arg("exec")
-        .arg("--json")
-        .arg("--ephemeral")
-        .arg("--skip-git-repo-check")
-        .arg("--dangerously-bypass-approvals-and-sandbox")
-        .arg("-C")
-        .arg(&shell.workspace)
-        .arg("-o")
-        .arg(&output_file)
-        .arg("-")
-        .current_dir(&shell.workspace)
-        .env("GEWU_AGENT", &plan.agent)
-        .env("GEWU_RUN_ID", &plan.run_id)
-        .env("GEWU_WORKSPACE", &shell.workspace)
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env(
-            "CODEX_HOME",
-            std::env::var_os("GEWU_CODEX_HOME")
-                .or_else(|| shell.home.clone().map(std::ffi::OsString::from))
-                .unwrap_or_else(|| plan.workspace.clone().into_os_string()),
-        );
-    if let Ok(askpass) = std::env::current_exe() {
-        let credential_path = shell
-            .askpass
-            .as_deref()
-            .unwrap_or(plan.credentials.as_path());
-        command
-            .env("GIT_ASKPASS", askpass)
-            .env(crate::workspace::ASKPASS_CREDENTIALS, credential_path)
-            .env(crate::workspace::ASKPASS_AGENT, &plan.agent);
-        if let Some(login) = shell.login.as_ref() {
-            command.env(crate::workspace::ASKPASS_LOGIN, login);
-        }
-    }
-    log.line("harness: codex exec");
-    let started = Instant::now();
-    let output = match command.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn() {
-        Ok(mut child) => {
-            if let Some(mut stdin) = child.stdin.take() {
-                let _ = stdin.write_all(prompt.as_bytes());
+    let base = shell.temp.as_deref().unwrap_or(&plan.workspace);
+    let home = base.join(format!(".gewu-codex-{}", plan.run_id));
+    let prepare = || -> Result<(), String> {
+        fs::create_dir_all(&home).map_err(|e| e.to_string())?;
+        crate::mode::set_mode(&home, crate::mode::PRIVATE_DIR_MODE).map_err(|e| e.to_string())?;
+        if plan.workspace.join(".git/info").is_dir() && home.starts_with(&plan.workspace) {
+            let exclude = plan.workspace.join(".git/info/exclude");
+            let mut text = fs::read_to_string(&exclude).unwrap_or_default();
+            if !text.lines().any(|line| line == "/.gewu-codex-*/") {
+                text.push_str("\n/.gewu-codex-*/\n");
+                fs::write(exclude, text).map_err(|e| e.to_string())?;
             }
-            child.wait_with_output()
         }
-        Err(error) => return RunEnd::failed(format!("the Codex harness cannot start: {error}")),
+        for name in ["tmp", "cache", "config", "state", "data", "home"] {
+            fs::create_dir_all(home.join(name)).map_err(|e| e.to_string())?;
+        }
+        let source = std::env::var_os("GEWU_CODEX_HOME")
+            .or_else(|| std::env::var_os("CODEX_HOME"))
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| {
+                std::path::PathBuf::from(std::env::var_os("HOME").unwrap_or_default())
+                    .join(".codex")
+            });
+        if let Ok(bytes) = fs::read(source.join("auth.json")) {
+            serde_json::from_slice::<serde_json::Value>(&bytes)
+                .map_err(|e| format!("invalid Codex auth: {e}"))?;
+            crate::mode::write_private(home.join("auth.json"), &bytes)
+                .map_err(|e| e.to_string())?;
+        }
+        let mut config = toml::Table::new();
+        if let Ok(text) = fs::read_to_string(source.join("config.toml")) {
+            let original: toml::Table =
+                toml::from_str(&text).map_err(|e| format!("invalid Codex config: {e}"))?;
+            for key in [
+                "model",
+                "model_provider",
+                "model_providers",
+                "model_reasoning_effort",
+                "model_context_window",
+                "model_auto_compact_token_limit",
+            ] {
+                if let Some(value) = original.get(key) {
+                    config.insert(key.into(), value.clone());
+                }
+            }
+        }
+        let provider = config
+            .get("model_provider")
+            .and_then(toml::Value::as_str)
+            .unwrap_or("openai");
+        let key_name = config
+            .get("model_providers")
+            .and_then(|v| v.get(provider))
+            .and_then(|v| v.get("env_key"))
+            .and_then(toml::Value::as_str)
+            .unwrap_or("OPENAI_API_KEY");
+        if !key_name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_')
+            || key_name.is_empty()
+            || key_name.as_bytes()[0].is_ascii_digit()
+        {
+            return Err("invalid provider environment key name".into());
+        }
+        let auth: serde_json::Value = fs::read(home.join("auth.json"))
+            .ok()
+            .and_then(|v| serde_json::from_slice(&v).ok())
+            .unwrap_or_default();
+        let key = std::env::var(key_name).ok().or_else(|| {
+            auth.get("OPENAI_API_KEY")
+                .and_then(|v| v.as_str())
+                .map(str::to_owned)
+        });
+        let env_script = key
+            .map(|key| format!("export {}={}\n", key_name, shell_word(&key)))
+            .unwrap_or_default();
+        crate::mode::write_private(home.join("provider-env.sh"), env_script.as_bytes())
+            .map_err(|e| e.to_string())?;
+        config.insert("approval_policy".into(), "never".into());
+        config.insert("sandbox_mode".into(), "workspace-write".into());
+        config.insert("cli_auth_credentials_store".into(), "file".into());
+        crate::mode::write_private(
+            home.join("config.toml"),
+            toml::to_string(&config)
+                .map_err(|e| e.to_string())?
+                .as_bytes(),
+        )
+        .map_err(|e| e.to_string())?;
+        let mut prompt = format!(
+            "You are agent {}. Work in the existing repository clones in {}. Preserve their Git identity and AskPass authentication; collaborate through branches, commits and pushes. Keep all generated files, caches, configuration, temporary files and runtime data under this workspace or the provided runtime directories. Never put development artifacts under /root.\n",
+            plan.agent,
+            plan.workspace.display()
+        );
+        if let Some(context) = crate::run::read_forgejo_context(run_dir) {
+            prompt.push_str(&format!(
+                "Forgejo: {}; your login: {}; cloned repositories: {}.\n",
+                context.url,
+                context.login,
+                context.repository_names().join(", ")
+            ));
+        }
+        prompt.push_str(&String::from_utf8_lossy(instruction));
+        crate::mode::write_private(home.join("instruction.txt"), prompt.as_bytes())
+            .map_err(|e| e.to_string())?;
+        Ok(())
     };
-    let output = match output {
-        Ok(output) => output,
-        Err(error) => return RunEnd::failed(format!("the Codex harness cannot be waited for: {error}")),
-    };
-    let mut text = String::from_utf8_lossy(&output.stdout).into_owned();
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    if !stderr.trim().is_empty() {
-        text.push_str("\n");
-        text.push_str(&stderr);
+    if let Err(reason) = prepare() {
+        let _ = fs::remove_file(home.join("auth.json"));
+        return RunEnd::failed(reason);
     }
-    let text = log.secret().redact(&text);
-    log.block(&text);
-    let summary = fs::read_to_string(&output_file)
+    // Redact Codex authentication in addition to the product credentials.
+    if let Ok(bytes) = fs::read(home.join("auth.json")) {
+        if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) {
+            fn collect(v: &serde_json::Value, out: &mut Vec<Secret>) {
+                match v {
+                    serde_json::Value::String(s) if s.len() > 12 => {
+                        out.push(Secret::new(s.clone()))
+                    }
+                    serde_json::Value::Object(m) => {
+                        for v in m.values() {
+                            collect(v, out);
+                        }
+                    }
+                    serde_json::Value::Array(a) => {
+                        for v in a {
+                            collect(v, out);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            let mut secrets = Vec::new();
+            collect(&value, &mut secrets);
+            log.set_secret(log.secret().clone().with_extra_redactions(secrets));
+        }
+    }
+    let q = |path: &Path| shell_word(&path.to_string_lossy());
+    let mut env = vec![format!("CODEX_HOME={}", q(&home))];
+    for (key, sub) in [
+        ("HOME", "home"),
+        ("TMPDIR", "tmp"),
+        ("XDG_CONFIG_HOME", "config"),
+        ("XDG_CACHE_HOME", "cache"),
+        ("XDG_STATE_HOME", "state"),
+        ("XDG_DATA_HOME", "data"),
+        ("CARGO_HOME", "cargo"),
+        ("RUSTUP_HOME", "rustup"),
+    ] {
+        env.push(format!("{key}={}", q(&home.join(sub))));
+    }
+    let executable = std::env::var("GEWU_CODEX_BIN").unwrap_or_else(|_| "codex".into());
+    let command = format!(
+        "export {}; . {}; timeout --kill-after=2s {}s {} exec --json --sandbox workspace-write -c 'approval_policy=\"never\"' -c 'sandbox_workspace_write.network_access=true' -c 'shell_environment_policy.inherit=\"all\"' --skip-git-repo-check -C {} -o {} - < {}",
+        env.join(" "),
+        q(&home.join("provider-env.sh")),
+        plan.timeout_secs.max(1),
+        shell_word(&executable),
+        q(&shell.workspace),
+        q(&home.join("last-message.txt")),
+        q(&home.join("instruction.txt"))
+    );
+    log.line("harness: codex exec (workspace-write, approval never)");
+    if let Err(e) = transcript.append(&Record::tool_call(
+        None,
+        1,
+        "codex",
+        "codex exec",
+        &plan.workspace.to_string_lossy(),
+    )) {
+        return RunEnd::failed(e.to_string());
+    }
+    let started = Instant::now();
+    if let Ok(script) = fs::read_to_string(home.join("provider-env.sh")) {
+        if let Some(quoted) = script.split_once('=').map(|(_, s)| s.trim()) {
+            let key = quoted.trim_matches('\'').replace("'\"'\"'", "'");
+            log.set_secret(
+                log.secret()
+                    .clone()
+                    .with_extra_redactions([Secret::new(key)]),
+            );
+        }
+    }
+    let outcome = run_shell(&command, plan, shell, log);
+    let summary = fs::read_to_string(home.join("last-message.txt"))
         .ok()
-        .map(|text| log.secret().redact(&text))
-        .filter(|text| !text.trim().is_empty())
-        .unwrap_or_else(|| model::first_clause(&text, 240));
-    let _ = fs::remove_file(&output_file);
-    if output.status.success() {
-        log.line(&format!("codex harness finished after {} ms", started.elapsed().as_millis()));
-        RunEnd::completed(if summary.trim().is_empty() { "Codex completed the instruction".to_owned() } else { summary.trim().to_owned() })
-    } else {
-        let reason = if summary.trim().is_empty() {
-            format!("Codex exited with {}", output.status)
-        } else {
-            summary.trim().to_owned()
-        };
-        let _ = transcript.append(&Record::model_call_failed(&plan.run_id, 1, "codex", &reason));
-        RunEnd::failed(reason)
+        .map(|s| log.secret().redact(&s));
+    let _ = fs::remove_file(home.join("auth.json"));
+    let _ = fs::remove_file(home.join("provider-env.sh"));
+    let outcome = match outcome {
+        Ok(o) => o,
+        Err(reason) => return RunEnd::failed(reason),
+    };
+    if let Err(e) = transcript.append(&Record::tool_result(
+        None,
+        1,
+        "codex",
+        outcome.exit_code,
+        outcome.signal,
+        started.elapsed().as_millis() as u64,
+        Some(outcome.excerpt.clone()),
+    )) {
+        return RunEnd::failed(e.to_string());
+    }
+    if outcome.exit_code != Some(0) {
+        return RunEnd::failed(format!(
+            "Codex {}: {}",
+            describe_end(outcome.exit_code, outcome.signal),
+            summarise_output(&outcome.excerpt)
+        ));
+    }
+    let Some(summary) = summary.filter(|s| !s.trim().is_empty()) else {
+        return RunEnd::failed("Codex exited without a final message");
+    };
+    match ending_for_instruction(
+        &String::from_utf8_lossy(instruction),
+        &summary,
+        &RunEvidence::default(),
+    ) {
+        RunEnding::Refused => RunEnd::refused(summary),
+        RunEnding::NoWork => RunEnd::no_work(summary),
+        RunEnding::Warned => RunEnd::warned(summary),
+        RunEnding::Succeeded => RunEnd::completed(summary),
     }
 }
 
@@ -3869,6 +4018,9 @@ fn read_bounded(reader: &mut impl Read) -> (Vec<u8>, bool) {
     let limit = MAX_TOOL_OUTPUT_BYTES as u64;
     let mut bytes = Vec::new();
     let _ = reader.take(limit + 1).read_to_end(&mut bytes);
+    // Continue draining after the retained prefix: closing a full pipe can kill a
+    // verbose Codex CLI with SIGPIPE or block it before its final message is saved.
+    let _ = io::copy(reader, &mut io::sink());
     let truncated = bytes.len() as u64 > limit;
     if truncated {
         bytes.truncate(limit as usize);

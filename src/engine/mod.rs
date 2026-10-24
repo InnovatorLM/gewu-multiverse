@@ -1342,7 +1342,9 @@ impl Inner {
                 .clone()
                 .or_else(|| Some("cleanup unverified".to_owned()));
         }
-        if !self.settings.endpoint.configured() || !self.credential_key_present() {
+        if !crate::agent_run::codex_harness_selected()
+            && (!self.settings.endpoint.configured() || !self.credential_key_present())
+        {
             return Some("needs a model".to_owned());
         }
         if agent.instruction_chars == 0 {
@@ -1787,7 +1789,8 @@ impl EngineApi for Engine {
         let notice = inner.take_notice();
         let admin_password = inner.admin_password_once.take();
         let endpoint = EndpointView {
-            configured: inner.settings.endpoint.configured(),
+            configured: crate::agent_run::codex_harness_selected()
+                || inner.settings.endpoint.configured(),
             url: inner.settings.endpoint.url.clone(),
             model: inner.settings.endpoint.model.clone(),
             key_present: inner.credential_key_present(),
@@ -1797,8 +1800,9 @@ impl EngineApi for Engine {
         // a same-version open keeps the acknowledgement (F-06).
         let terms_acknowledged = inner.settings.terms_acknowledged
             && !(inner.upgrade.is_some() && inner.settings.terms_version < TERMS_VERSION);
-        let setup_complete =
-            inner.settings.endpoint.configured() && !inner.settings.agents.is_empty();
+        let setup_complete = (crate::agent_run::codex_harness_selected()
+            || inner.settings.endpoint.configured())
+            && !inner.settings.agents.is_empty();
         let forgejo = ForgejoView {
             state: inner.forgejo.state.clone(),
             url: inner.forgejo.url.clone(),

@@ -85,24 +85,43 @@ when it needs it. Nothing secret is passed on a command line.
 The child runs as the leader of a **new process group**. That group is what makes
 stopping work: one signal reaches the agent and every tool it started.
 
-### Codex harness (opt-in)
+### Codex harness (default)
 
-Set `GEWU_HARNESS=codex` before starting `gewu-multiverse` to run each agent through
-the installed `codex exec` CLI. The run still owns the workspace, clones, process
-group, confinement and the agent's `GIT_ASKPASS` identity, so commits and pushes are
-made by the same Forgejo account as the native harness. `GEWU_CODEX_BIN` can name a
-different Codex executable. The CLI receives the instruction on stdin, runs from the
-agent workspace, and writes its final message to the run directory before the
-supervisor records the outcome.
+Codex is the default. Install the Codex CLI and authenticate it before starting the
+board. Set \`GEWU_HARNESS=native\` to use the original OpenAI-compatible loop.
+\`GEWU_CODEX_BIN\` selects a different executable.
 
-Codex's own authentication/configuration is separate from the model key in
-`credentials.toml`. To keep all generated state below the workspace, set
-`CODEX_HOME` (or the run-specific `GEWU_CODEX_HOME` integration wrapper) to a
-workspace-local directory containing the Codex login/configuration. The native
-OpenAI-compatible loop remains the default when `GEWU_HARNESS` is unset. The Codex
-mode deliberately uses the CLI's non-interactive, no-approval execution because the
-multiverse process group and its confinement are the authority boundary; do not use
-this mode with an untrusted instruction.
+The native model address and key are not required in Codex mode. The board skips the
+native model setup screen. The run reads Codex authentication and a restricted subset
+of model/provider configuration from \`GEWU_CODEX_HOME\`, then \`CODEX_HOME\`, then
+\`$HOME/.codex\`. It copies them into a private per-run home and does not import the
+user's hooks, MCP servers, rules or other sessions. The source home is read only.
+Credentials are 0600 and deleted after normal termination; confined runs put them
+in the temporary tree already cleaned by the supervisor after a crash or stop.
+Unconfined runs keep their runtime under the agent workspace; abrupt termination
+can leave private runtime files there, so protect that workspace like credentials.
+
+Codex executes via the existing shell/confinement path, with
+\`--sandbox workspace-write\`, network enabled for Git, and approval policy \`never\`.
+The clone/fetch setup, repository-local Git author, AskPass login and process-group
+supervision remain in place. Run timeout is also enforced by GNU \`timeout\`; that
+utility must be on PATH. The native \`max_turns\` bound does not control Codex's internal
+model loop. Codex manages its own context and compaction.
+
+Instruction, Forgejo URL/login and clone names are supplied through stdin. The
+runtime has its own HOME, XDG directories, TMPDIR, CARGO_HOME and RUSTUP_HOME.
+Codex's credential source may be outside the workspace, but newly created runtime,
+configuration and cache files stay below the workspace or the run's private TMPDIR.
+
+The transcript records a \`codex\` tool call and its bounded output/result. Raw Codex
+JSON events are captured in the run log; they are not currently converted into
+individual multiverse tool/Forgejo events. A zero CLI exit without a final message is
+a failure. Nonzero exits and timeout are failures. Codex mode retains Git collaboration
+but does not currently expose the native six Forgejo function tools to Codex.
+Accordingly the native eight-write tool counter does not apply to Codex shell calls.
+
+For native model regression tests, run \`GEWU_HARNESS=native cargo test\`. The
+\`codex-harness\` black-box tests explicitly remove that override and test the default.
 
 ## What one run does
 
