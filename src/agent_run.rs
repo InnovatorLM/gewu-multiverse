@@ -36,7 +36,7 @@
 
 use std::fs;
 use std::io::{self, Read, Seek, SeekFrom, Write};
-use std::os::unix::fs::OpenOptionsExt;
+use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt};
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::sync::LazyLock;
@@ -2251,6 +2251,26 @@ fn shell_word(text: &str) -> String {
     format!("'{}'", text.replace('\'', "'\"'\"'"))
 }
 
+/// Own a fresh Codex runtime. Never reuse a directory another run (or a
+/// workspace symlink) left behind, and clean up on every ordinary return path.
+/// SIGKILL cannot run Drop; recovery must audit those interrupted runtimes.
+struct CodexRuntime(std::path::PathBuf);
+
+impl CodexRuntime {
+    fn create(path: std::path::PathBuf) -> io::Result<Self> {
+        fs::DirBuilder::new()
+            .mode(crate::mode::PRIVATE_DIR_MODE)
+            .create(&path)?;
+        Ok(Self(path))
+    }
+}
+
+impl Drop for CodexRuntime {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.0);
+    }
+}
+
 /// Use the existing confined shell, process ownership and AskPass path. No raw
 /// subprocess may bypass the run's confinement merely because it is Codex.
 fn run_codex_harness(
@@ -2263,9 +2283,13 @@ fn run_codex_harness(
 ) -> RunEnd {
     let base = shell.temp.as_deref().unwrap_or(&plan.workspace);
     let home = base.join(format!(".gewu-codex-{}", plan.run_id));
+    let _runtime = match CodexRuntime::create(home.clone()) {
+        Ok(runtime) => runtime,
+        Err(error) => {
+            return RunEnd::failed(format!("cannot create fresh Codex runtime: {error}"));
+        }
+    };
     let prepare = || -> Result<(), String> {
-        fs::create_dir_all(&home).map_err(|e| e.to_string())?;
-        crate::mode::set_mode(&home, crate::mode::PRIVATE_DIR_MODE).map_err(|e| e.to_string())?;
         if plan.workspace.join(".git/info").is_dir() && home.starts_with(&plan.workspace) {
             let exclude = plan.workspace.join(".git/info/exclude");
             let mut text = fs::read_to_string(&exclude).unwrap_or_default();

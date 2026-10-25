@@ -256,6 +256,10 @@ done
         .join(".gewu-codex-run-1");
     assert!(!runtime.join("auth.json").exists());
     assert!(!runtime.join("provider-env.sh").exists());
+    assert!(
+        !runtime.exists(),
+        "session traces and provider config must be removed too"
+    );
     for name in ["run.log", "transcript.jsonl"] {
         assert!(
             !fs::read_to_string(run.join(name))
@@ -263,6 +267,49 @@ done
                 .contains("fixture-auth-secret-123456789")
         );
     }
+}
+
+#[test]
+fn partial_prepare_failure_removes_private_runtime() {
+    let (root, run, fake) = fixture("prepare-failure", "exit 88");
+    fs::create_dir_all(root.join(".codex")).unwrap();
+    fs::write(
+        root.join(".codex/auth.json"),
+        r#"{"OPENAI_API_KEY":"fixture-secret-never-leave"}"#,
+    )
+    .unwrap();
+    fs::write(root.join(".codex/config.toml"), "invalid = [").unwrap();
+    assert!(!launch(&root, &run, &fake).status.success());
+    assert!(
+        !RunPlan::read(&run)
+            .unwrap()
+            .workspace
+            .join(".gewu-codex-run-1")
+            .exists()
+    );
+}
+
+#[test]
+fn stale_runtime_is_not_reused_or_followed() {
+    let (root, run, fake) = fixture("stale", "cat >/dev/null; exit 0");
+    let runtime = RunPlan::read(&run)
+        .unwrap()
+        .workspace
+        .join(".gewu-codex-run-1");
+    let external = root.join("unowned-runtime");
+    fs::create_dir(&external).unwrap();
+    fs::write(
+        external.join("last-message.txt"),
+        "Old success must not count",
+    )
+    .unwrap();
+    std::os::unix::fs::symlink(&external, &runtime).unwrap();
+    assert!(!launch(&root, &run, &fake).status.success());
+    assert_eq!(
+        fs::read_to_string(external.join("last-message.txt")).unwrap(),
+        "Old success must not count"
+    );
+    assert!(!external.join("config.toml").exists());
 }
 
 #[test]
