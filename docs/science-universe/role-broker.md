@@ -126,6 +126,27 @@ evaluator root_file guards remain unchanged. The acknowledgment checker uses the
 same reader. Credential-guard tests and acknowledgment refusal tests passed;
 no real scientific approval has been recorded.
 
+With assigned issue1 and thinking explicitly disabled, the third author session
+reached its24turn bound after24model requests and36shell results. It delivered
+no proposal/commit/PR. The controller exited0, but the run correctly failed;
+usage was550935input tokens and4448output tokens, not a scientific difficulty
+measurement. All four dedicated UIDs were subsequently observed with0live
+processes. The day's author allowance is3/3used and was not reset.
+
+Eleven public-source research responses/documents were recovered into a private
+operator archive and the author's own readonly research cache, with byte hashes.
+The actual author UID verified all cache hashes and could read the handoff.
+These are research inputs with licensing/query-provenance gaps, not publication-
+approved task data. No evaluator-private material was copied. The next author
+instruction points to its handoff and requests early persistence of findings.
+
+Native requests now include the current turn, remaining responses and approximate
+remaining time in a refreshed system note. During the final four allowed
+responses the note prioritizes artifact/handoff persistence over new long network
+investigations. Earlier remaining counts do not accumulate. The end-to-end mock
+test verifies the actual request bodies;339nonroot library tests passed. This is
+budget visibility, not proof that a future live author will deliver a proposal.
+
 Library fixtures select the native mock transport explicitly at compile time
 to prevent an installed Codex from being launched accidentally during unit
 tests. Black-box Codex integration tests still use their explicit fake CLI.

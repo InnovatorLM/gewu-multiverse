@@ -2734,9 +2734,24 @@ fn model_loop(
             "[turn {turn}] waiting for the model {} at {}",
             plan.model, plan.endpoint
         ));
+        // Keep the budget visible to the model, not only to the supervisor.
+        // Replace this note per request so old remaining counts do not accumulate.
+        let mut request_messages = messages.clone();
+        if let Some(system) = request_messages.first_mut() {
+            let left = plan.max_turns.saturating_sub(turn);
+            let mut text = system.content.take().unwrap_or_default();
+            text.push_str(&format!(
+                "\nRun progress: turn {turn} of {}; {left} model responses remain after this one; approximately {} seconds remain. Persist useful intermediate findings in your own workspace when work spans sessions. Do not repeatedly retry an unavailable source without new evidence.\n",
+                plan.max_turns, remaining.as_secs()
+            ));
+            if left <= 3 {
+                text.push_str("Finalization window: prioritize saving the requested artifacts or an honest handoff with exact file paths, verified facts, unresolved blockers and next steps. Avoid starting new long network investigations. Do not claim incomplete work is finished.\n");
+            }
+            system.content = Some(text);
+        }
         let exchange = match model::chat_with_thinking(
             &config,
-            &messages,
+            &request_messages,
             &declared_tools,
             Some(response_tokens),
             thinking.as_deref(),
@@ -4830,6 +4845,36 @@ mod tests {
         );
         assert!(hide.iter().any(|path| path == &config));
         let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn each_request_has_current_budget_without_stale_progress_notes() {
+        let (root, config, skills, credentials) = agent_source("agent-run-progress");
+        let dir = run_dir(&root);
+        fs::write(config.join("instruction.md"), "check true then report\n").unwrap();
+        let stub = Stub::start(vec![
+            StubReply::json(tool_call_completion("check", "true")),
+            StubReply::json(completion("done")),
+        ]);
+        plan_with(
+            &dir,
+            &config,
+            &skills,
+            &credentials,
+            &stub.url(),
+            2,
+            Vec::new(),
+        );
+        assert!(execute(&dir).is_success());
+        let requests = stub.requests();
+        let first: serde_json::Value = serde_json::from_str(&requests[0].body).unwrap();
+        let second: serde_json::Value = serde_json::from_str(&requests[1].body).unwrap();
+        let first = first["messages"][0]["content"].as_str().unwrap();
+        let second = second["messages"][0]["content"].as_str().unwrap();
+        assert!(first.contains("turn 1 of 2; 1 model responses remain"));
+        assert!(second.contains("turn 2 of 2; 0 model responses remain"));
+        assert!(!second.contains("turn 1 of 2"));
+        assert!(second.contains("Finalization window"));
     }
 
     #[test]
