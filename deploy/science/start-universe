@@ -67,7 +67,7 @@ QUEUE_READY="$W/.state/science-evaluation-queue/ready.json"
     > "$W/.state/science-evaluation-queue/production-worker.log" 2>&1 &
 evaluation_pid=$!
 "$PY" - "$evaluation_pid" "$QUEUE_READY" <<'PY_QUEUE_CHECK'
-import json, os, stat, sys, time
+import errno, json, os, stat, sys, time
 from pathlib import Path
 pid=int(sys.argv[1]); path=Path(sys.argv[2]); deadline=time.monotonic()+15
 while True:
@@ -78,6 +78,11 @@ while True:
             break
     except (ProcessLookupError, FileNotFoundError, json.JSONDecodeError):
         pass
+    except OSError as error:
+        # Shared storage can invalidate a ready-file handle during replacement.
+        # Reopen within the existing deadline; permission and other errors fail.
+        if error.errno != errno.ESTALE:
+            raise
     if time.monotonic()>deadline:
         raise SystemExit('Evaluation worker failed startup; controller not started')
     time.sleep(0.1)
