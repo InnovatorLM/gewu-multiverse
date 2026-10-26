@@ -25,13 +25,14 @@ not demonstrate the target pass rate below 30% (below 50% acceptable).
 
 Evaluator regressions improved from 22 failures/15 errors to 2 failures/5 errors
 in 153 tests. All remaining failures were addressed; the focused 27-test
-recheck passed. A full rerun is in progress. Mock tests are distinct from live
+recheck passed. Final full rerun: all 156 tests passed in 652 seconds.
+Mock tests are distinct from live
 DawnFM review and ACS trials.
 
 Remaining launch work: production role runtime/credentials wiring, strict
 review output, meaningful harder candidates, semantic novelty review against
-fixed TB-Science and TB4 versions, protected Git push denial test, enforced
-budgets, curator gate and final full regression/resource audit.
+fixed TB-Science and TB4 versions, enforced budgets, curator gate and final
+launch/resource audit.
 
 Prototype commands (operator/root, workspace-specific paths): run
 `deploy/science/prepare_review_chroot.py`, then source the designated local
@@ -42,3 +43,9 @@ The setup may not run concurrently with an active review using the same root.
 it is not a fresh review or acceptance. DawnFM rejects `--output-schema` with
 `This text.format type is unavailable now`; that optional path was tested and
 failed, without changing account/provider. Strict JSON parsing remains required.
+
+Actual Git transport negative tests passed: author push to protected main was
+rejected and evaluator push to a new branch was rejected. Task trees did not
+change. Formatting-only follow-up produced strict valid JSON with the same
+61.25 score, labeled as formatting rather than fresh review or acceptance.
+Python stdlib and read-only/hidden-host-path checks inside chroot passed.

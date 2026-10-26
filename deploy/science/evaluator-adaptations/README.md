@@ -16,5 +16,5 @@ Mock subprocess tests mock only filesystem-type detection. Timing assertions
 now measure actual process overlap and bounded completion rather than assuming
 sub-70ms shared-filesystem writes. Run tests with workspace Python3.12 on PATH,
 workspace TMPDIR and PYTHONDONTWRITEBYTECODE=1. No live API account is used by
-these tests. Focused 27-test recheck passed; full rerun status is recorded in
-the launch report.
+these tests. Focused 27-test recheck passed. Final full regression: 156 tests
+passed in 652 seconds.
