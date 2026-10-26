@@ -3,6 +3,10 @@ import shlex
 from harbor.agents.installed.mini_swe_agent_preinstall import MiniSweAgentPreinstall
 
 class MetadataOnlyMiniSwe(MiniSweAgentPreinstall):
+    def __init__(self, *args, private_trajectory_dir=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._private_trajectory_dir = private_trajectory_dir
+
     async def run(self, instruction, environment, context):
         await super().run(instruction, environment, context)
         code = '''import json
@@ -25,6 +29,10 @@ print(json.dumps(dict(input_tokens=total('prompt_tokens','input_tokens'),output_
         if set(data)!=keys or any(v is not None and (not isinstance(v,int) or v<0) for v in data.values()):
             raise ValueError('Invalid aggregate metadata')
         self._aggregate_metrics=data
+        if self._private_trajectory_dir is not None:
+            from private_trajectory import retain
+            await retain(environment, self._private_trajectory_dir,
+                         secrets=[self._get_env(name) for name in ['OPENAI_API_KEY', 'MSWEA_API_KEY']])
 
     def populate_context_post_run(self, context):
         data=getattr(self,'_aggregate_metrics',None)

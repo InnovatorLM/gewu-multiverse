@@ -7,3 +7,10 @@ The current candidate verifier uses public networking by explicit user instructi
 mini-swe-agent 2.2.8 harness requires litellm 1.106.2, openai 2.54.0 and mcp. The Dockerfile records a clean build recipe from the official runtime digest. Transitive dependency locking is still pending.
 
 No secrets belong here. Registry credentials are loaded by control-plane tooling from workspace private configuration. Every run must use ACS cleanup guard.
+
+`private_trajectory.py` supports explicit controller-private trajectory retention
+for trusted templates through the queue's `retain_private_trajectory` option.
+It defaults off. The worker assigns the private destination and source/image
+identity; the adapter checks known credentials, actual model and ATIF conversion.
+Role results remain aggregate-only. Offline tests cover conversion/boundaries;
+a new live science trial and a private judge boundary are still required.

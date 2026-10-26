@@ -506,3 +506,36 @@ not a science-pilot trajectory review. Current aggregate-only science trials
 cannot retroactively supply missing ATIF. Science trajectory review/WinRate
 still require a separately validated private retention and exact-version binding
 path; no raw trajectory was exported to roles or source control by these checks.
+
+## Explicit private trajectory retention
+
+Trusted operator templates may set agent kwargs `retain_private_trajectory: true`.
+It defaults to false. Requests still accept only ID/hash; callers cannot choose a
+path. The worker assigns a fresh root-owned0700 directory under workspace
+`.state/science-private-trajectories/<job_id>` and writes a0600identity binding
+with candidate snapshot, designated provider/model and both image digests.
+The agent downloads the real Mini-SWE log there, checks the recorded model,
+converts it using Harbor's installed ATIF converter, and records raw/ATIF hashes.
+Nothing is fabricated when an aggregate-only trial has no retained trajectory.
+
+Known runtime API credential values and private-key markers cause private
+quarantine and failure, with no review-ready ATIF. This is not an exhaustive
+secret detector; private traces must never be copied to roles, public logs or
+source control. A separate boundary review is required before supplying these
+files to any future trajectory judge. All files are0600; default metadata mode
+still downloads no trajectory and publishes aggregate-only results.
+
+After guard exit the worker records a private execution-binding.json. Eligibility
+requires unchanged task content, a real retained trace, normal solver completion
+and confirmed cleanup. Missing/failed retention cannot be upgraded because a
+solver succeeded. The role-readable result contains neither private paths nor
+raw trace contents. Aggregate exports remain false: private control-plane
+retention is distinct from a role/public export.
+
+Offline tests use real Harbor ATIF conversion with mock transfer, no LLM/ACS:
+normal conversion/hash/modes, known credential refusal, wrong model, symlink/mode
+refusal, default-off transfer and metadata, worker-assigned paths, caller-path
+rejection, absent-path public result and missing-retention ineligibility. Quality
+and semantic queue regressions also pass. The private mode is not yet validated
+by a live science solver run; existing templates remain aggregate-only. Do not
+claim trajectory review/WinRate completion from this implementation.

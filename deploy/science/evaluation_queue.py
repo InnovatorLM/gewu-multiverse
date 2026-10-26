@@ -113,6 +113,9 @@ def validated_template(entry, request):
     agent = config['agents'][0]
     if agent['model_name'] != 'openai/deepseek-v4.1-flash-1017' or agent['import_path'] != 'universe_metrics:MetadataOnlyMiniSwe':
         raise ValueError('Model/aggregate-only harness refused')
+    options = agent.get('kwargs', {})
+    if 'private_trajectory_dir' in options or type(options.get('retain_private_trajectory', False)) is not bool:
+        raise ValueError('Private trajectory destinations are assigned only by the worker')
     agent_env = agent.get('env', {})
     if agent_env.get('OPENAI_API_KEY') != '${OPENAI_API_KEY}' or agent_env.get('OPENAI_BASE_URL') != 'https://dawnfm.gravarc.cn/v1' or agent_env.get('OPENAI_API_BASE') != 'https://dawnfm.gravarc.cn/v1':
         raise ValueError('Explicit designated provider and key placeholder required')
@@ -185,6 +188,7 @@ def process(config, request_path, mock=False):
     atomic_json(job / 'claim.json', {'day': day, **request, 'mock': mock})
     answer = {**request, 'provider': 'dawnfm', 'model': 'deepseek-v4.1-flash-1017'}
     stop_requested = False
+    private = None
     if mock:
         answer.update(status='mock_complete', quality_acceptance=False, live_model_calls=0, cleanup_confirmed=True)
     else:
@@ -200,6 +204,18 @@ def process(config, request_path, mock=False):
                 for item in value:
                     relabel(item)
         relabel(template)
+        options = template['agents'][0].setdefault('kwargs', {})
+        retain_private = options.pop('retain_private_trajectory', False)
+        if dispatch == 'solver' and retain_private:
+            private_root = W / '.state/science-private-trajectories'
+            private_root.mkdir(mode=0o700, exist_ok=True)
+            info = private_root.lstat()
+            if not stat.S_ISDIR(info.st_mode) or info.st_uid != 0 or stat.S_IMODE(info.st_mode) != 0o700:
+                raise ValueError('Private trajectory storage ownership/mode refused')
+            private = private_root / request['job_id']
+            private.mkdir(mode=0o700)
+            atomic_json(private / 'identity.json', {'evaluation_id': request['evaluation_id'], 'snapshot_sha256': entry['snapshot_sha256'], 'snapshot_path': entry['snapshot'], 'provider': 'dawnfm', 'model': 'deepseek-v4.1-flash-1017', 'runtime_image': template['environment']['kwargs']['runtime_image'], 'verifier_image': template['environment']['kwargs']['verifier_image']})
+            options['private_trajectory_dir'] = str(private)
         atomic_json(job / 'config.json', template)
         env = os.environ.copy()
         env.update(PYTHONDONTWRITEBYTECODE='1', PYTHONPATH=str(W / '.local/harbor-extensions') + ':' + str(W / 'acs-harbor-test/harbor/src'))
@@ -255,6 +271,19 @@ def process(config, request_path, mock=False):
             answer.update(status='failed', cleanup_confirmed=False, quality_acceptance=False)
         else:
             answer.update(aggregate(json.loads((job / 'report.json').read_text()), job / 'runs' / template['job_name'] / 'result.json'))
+        if private is not None:
+            # A retained trace is not reviewable until execution identity and
+            # cleanup are checked again after the guard exits.
+            unchanged = digest_tree(Path(entry['snapshot'])) == entry['snapshot_sha256']
+            retention = private / 'retention.json'
+            ready = False
+            if retention.exists():
+                metadata = json.loads(root_file(retention).read_text())
+                ready = metadata.get('review_ready') is True and metadata.get('snapshot_sha256') == entry['snapshot_sha256']
+                for filename, key in [('identity.json', 'identity_sha256'), ('mini-swe-agent.trajectory.json', 'raw_sha256'), ('trajectory.json', 'atif_sha256')]:
+                    if ready:
+                        ready = hashlib.sha256(root_file(private / filename).read_bytes()).hexdigest() == metadata.get(key)
+            atomic_json(private / 'execution-binding.json', {'snapshot_sha256': entry['snapshot_sha256'], 'snapshot_unchanged_after_run': unchanged, 'solver_status': answer.get('status'), 'cleanup_confirmed': answer.get('cleanup_confirmed') is True, 'trajectory_retained': ready, 'review_input_eligible': unchanged and ready and answer.get('status') == 'solver_complete' and answer.get('cleanup_confirmed') is True, 'scientific_acceptance': False})
     if stop_requested:
         answer['status'] = 'cancelled'
     atomic_json(job / 'result.json', answer)
