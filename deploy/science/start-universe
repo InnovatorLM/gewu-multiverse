@@ -23,7 +23,12 @@ mkdir -p "$W/.state/science-role-broker"
 "$PY" "$W/gewu-multiverse/deploy/science/role_exec.py" "$GEWU_ROLE_BROKER_CONFIG" \
     > "$W/.state/science-role-broker/production-broker.log" 2>&1 &
 broker_pid=$!
+evaluation_pid=''
 finish() {
+    if [[ -n "$evaluation_pid" ]]; then
+        kill -TERM "$evaluation_pid" 2>/dev/null || true
+        wait "$evaluation_pid" 2>/dev/null || true
+    fi
     kill -TERM "$broker_pid" 2>/dev/null || true
     wait "$broker_pid" 2>/dev/null || true
 }
@@ -53,5 +58,27 @@ while True:
             raise SystemExit('Role broker failed startup; controller not started')
         time.sleep(0.1)
 PY_CHECK
+QUEUE_CONFIG="$W/.config/science-evaluation/queue.json"
+QUEUE_READY="$W/.state/science-evaluation-queue/ready.json"
+"$PY" "$W/gewu-multiverse/deploy/science/evaluation_queue.py" \
+    --config "$QUEUE_CONFIG" --ready-file "$QUEUE_READY" \
+    > "$W/.state/science-evaluation-queue/production-worker.log" 2>&1 &
+evaluation_pid=$!
+"$PY" - "$evaluation_pid" "$QUEUE_READY" <<'PY_QUEUE_CHECK'
+import json, os, stat, sys, time
+from pathlib import Path
+pid=int(sys.argv[1]); path=Path(sys.argv[2]); deadline=time.monotonic()+15
+while True:
+    try:
+        os.kill(pid,0)
+        info=path.lstat()
+        if stat.S_ISREG(info.st_mode) and info.st_uid==0 and not info.st_mode & 0o022 and json.loads(path.read_text()).get('pid')==pid:
+            break
+    except (ProcessLookupError, FileNotFoundError, json.JSONDecodeError):
+        pass
+    if time.monotonic()>deadline:
+        raise SystemExit('Evaluation worker failed startup; controller not started')
+    time.sleep(0.1)
+PY_QUEUE_CHECK
 export USER=nobody LOGNAME=nobody
 setpriv --reuid=65534 --regid=65534 --clear-groups "$PRODUCT" "$@"

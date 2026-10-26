@@ -109,3 +109,8 @@ The merge took21.04seconds on FUSE. The science launcher explicitly selects
 timeout unless this deployment override is present. Invalid overrides fail.
 The local kubectl was repaired tov1.34.1 using the official Debian package;
 its binary matches the official standalone SHA256 and a real ACS query passed.
+
+The registered solver queue now passes real evaluator submission, DawnFM ACS
+execution, aggregate result reading, real-Pod cancellation cleanup and installed
+launcher start/stop. See [evaluation-queue.md](evaluation-queue.md). Independent
+quality/semantic dispatch and arbitrary new-task image registration remain open.

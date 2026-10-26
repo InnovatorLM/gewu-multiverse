@@ -1,0 +1,262 @@
+#!/usr/bin/env python3
+"""Operator-owned evaluator dispatch. Requests contain IDs, never commands/keys.
+
+Only immutable operator-registered snapshots/configurations can run. Results
+contain aggregate solver evidence, never an acceptance or raw trajectory.
+"""
+import argparse
+from datetime import datetime, timezone
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import signal
+import stat
+import subprocess
+
+W = Path('/mnt/data/zhanglinfeng/workspace')
+ID = re.compile(r'^[a-f0-9]{32}$')
+REQUEST_KEYS = {'job_id', 'evaluation_id', 'snapshot_sha256'}
+
+
+def digest_tree(root):
+    root = Path(root)
+    if root.is_symlink() or not root.is_dir():
+        raise ValueError('Snapshot must be a real directory')
+    digest = hashlib.sha256()
+    for path in sorted(root.rglob('*')):
+        info = path.lstat()
+        if stat.S_ISLNK(info.st_mode) or not (stat.S_ISDIR(info.st_mode) or stat.S_ISREG(info.st_mode)):
+            raise ValueError('Snapshot links/special files are forbidden')
+        if path.is_file():
+            name = path.relative_to(root).as_posix().encode()
+            digest.update(len(name).to_bytes(8, 'big') + name)
+            digest.update(info.st_size.to_bytes(8, 'big'))
+            digest.update(hashlib.sha256(path.read_bytes()).digest())
+    return digest.hexdigest()
+
+
+def root_file(path):
+    path = Path(path)
+    if path.is_symlink():
+        raise ValueError('Operator file must not be a symlink')
+    path = path.resolve(strict=True)
+    info = path.lstat()
+    if not path.is_relative_to(W) or not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o022:
+        raise ValueError('Operator file ownership/type/mode refused')
+    return path
+
+
+def atomic_json(path, value, mode=0o600):
+    path = Path(path)
+    temporary = path.with_suffix('.writing')
+    descriptor = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, mode)
+    try:
+        with os.fdopen(descriptor, 'w') as stream:
+            json.dump(value, stream, indent=2)
+            stream.write('\n')
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def read_request(path, uid):
+    descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(descriptor, 'rb') as stream:
+        info = os.fstat(stream.fileno())
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != uid or info.st_size > 16384:
+            raise ValueError('Request ownership/type/size refused')
+        raw = stream.read(16385)
+    if len(raw) > 16384:
+        raise ValueError('Request grew beyond limit')
+    value = json.loads(raw)
+    if not isinstance(value, dict) or set(value) != REQUEST_KEYS or not all(isinstance(v, str) for v in value.values()):
+        raise ValueError('Request schema refused')
+    if not ID.fullmatch(value['job_id']) or path.name != value['job_id'] + '.json':
+        raise ValueError('Request identity refused')
+    return value
+
+
+def validated_template(entry, request):
+    task = root_file(entry['template'])
+    raw = task.read_bytes()
+    if hashlib.sha256(raw).hexdigest() != entry['template_sha256']:
+        raise ValueError('Registered template changed')
+    snapshot = Path(entry['snapshot'])
+    if not snapshot.resolve().is_relative_to(W) or digest_tree(snapshot) != entry['snapshot_sha256'] or request['snapshot_sha256'] != entry['snapshot_sha256']:
+        raise ValueError('Registered snapshot changed or request is stale')
+    config = json.loads(raw)
+    if config['n_attempts'] != 1 or config['n_concurrent_trials'] != 1 or config['retry']['max_retries'] != 0:
+        raise ValueError('Require one trial and zero retries')
+    if config['environment']['type'] != 'ack' or len(config['agents']) != 1:
+        raise ValueError('Environment/agent refused')
+    environment = config['environment']['kwargs']
+    image_pattern = r'dptech-sh-pai-acr-registry\.cn-shanghai\.cr\.aliyuncs\.com/terminal-bench-universe/[a-z0-9._/-]+@sha256:[a-f0-9]{64}'
+    if environment.get('use_sandbox_claim') is not False or any(not re.fullmatch(image_pattern, environment.get(key, '')) for key in ['runtime_image', 'verifier_image']):
+        raise ValueError('Require direct Pods and digest-pinned project ACR images')
+    agent = config['agents'][0]
+    if agent['model_name'] != 'openai/deepseek-v4.1-flash-1017' or agent['import_path'] != 'universe_metrics:MetadataOnlyMiniSwe':
+        raise ValueError('Model/aggregate-only harness refused')
+    agent_env = agent.get('env', {})
+    if agent_env.get('OPENAI_API_KEY') != '${OPENAI_API_KEY}' or agent_env.get('OPENAI_BASE_URL') != 'https://dawnfm.gravarc.cn/v1' or agent_env.get('OPENAI_API_BASE') != 'https://dawnfm.gravarc.cn/v1':
+        raise ValueError('Explicit designated provider and key placeholder required')
+    if config['datasets'] != [{'path': str(snapshot.parent), 'task_names': [snapshot.name]}]:
+        raise ValueError('Dataset is not the registered snapshot')
+    if any(value for key, value in config.items() if key.startswith('export')):
+        raise ValueError('Raw export refused')
+    return config
+
+
+def aggregate(report, result_path):
+    stats = report.get('stats') or {}
+    complete = stats.get('n_completed_trials') == 1 and stats.get('n_errored_trials') == 0 and report.get('harbor_exit_code') == 0
+    cleanup = report.get('cleanup', {}).get('confirmed') is True
+    rewards = []
+    errors = 0
+    for evaluation in stats.get('evals', {}).values():
+        errors += evaluation.get('n_errors', 0)
+        rewards.extend(float(key) for key in evaluation.get('reward_stats', {}).get('reward', {}))
+    metadata = []
+    if result_path.exists():
+        for path in result_path.parent.glob('*/result.json'):
+            trial = json.loads(path.read_text())
+            data = ((trial.get('agent_result') or {}).get('metadata') or {}).get('aggregate_metrics')
+            if isinstance(data, dict):
+                metadata.append({key: value for key, value in data.items() if key in {'input_tokens', 'output_tokens', 'model_messages', 'tool_result_messages', 'native_tool_calls'} and (value is None or type(value) is int and value >= 0)})
+    return {'status': 'solver_complete' if complete and cleanup and errors == 0 else 'failed',
+            'reward': rewards[0] if len(rewards) == 1 and complete else None,
+            'cleanup_confirmed': cleanup, 'n_errors': errors if stats.get('evals') else None,
+            'input_tokens': stats.get('n_input_tokens'), 'output_tokens': stats.get('n_output_tokens'),
+            'aggregate_metrics': metadata, 'quality_acceptance': False, 'raw_trajectory_exported': False}
+
+
+def process(config, request_path, mock=False):
+    request = read_request(request_path, config['evaluator_uid'])
+    state = Path(config['state'])
+    job = state / request['job_id']
+    if job.exists():
+        retained = job / 'result.json'
+        answer = json.loads(retained.read_text()) if retained.exists() else {**request, 'status': 'interrupted', 'cleanup_confirmed': False, 'quality_acceptance': False}
+        atomic_json(Path(config['results']) / (request['job_id'] + '.json'), answer, 0o644)
+        return answer
+    registry = json.loads(root_file(config['registry']).read_text())
+    if request['evaluation_id'] not in registry:
+        raise ValueError('Evaluation ID has not been registered by operator')
+    template = validated_template(registry[request['evaluation_id']], request)
+    for claim in state.glob('*/claim.json'):
+        retained = claim.parent / 'result.json'
+        if not retained.exists() or json.loads(retained.read_text()).get('cleanup_confirmed') is not True:
+            raise ValueError('Prior job cleanup is not confirmed')
+    day = datetime.now(timezone.utc).date().isoformat()
+    count = sum(json.loads(path.read_text()).get('day') == day for path in state.glob('*/claim.json'))
+    if count >= config['max_jobs_per_day']:
+        raise ValueError('Daily dispatch budget exhausted')
+    job.mkdir(mode=0o700)
+    atomic_json(job / 'claim.json', {'day': day, **request, 'mock': mock})
+    answer = {**request, 'provider': 'dawnfm', 'model': 'deepseek-v4.1-flash-1017'}
+    stop_requested = False
+    if mock:
+        answer.update(status='mock_complete', quality_acceptance=False, live_model_calls=0, cleanup_confirmed=True)
+    else:
+        template.update(job_name='science-queue-' + request['job_id'][:12], jobs_dir=str(job / 'runs'))
+        def relabel(value):
+            if isinstance(value, dict):
+                for key, item in value.items():
+                    if key == 'evaluation-run':
+                        value[key] = template['job_name']
+                    else:
+                        relabel(item)
+            elif isinstance(value, list):
+                for item in value:
+                    relabel(item)
+        relabel(template)
+        atomic_json(job / 'config.json', template)
+        env = os.environ.copy()
+        env.update(PYTHONDONTWRITEBYTECODE='1', PYTHONPATH=str(W / '.local/harbor-extensions') + ':' + str(W / 'acs-harbor-test/harbor/src'))
+        command = [str(W / 'gewu-multiverse/deploy/science/run-acs-evaluation'), str(job / 'config.json'), str(job / 'report.json')]
+        with (job / 'controller.log').open('w') as log:
+            child = None
+            def stop(_number, _frame):
+                nonlocal stop_requested
+                stop_requested = True
+                if child is not None and child.poll() is None:
+                    os.killpg(child.pid, signal.SIGTERM)
+            previous = signal.signal(signal.SIGTERM, stop)
+            try:
+                child = subprocess.Popen(command, stdout=log, stderr=log, env=env, start_new_session=True)
+                atomic_json(job / 'claim.json', {'day': day, **request, 'mock': False, 'controller_pid': child.pid})
+                if stop_requested:
+                    stop(None, None)
+                try:
+                    child.wait(timeout=1800)
+                except subprocess.TimeoutExpired:
+                    os.killpg(child.pid, signal.SIGTERM)
+                    child.wait(timeout=180)
+            finally:
+                signal.signal(signal.SIGTERM, previous)
+        if not (job / 'report.json').exists():
+            answer.update(status='failed', cleanup_confirmed=False, quality_acceptance=False)
+        else:
+            answer.update(aggregate(json.loads((job / 'report.json').read_text()), job / 'runs' / template['job_name'] / 'result.json'))
+    if stop_requested:
+        answer['status'] = 'cancelled'
+    atomic_json(job / 'result.json', answer)
+    atomic_json(Path(config['results']) / (request['job_id'] + '.json'), answer, 0o644)
+    if stop_requested:
+        raise SystemExit(0)
+    return answer
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config', required=True, type=Path)
+    parser.add_argument('--once', action='store_true')
+    parser.add_argument('--ready-file', type=Path)
+    parser.add_argument('--mock', action='store_true', help='No LLM/container; report explicitly mock')
+    args = parser.parse_args()
+    config = json.loads(root_file(args.config).read_text())
+    registry = json.loads(root_file(config['registry']).read_text())
+    if not isinstance(registry, dict) or not registry:
+        raise SystemExit('An operator-registered evaluation catalog is required')
+    if type(config.get('evaluator_uid')) is not int or config['evaluator_uid'] < 20000:
+        raise SystemExit('Evaluator must use a dedicated nonroot role UID')
+    if type(config.get('max_jobs_per_day')) is not int or not 1 <= config['max_jobs_per_day'] <= 10:
+        raise SystemExit('Dispatch budget must be explicitly between1and10')
+    for key in ['inbox', 'results', 'state']:
+        path = Path(config[key])
+        info = path.lstat()
+        expected = config['evaluator_uid'] if key == 'inbox' else 0
+        if path.is_symlink() or not path.is_relative_to(W) or not path.is_dir() or info.st_uid != expected or info.st_mode & 0o022:
+            raise SystemExit('Queue directory ownership/type/mode refused')
+    with (Path(config['state']) / 'worker.lock').open('a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        if args.ready_file is not None:
+            if args.ready_file.parent.resolve() != Path(config['state']).resolve():
+                raise SystemExit('Readiness file must be in the private worker state directory')
+            atomic_json(args.ready_file, {'pid': os.getpid(), 'evaluator_uid': config['evaluator_uid']})
+        while True:
+            handled = 0
+            for request_path in sorted(Path(config['inbox']).glob('*.json')):
+                if not ID.fullmatch(request_path.stem):
+                    continue
+                if (Path(config['results']) / request_path.name).exists():
+                    continue
+                if handled >= 10:
+                    break
+                handled += 1
+                try:
+                    process(config, request_path, args.mock)
+                except (ValueError, OSError, KeyError, TypeError, json.JSONDecodeError):
+                    atomic_json(Path(config['results']) / request_path.name, {'job_id': request_path.stem, 'status': 'rejected', 'quality_acceptance': False}, 0o644)
+            if args.once:
+                return
+            import time
+            time.sleep(1)
+
+
+if __name__ == '__main__':
+    main()
