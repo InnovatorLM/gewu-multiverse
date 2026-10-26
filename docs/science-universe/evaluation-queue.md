@@ -608,3 +608,18 @@ boundaries. Both exit0; known Pod404 and two empty snapshots confirm release.
 No model or Harbor trial ran; staged test upload, scoring lifecycle, private
 trace retention and scientific/difficulty reviews remain unverified. See
 [ACS image evidence](proposals/eis-acs-image-smoke.json).
+
+## Private review inventory (not an acceptance receipt)
+
+`prepare_review_packet.py --evaluation-id <base-solver-id> --output <fresh-private-path>`
+checks the current exact source, template and build receipt, then inventories
+known provenance/mechanical/build records by path/hash without copying their
+contents. Revalidation rejects changed registrations, evidence and caller-authored
+green gates. All15scientific/lifecycle/evaluation/approval/admission gates remain
+not_adjudicated; no scientific truth or authenticated approval is inferred.
+
+The inventory remains private and explicitly not safe_for_publication: even
+controller-side paths should not be published indiscriminately. It is preparation
+for a later sanitized signed/acknowledged receipt, not that receipt or a curator
+merge permission. A real inventory was generated for the disabled EIS regression
+fixture, with zero models/ACS; changed-source and false-approval tests pass.
