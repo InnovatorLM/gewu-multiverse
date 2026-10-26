@@ -24,6 +24,18 @@
       "url": "https://arxiv.org/src/1905.12553",
       "bytes": 403963,
       "sha256": "52cf12a3c3d09ef95381aa89c128f0b50c9918213817b868934ea34b7a6b86f7"
+    },
+    {
+      "file": "marquis-arxiv-abstract.html",
+      "url": "https://arxiv.org/abs/1905.12553",
+      "bytes": 42686,
+      "sha256": "ec628a12f808f514528543e8ed65491d5aa4e8b683f4fb09e6ab3aa21cea7dc9"
+    },
+    {
+      "file": "marquis-version-confirmation.json",
+      "url": null,
+      "bytes": 335,
+      "sha256": "10886931683972d72f6205a7ba3538dacf22924e773e8c7dd6efd1e9b84e659d"
     }
   ],
   "derived_text": {
@@ -34,5 +46,13 @@
   "retrieval": "TLS certificate verification enabled",
   "model_feasibility_proven": false,
   "scientific_acceptance": false,
-  "redistribution_license_verified": false
+  "redistribution_license_verified": true,
+  "arxiv_version": "1905.12553v2",
+  "explicit_version_downloads_match": true,
+  "license": {
+    "id": "CC-BY-4.0",
+    "url": "http://creativecommons.org/licenses/by/4.0/",
+    "source": "arXiv original abstract page Rights to this article link",
+    "scope": "this article, not PyBaMM dependencies or unrelated assets"
+  }
 }

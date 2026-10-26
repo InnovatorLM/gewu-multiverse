@@ -2,7 +2,7 @@
 
 状态：研究依据补充，不构成选题批准、许可批准或可解性证据。
 
-已获取 Marquis 等《An Asymptotic Derivation of a Single Particle Model with Electrolyte》的 arXiv 原文 PDF 及 LaTeX 源码。定位链为 Crossref DOI `10.1149/2.0341915jes` 的正式题名与出版社地址，再用 OpenAlex 发现 `1905.12553`，最终直接从 arXiv 获取并核对源码题名/作者。OpenAlex 仅用于发现，模型结论来自原文。相邻 JSON 保存下载字节哈希；原文保存在工作区研究目录，不随项目重新分发。
+已获取 Marquis 等《An Asymptotic Derivation of a Single Particle Model with Electrolyte》的 arXiv 原文 PDF 及 LaTeX 源码。定位链为 Crossref DOI `10.1149/2.0341915jes` 的正式题名与出版社地址，再用 OpenAlex 发现 `1905.12553`，最终直接从 arXiv 获取并核对源码题名/作者。OpenAlex 仅用于发现，模型结论来自原文。原始存档页明确当前版本为 v2，显式 v2 的 PDF/源码下载与保存文件逐字节一致。相邻 JSON 保存下载字节哈希；原文保存在工作区研究目录，不随项目重新分发。
 
 ## 原文实际支持的结论
 
@@ -19,4 +19,4 @@
 
 ## 复用边界
 
-目前只在本项目撰写研究结论和引用，不复制论文正文、图表或源代码到任务包。OpenAlex 返回的许可标识不是本项目重新分发材料的最终授权依据；若后续需打包任何论文资产，应从原始存档的许可声明单独核验。PyBaMM 软件的 BSD-3-Clause 许可与论文许可必须分别处理。
+目前只在本项目撰写研究结论和引用，不复制论文正文、图表或源代码到任务包。已从 arXiv 原始存档页的“Rights to this article”链接核验该文章为 CC-BY-4.0；OpenAlex 的许可标识仅作发现线索。若后续打包论文资产，仍需履行署名、许可链接与修改说明等义务，不扩展到无关资产。PyBaMM 软件的 BSD-3-Clause 许可与论文许可必须分别处理。
