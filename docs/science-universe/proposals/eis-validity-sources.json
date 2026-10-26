@@ -32,5 +32,73 @@
   "model_calls": 0,
   "acs_launched": false,
   "proposal_approved": false,
-  "scientific_acceptance": false
+  "scientific_acceptance": false,
+  "followup_discovery": [
+    {
+      "url": "https://api.openalex.org/works/https://doi.org/10.1016/j.electacta.2014.01.034",
+      "retrieved_utc": "2026-10-26T21:24:22.556288+00:00",
+      "http_status": 200,
+      "success": true,
+      "sha256": "d2b2572ebf3e11842ee6f8b325ec23ae97b91e723b16fcd6caa895816cfd606c",
+      "locations": [
+        {
+          "landing_page_url": "https://doi.org/10.1016/j.electacta.2014.01.034",
+          "pdf_url": null,
+          "license": null,
+          "is_oa": false
+        }
+      ]
+    },
+    {
+      "url": "https://api.crossref.org/works?query=impedance%20spectroscopy%20linearity%20stationarity%20dataset&rows=4&select=DOI,title,URL",
+      "retrieved_utc": "2026-10-26T21:24:23.965630+00:00",
+      "http_status": 200,
+      "success": true,
+      "sha256": "505753436a23034e091117d697532d53dd39cedd618dd4c05402122057dac130",
+      "results": [
+        {
+          "doi": "10.1109/iwis57888.2022.9975131",
+          "title": [
+            "Detection of Non-Linearity and Non-Stationarity in Impedance Spectra using an Extended Kramers-Kronig Test without Overfitting"
+          ]
+        },
+        {
+          "doi": "10.1149/ma2024-012245mtgabs",
+          "title": [
+            "Electrochemical Impedance Spectroscopy Beyond Linearity and Stationarity"
+          ]
+        },
+        {
+          "doi": "10.1149/1945-7111/ad19eb",
+          "title": [
+            "Utility of Lissajous Plots for Electrochemical Impedance Spectroscopy Measurements: Detection of Non-Linearity and Non-Stationarity"
+          ]
+        },
+        {
+          "doi": "10.1016/j.egyai.2025.100569",
+          "title": [
+            "Operando impedance-based battery cell internal temperature estimation under non-stationarity and non-linearity conditions"
+          ]
+        }
+      ]
+    },
+    {
+      "url": "https://repository.bilkent.edu.tr/bitstreams/37085292-e3c5-4aa9-b25e-aa85bd981770/download",
+      "http_status": 200,
+      "content_type": "application/pdf;charset=UTF-8",
+      "success": true,
+      "sha256": "d0da564748d83d05bb0fc17bbe427d454e8e856433b8886f031879e5eb422032",
+      "bytes": 2302339
+    }
+  ],
+  "lissajous_primary_review": {
+    "doi": "10.1149/1945-7111/ad19eb",
+    "pages": 11,
+    "openalex_metadata_sha256": "c652b1d2c0982071f469340055be62fb536d9d9be619883f56645ab381b0a7db",
+    "pdf_sha256": "d0da564748d83d05bb0fc17bbe427d454e8e856433b8886f031879e5eb422032",
+    "extracted_text_sha256": "d808fd6a4f7d2596337a498f4a94cabcd6a0f7a57fa3c0bbb77afeba12a83f39",
+    "extractor": "pypdf6.1.3; workspace-local install",
+    "license": "OpenAlex cc-by metadata; direct repository/paper license confirmation and raw-data availability unresolved",
+    "experimental_data_copied": false
+  }
 }
