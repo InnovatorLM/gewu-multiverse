@@ -1,7 +1,13 @@
 # EIS proposal: literature and contract review
 
-Status: pre-implementation research. This is not an independent evaluator
-approval, proof of novelty or a finished scientific task.
+Status: historical literature review plus current limitations. Research-only
+v2/v3 prototyping and standard Harbor draft packaging subsequently received
+independent scope review. No scientific acceptance, novelty proof or benchmark
+release follows. The consequences/gates below describe the earlier proposal;
+current normative interfaces are eis-contract-v2.md and
+eis-contrast-contract-v3.md. In particular covariance/confidence/profile-bound
+requirements were replaced by explicit deterministic component-error feasibility.
+Do not reintroduce those historical statistical requirements into the draft.
 
 ## Primary literature actually checked
 
@@ -70,3 +76,26 @@ not finish physical model selection, uncertainty validation, identifiable-case
 construction, experiment-design calibration, independent proposal review,
 semantic comparison or licensing. Remain at proposal stage. A scientific
 inverse problem is not ready simply because a nonlinear solver can fit it.
+
+
+## Current source integrity and scientific evidence boundary
+
+An offline byte audit verified all10retained successful source records:
+three documentation pages, twoCrossref searches, twoOpenAlex metadata records
+and the preprint abstract/HTML/PDF. See eis-source-integrity-audit.json, which
+binds the historical source-receipt file by SHA256. The failed license fetch
+is excluded from successful retrievals, not silently treated as resolved.
+Hash agreement proves retained-record integrity, not scientific truth or reuse
+permission. No third-party code or experimental data is needed by the current
+standard-library/synthetic draft; package code follows repository licensing.
+
+The revised narrow-band fixture and broad-band exclusion have exact-verified
+witnesses and independently scoped interface checks. They do not provide a
+primary-source justification for a real instrument's bounded errors, a validated
+physical interpretation of the Debye elements or calibrated acquisition costs.
+The near-merged-pair regression remains valid under conditional mode; v3explicitly
+requests a contrast pair with disjoint predicted-error rectangles. None of these
+is full-family identifiability or real mechanism discovery. Primary scientific
+suitability, semantic comparison and designated-model difficulty are still open.
+The local subsecond reference fits are a reason to investigate task difficulty,
+not evidence that the desired<30%/<50%target has been reached.

@@ -1,0 +1,60 @@
+{
+  "source_receipts_sha256": "cfe6447f7e4ac1d812660700bf74826987bddb7aac9091c29e61befe23c7715a",
+  "retained_sources_checked": [
+    {
+      "source": "impedance_examples",
+      "sha256": "54a475d2e65baf8ec47a613b957d50d9742e067a15517981f198ea0500d6f0fa",
+      "matches_receipt": true
+    },
+    {
+      "source": "impedance_faq",
+      "sha256": "3edb26e9991f13664f5cb984e6baa3e28d4839b99be7f7b16666fb358a1c7bdf",
+      "matches_receipt": true
+    },
+    {
+      "source": "scipy_least_squares",
+      "sha256": "cd8bceef256035736ddde8e0f690c2487efefd5afa773aeb50c822e5af632435",
+      "matches_receipt": true
+    },
+    {
+      "source": "crossref-query-0.json",
+      "sha256": "1c375ef545c67b8746b5e19501b7693b6ab2d935b3413e94b551577ea552125a",
+      "matches_receipt": true
+    },
+    {
+      "source": "crossref-query-1.json",
+      "sha256": "9b31faf1dd73affa43a629f026a7b21f5e26254d835f23bbf861f61548c79516",
+      "matches_receipt": true
+    },
+    {
+      "source": "openalex-0.json",
+      "sha256": "7e64e1dc1bea6f83801c5d2b43475ae1528341bf3c328ab10b83379214663ec1",
+      "matches_receipt": true
+    },
+    {
+      "source": "openalex-1.json",
+      "sha256": "2b7f2a36233e7767caa2c66cf896832be48188b9e5a9a6b729a25da33bcc4f9f",
+      "matches_receipt": true
+    },
+    {
+      "source": "identifiability-abstract.html",
+      "sha256": "eac0243577092652407f523e96b569a75a13e1c360480120731c2268a51db452",
+      "matches_receipt": true
+    },
+    {
+      "source": "identifiability-html.html",
+      "sha256": "a5c2fa2391c7d1f3965e0bc06463223fb131b22b154b44a6ae4989a6320f6afb",
+      "matches_receipt": true
+    },
+    {
+      "source": "identifiability-pdf.pdf",
+      "sha256": "22f7d3124bb71aef641a3aa0664c4cb821de3869223918cf0e4fc7f1db8ed836",
+      "matches_receipt": true
+    }
+  ],
+  "all_bytes_match": true,
+  "new_network_requests": 0,
+  "physical_model_validation": false,
+  "scientific_acceptance": false,
+  "scope": "Retained bytes match historical retrieval receipts. This does not authenticate scientific claims, journal/preprint equivalence, licenses or current websites."
+}
