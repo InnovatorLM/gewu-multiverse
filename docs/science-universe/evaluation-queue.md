@@ -473,3 +473,36 @@ mechanical receipt. Tests reject malformed schema/time/resource settings,
 broken shell syntax, empty instructions, changed snapshots/receipts, and verify
 a candidate shell command is never executed by checking an absent sentinel.
 No model, task runtime, license audit, Oracle or ACS execution is implied.
+
+## Full-package quality WinRate preparation
+
+`prepare_winrate_plan.py --evaluation-id <registered-solver-id> --corpus
+<active-corpus-dir> --reference-index <index> [--reference-index <index> ...]
+--output <fresh-private-dir>` freezes complete reference task directories from
+Git objects at the corpus commits. Selection must include both TB4 and TBScience;
+duplicate indices and colliding original task directory names are refused.
+Extracted instruction hashes must match the corpus. Full package hashes include
+binary data, in addition to the native pipeline's metadata/source snapshots.
+
+The tool validates the candidate registration, builds a native unified-evaluator
+WinRate dry-run plan, checks every selected task appears, and rechecks full
+package hashes after planning. It passes a clean workspace-local environment
+without model credentials. There is no live-evaluation mode. Inspect the saved
+source-manifest and plan before implementing/authorizing a live execution path;
+do not bypass private-tool boundaries by removing --dry-run from an ad hoc
+controller command. `verify_package_inputs` checks retained full-package content;
+tests reject equal-size binary changes and candidate identity substitution.
+
+A real plan passed with two current tasks from each benchmark at fixed commits:
+embedding-drift-monitor, roy-polymorph-cn, navigation-sensor-calibration and
+hbv-calibration-1. Four pairs imply eight future swapped judgments, but actual
+model calls were zero. This is an explicitly chosen diagnostic subset, not a
+representative quality sample, comparison result or acceptance evidence.
+
+The trajectory-review native dry-run also accepted a historical real certificate
+trial with ATIF-v1.7. The original executed task snapshot hash was not retained,
+so current-tree identity cannot be proven. This is input-adapter evidence only,
+not a science-pilot trajectory review. Current aggregate-only science trials
+cannot retroactively supply missing ATIF. Science trajectory review/WinRate
+still require a separately validated private retention and exact-version binding
+path; no raw trajectory was exported to roles or source control by these checks.
