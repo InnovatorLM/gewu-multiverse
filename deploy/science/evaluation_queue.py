@@ -98,6 +98,9 @@ def validated_template(entry, request):
     snapshot = Path(entry['snapshot'])
     if not snapshot.resolve().is_relative_to(W) or digest_tree(snapshot) != entry['snapshot_sha256'] or request['snapshot_sha256'] != entry['snapshot_sha256']:
         raise ValueError('Registered snapshot changed or request is stale')
+    if 'mechanical_check_sha256' in entry:
+        from check_harbor_task import validate_mechanical_check
+        validate_mechanical_check(snapshot.parent / 'mechanical-check.json', snapshot, entry['mechanical_check_sha256'])
     config = json.loads(raw)
     if config['n_attempts'] != 1 or config['n_concurrent_trials'] != 1 or config['retry']['max_retries'] != 0:
         raise ValueError('Require one trial and zero retries')

@@ -451,3 +451,25 @@ rejection claim is recorded as refuted, while17other report items remain
 unresolved. This calculation used no model/ACS and is not a new review or
 scientific acceptance. Tests also confirm that an all-supported operator ledger
 cannot become automatic factual verification or release permission.
+
+## Installed Harbor mechanical evidence
+
+Both operator registration tools now call `check_harbor_task.py` on the frozen
+snapshot before publication. It parses task.toml using the actually installed
+Harbor TaskConfig, checks standard files are nonempty, checks schema-resolved
+resource/time values are nonnegative/positive where applicable, and uses clean
+environment `bash -n` on test.sh/solve.sh without executing them. Optional
+unspecified values stay unspecified; defaults are not evidence of actual Pod
+resources. Reports record Harbor distribution version, schema/checker source
+SHA256 and the complete task hash. A native Harbor parser may tolerate unknown
+fields; this is not a comprehensive upstream authoring rubric or typo detector.
+
+Each new registration retains a private mechanical-check.json and its hash.
+Dispatch rechecks the evidence hash, snapshot binding, successful checks and
+nonacceptance scope. Old bootstrap registrations without this field are legacy
+infrastructure evidence, not retroactively mechanically certified or releasable
+scientific tasks. A real disabled infrastructure registration passed with its
+mechanical receipt. Tests reject malformed schema/time/resource settings,
+broken shell syntax, empty instructions, changed snapshots/receipts, and verify
+a candidate shell command is never executed by checking an absent sentinel.
+No model, task runtime, license audit, Oracle or ACS execution is implied.

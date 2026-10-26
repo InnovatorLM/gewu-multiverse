@@ -13,6 +13,7 @@ import subprocess
 import tarfile
 
 from evaluation_queue import W, atomic_json, evaluation_catalog, digest_tree, root_file, validated_template
+from check_harbor_task import inspect_task
 
 
 def freeze(repo, commit, task_path, destination):
@@ -90,6 +91,8 @@ def main():
             name = PurePosixPath(args.task_path).name
             snapshot = parent / name
             sha = freeze(args.repo, args.commit, args.task_path, snapshot)
+            mechanical = inspect_task(snapshot)
+            atomic_json(parent / 'mechanical-check.json', mechanical)
             template = json.loads(root_file(args.template).read_text())
             template['datasets'] = [{'path': str(parent), 'task_names': [name]}]
             from build_task_images import validate_build_receipt
@@ -100,6 +103,7 @@ def main():
             receipt_copy = parent / 'build-receipt.json'
             atomic_json(receipt_copy, json.loads(receipt_path.read_text()))
             entry = {'snapshot': str(snapshot), 'snapshot_sha256': sha, 'template': str(template_path), 'template_sha256': hashlib.sha256(template_path.read_bytes()).hexdigest(), 'source_commit': args.commit, 'source_task_path': args.task_path, 'build_receipt_sha256': hashlib.sha256(receipt_copy.read_bytes()).hexdigest(), 'enabled': not args.disabled}
+            entry['mechanical_check_sha256'] = hashlib.sha256((parent / 'mechanical-check.json').read_bytes()).hexdigest()
             validated_template(entry, {'snapshot_sha256': sha})
             atomic_json(parent / 'provenance.json', {**entry, 'scientific_acceptance': False})
             registry[args.evaluation_id] = entry

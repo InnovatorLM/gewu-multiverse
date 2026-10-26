@@ -21,6 +21,7 @@ from register_evaluation import freeze
 from build_task_images import validate_build_receipt
 from register_semantic_diagnostic import registered_corpus
 from role_exec import trusted
+from check_harbor_task import inspect_task
 
 
 def main():
@@ -55,6 +56,7 @@ def main():
         try:
             snapshot = parent / Path(args.task_path).name
             sha = freeze(args.repo, args.commit, args.task_path, snapshot)
+            atomic_json(parent / 'mechanical-check.json', inspect_task(snapshot))
             template = json.loads(root_file(args.template).read_text())
             template['datasets'] = [{'path': str(parent), 'task_names': [snapshot.name]}]
             receipt = json.loads(root_file(args.build_receipt).read_text())
@@ -62,6 +64,7 @@ def main():
             atomic_json(parent / 'template.json', template)
             atomic_json(parent / 'build-receipt.json', receipt)
             entry = {'snapshot': str(snapshot), 'snapshot_sha256': sha, 'template': str(parent / 'template.json'), 'template_sha256': hashlib.sha256((parent / 'template.json').read_bytes()).hexdigest(), 'source_commit': args.commit, 'source_task_path': args.task_path, 'build_receipt_sha256': hashlib.sha256((parent / 'build-receipt.json').read_bytes()).hexdigest(), 'enabled': not args.disabled}
+            entry['mechanical_check_sha256'] = hashlib.sha256((parent / 'mechanical-check.json').read_bytes()).hexdigest()
             validated_template(entry, {'snapshot_sha256': sha})
             result = subprocess.run([sys.executable, str(Path(__file__).with_name('prepare_review_chroot.py')), '--tools-only', '--uid', '21012', '--root', str(review_root), '--task', str(snapshot)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=300)
             (parent / 'review-root-preparation.log').write_bytes(result.stdout + b'\n' + result.stderr)
