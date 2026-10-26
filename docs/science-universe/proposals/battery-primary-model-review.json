@@ -1,0 +1,38 @@
+{
+  "status": "primary_text_review_not_candidate_acceptance",
+  "sources": [
+    {
+      "file": "marquis-crossref.json",
+      "url": "https://api.crossref.org/works/10.1149/2.0341915jes",
+      "bytes": 7953,
+      "sha256": "f71a5696f4e9f778904434445312c05214fb88b15ba4478a843ca5967499a8d6"
+    },
+    {
+      "file": "marquis-openalex-discovery.json",
+      "url": "https://api.openalex.org/works/https://doi.org/10.1149/2.0341915jes",
+      "bytes": 24611,
+      "sha256": "5adfcf87ec1b8c8663f320cc4e2b7e7806364cf3d646efe88099669433b4216c"
+    },
+    {
+      "file": "marquis-1905.12553.pdf",
+      "url": "https://arxiv.org/pdf/1905.12553",
+      "bytes": 670945,
+      "sha256": "d84860c8a4f7beeac88c07fe86251ad1a49aefc779ad2aef273a9d88ce9e661b"
+    },
+    {
+      "file": "marquis-1905.12553-source",
+      "url": "https://arxiv.org/src/1905.12553",
+      "bytes": 403963,
+      "sha256": "52cf12a3c3d09ef95381aa89c128f0b50c9918213817b868934ea34b7a6b86f7"
+    }
+  ],
+  "derived_text": {
+    "file": "marquis-source-text.txt",
+    "sha256": "d6f2381d66517ebe003aa153eb0905f0a6639c815cec873a52e79ea68fa07382",
+    "method": "read regular .tex tar members without filesystem extraction"
+  },
+  "retrieval": "TLS certificate verification enabled",
+  "model_feasibility_proven": false,
+  "scientific_acceptance": false,
+  "redistribution_license_verified": false
+}
