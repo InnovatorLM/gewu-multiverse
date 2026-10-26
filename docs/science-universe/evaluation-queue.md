@@ -182,3 +182,25 @@ none produced an accepted final report (call-budget/final JSON structure,
 fabricated call IDs, then malformed function arguments). These are failed
 review attempts, not qualified reviewer evidence. Offline six-tool-boundary
 tests and mock driver integration pass; live reviewer readiness is still open.
+
+## Continue an interrupted review from retained evidence
+
+`finalize_review_evidence.py --source <private-review-dir> --output
+<fresh-private-dir> --json-body` executes no tools. It loads root-owned retained
+metadata/output, revalidates the registered task identity, and supplies the
+complete task, original actual outputs and explicit report schema to DawnFM.
+It permits one correction against the same evidence and retains every response.
+No result is counted as a new independent review, and acceptance flags remain
+false. The function-argument mode is also available; a live attempt in that mode
+exhausted its output limit and was rejected. JSON-body finalization of the same
+retained v3 evidence subsequently passed schema and exact citation validation.
+Mock integration tests cover both modes and persistent provenance.
+
+The resulting56.25score/no_blocker_found verdict still did not qualify the
+reviewer: factual audit showed a deliberate +0.001 scale perturbation was
+misrepresented as a legitimate alternative MAD convention. The quote was real,
+but its interpretation was unsupported. This is recorded as diagnostic evidence,
+not an accepted scientific judgment. `review_diagnostic_status.py` creates a
+hash-bound nonacceptance summary for a report and its factual audit; even a score
+of100and no_blocker_found cannot make its release_eligible flag true. This
+summary is not a release receipt, signature, quality gate or role-queue result.
