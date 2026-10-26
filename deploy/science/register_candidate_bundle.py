@@ -28,7 +28,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ['evaluation-id', 'repo', 'commit', 'task-path', 'template', 'build-receipt', 'corpus']:
         parser.add_argument('--' + name, required=True)
-    parser.add_argument('--disabled', action='store_true', help='Infrastructure proof only; omit all three routes from catalog')
+    parser.add_argument('--disabled', action='store_true', help='Register without enabling dispatch; omit all three routes from catalog')
     args = parser.parse_args()
     if os.geteuid() != 0 or not re.fullmatch(r'[a-z0-9][a-z0-9-]{0,51}', args.evaluation_id):
         raise ValueError('Require operator and a short immutable bundle ID')

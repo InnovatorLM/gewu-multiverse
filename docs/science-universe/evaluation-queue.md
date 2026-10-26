@@ -587,3 +587,17 @@ without a result remains interrupted with cleanup unconfirmed. Offline tests
 cover valid replay, cross-candidate/hash replay, changed result identity and the
 interrupted state. This prevents evidence misattribution; it does not rerun or
 upgrade previous work.
+
+
+## Frozen EIS research candidate publication
+
+Candidate commitb2ec8f4has source-bound official, mini-swe runtime and verifier
+images published in Shanghai terminal-bench-universe, with remote manifest and
+config-ID linkage checked. The unified eis-research-v1 solver/quality/semantic
+registrations are disabled; no evaluator catalog visibility or dispatch is
+allowed. Direct refusal checks created no production claims. Actual UID21012
+standalone reference/grader and read-only/no-provider-env/no-host-proc/cleanup
+checks passed. The future trusted template opts into private retention; this
+is configuration only, with no live solver or trajectory evidence. See
+[publication evidence](proposals/eis-image-publication.json). No ACS/LLM was
+launched, scientific acceptance and difficulty remain unverified.

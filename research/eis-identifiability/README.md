@@ -160,3 +160,20 @@ context hash exactly matches the layer-audited first draft image; source hashes
 match the committed builder's research sources. Candidate package source must
 still be frozen/published/registered through the normal operator workflow
 before any live evaluation. It is currently unregistered and not launch-approved.
+
+
+Frozen candidateb2ec8f4has now completed matching official/runtime/verifier builds
+and ShanghaiACR publication with source labels, exact digests and remote manifest
+config-ID checks. The unified solver/quality/semantic routes eis-research-v1,
+eis-research-v1-quality and eis-research-v1-semantic are registered DISABLED.
+All are absent from the evaluator catalog and refused before creating claims;
+production claims were unchanged. Earlier statements about unregistered local
+fixtures are historical and do not describe these new disabled registrations.
+
+Actual UID21012credential-free review-root execution solved public data and
+passed the standalone grader; task-write denial, absent provider environment,
+absent hostproc and zero surviving dedicated-UID processes were checked.
+This is a local nonroot command proof, not a Harbor/ACS trial. The trusted
+solver template opts into worker-owned private trajectory retention for a
+future authorized run; no trajectory has yet been generated. Public evidence
+is in `docs/science-universe/proposals/eis-image-publication.json`.

@@ -1,0 +1,100 @@
+{
+  "status": "research/draft; all routes disabled",
+  "source_commit": "b2ec8f4d0f4594159e731a2f15a65cb3e942b322",
+  "source_task_path": "research/harbor-drafts/eis-identifiability",
+  "snapshot_sha256": "af04c33398026976e93fce87bc4a4eeb03be565c94c3341da02b61aff48e4270",
+  "environment_context_sha256": "ebdb595363700da4f0b76ba5661eeecff5a0b73a456b735d1eb63632bf7a8cc7",
+  "tests_context_sha256": "abbb879891d14124462fd7abe495905742865f895c53d9de369d04cbbd85e2d9",
+  "images": {
+    "official": {
+      "tag": "dptech-sh-pai-acr-registry.cn-shanghai.cr.aliyuncs.com/terminal-bench-universe/eis-identifiability:official",
+      "image_config_id": "sha256:73773960adbc8a1d60139ed2c4baa18ab724d0fdcef19790cc2717efa332af44",
+      "labels": {
+        "org.opencontainers.image.revision": "b2ec8f4d0f4594159e731a2f15a65cb3e942b322",
+        "science.task.snapshot": "af04c33398026976e93fce87bc4a4eeb03be565c94c3341da02b61aff48e4270",
+        "science.build.context": "ebdb595363700da4f0b76ba5661eeecff5a0b73a456b735d1eb63632bf7a8cc7",
+        "science.image.role": "official"
+      },
+      "published_digest": "dptech-sh-pai-acr-registry.cn-shanghai.cr.aliyuncs.com/terminal-bench-universe/eis-identifiability@sha256:b0dac1e3794db5545fc0c9920fe8fd3aaf573828d4d5d89f58a9553c72ea535f"
+    },
+    "runtime": {
+      "tag": "dptech-sh-pai-acr-registry.cn-shanghai.cr.aliyuncs.com/terminal-bench-universe/eis-identifiability:minisweagent-2.2.8",
+      "image_config_id": "sha256:a8252934ca9b5f38ef2de068e0c246d22472bde096bf2586da90ec1d5503e981",
+      "labels": {
+        "org.opencontainers.image.revision": "b2ec8f4d0f4594159e731a2f15a65cb3e942b322",
+        "science.task.snapshot": "af04c33398026976e93fce87bc4a4eeb03be565c94c3341da02b61aff48e4270",
+        "science.build.context": "46fa663d831736b8010a30c90a48e1a04078807d724c4cc153fb0f07396d91b4",
+        "science.image.role": "runtime"
+      },
+      "published_digest": "dptech-sh-pai-acr-registry.cn-shanghai.cr.aliyuncs.com/terminal-bench-universe/eis-identifiability@sha256:0e439691a6f5c056c98d8c64308ef3dd625f7347f813e8e6416375fd51f3138c"
+    },
+    "verifier": {
+      "tag": "dptech-sh-pai-acr-registry.cn-shanghai.cr.aliyuncs.com/terminal-bench-universe/eis-identifiability-verifier:official",
+      "image_config_id": "sha256:faa0c98b0c82249ef7e7b377835232428282d9fe6f6ea66ac11ffa22697a9726",
+      "labels": {
+        "org.opencontainers.image.revision": "b2ec8f4d0f4594159e731a2f15a65cb3e942b322",
+        "science.task.snapshot": "af04c33398026976e93fce87bc4a4eeb03be565c94c3341da02b61aff48e4270",
+        "science.build.context": "0f45e4af40078fcb598c6359489637d228bdd742713e4325f1f2b54f714bd9d8",
+        "science.image.role": "verifier"
+      },
+      "published_digest": "dptech-sh-pai-acr-registry.cn-shanghai.cr.aliyuncs.com/terminal-bench-universe/eis-identifiability-verifier@sha256:747c4a858037a8e7cb38ef9c0fda88ba4b98271f755912d14da5c6e5aa2ba5e6"
+    }
+  },
+  "harness_versions": {
+    "mini-swe-agent": "2.2.8",
+    "litellm": "1.106.2",
+    "openai": "2.54.0",
+    "mcp": "2.3.0"
+  },
+  "published": true,
+  "registry_config_linkage_verified": true,
+  "registration": {
+    "routes": [
+      {
+        "evaluation_id": "eis-research-v1",
+        "enabled": false,
+        "catalog_absent": true,
+        "dispatch_refused_before_claim": true
+      },
+      {
+        "evaluation_id": "eis-research-v1-quality",
+        "enabled": false,
+        "catalog_absent": true,
+        "dispatch_refused_before_claim": true
+      },
+      {
+        "evaluation_id": "eis-research-v1-semantic",
+        "enabled": false,
+        "catalog_absent": true,
+        "dispatch_refused_before_claim": true
+      }
+    ],
+    "production_claims_unchanged": true,
+    "scope": "operator direct queue gate check with evaluator-owned request files; no live role submission or mock-complete dispatch",
+    "model_calls": 0,
+    "acs_launched": false,
+    "scientific_acceptance": false
+  },
+  "nonroot_check": {
+    "uid": 21012,
+    "returncode": 0,
+    "cleanup_confirmed": true,
+    "task_readonly": true,
+    "credential_environment_absent": true,
+    "host_proc_absent": true,
+    "public_data_reference_and_grader": "pass",
+    "dedicated_uid_live_after": 0
+  },
+  "trusted_template_private_retention_optin": true,
+  "raw_trace_retained": false,
+  "model_calls": 0,
+  "acs_launched": false,
+  "actual_harbor_lifecycle_verified": false,
+  "scientific_acceptance": false,
+  "difficulty_measured": false,
+  "limitations": [
+    "Top-level harness versions pinned; transitive dependencies not fully locked.",
+    "Source receipt and file boundary checks are not exhaustive oracle-leak analysis.",
+    "No live solver, semantic/quality dispatch or trajectory-review result for this candidate."
+  ]
+}
