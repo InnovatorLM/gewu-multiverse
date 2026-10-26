@@ -1,0 +1,38 @@
+{
+  "status": "manual_public_instruction_screening_only",
+  "candidate": "reduced-model battery charge deployment decision; not implemented",
+  "corpus_count": 138,
+  "comparisons": [
+    {
+      "dataset": "terminal-bench-science-v0.1",
+      "commit": "490884e24647f9b1f7e26457af56428d7763396c",
+      "path": "tasks/engineering-sciences/chemical-engineering/reactor-safety-control/instruction.md",
+      "git_blob": "7292ebabbf4e27b6ddb139030991bcee4e425834",
+      "sha256": "1719df35e4c4f22da2b210b789db2a53debb817e06901b1ca393e4eebf3b69a6"
+    },
+    {
+      "dataset": "terminal-bench-4.0",
+      "commit": "e67a2cb7db4d9795c212909b3395d8c22ad60aec",
+      "path": "tasks/biped-contact-dynamics/instruction.md",
+      "git_blob": "10f4c2aec9409945f0438e87627d8f0bbfeb9bb1",
+      "sha256": "f7449495a333fe05f01809b3d3b044f3a93fb8f32fc7fe2408b38061debd83ef"
+    },
+    {
+      "dataset": "terminal-bench-4.0",
+      "commit": "e67a2cb7db4d9795c212909b3395d8c22ad60aec",
+      "path": "tasks/ks-solver-cpp/instruction.md",
+      "git_blob": "3b4c7f636b3fb260049c546c79ae1440385a25d7",
+      "sha256": "5725992168af454e73174efb4b5f60eb99124f036ed2bd60eab70555869e0b75"
+    },
+    {
+      "dataset": "terminal-bench-4.0",
+      "commit": "e67a2cb7db4d9795c212909b3395d8c22ad60aec",
+      "path": "tasks/lake-temp-glm/instruction.md",
+      "git_blob": "5e920001d57f85a9b4655a5096f01275faa6f5e8",
+      "sha256": "72cb74a1af4009968f7a35b37e78f7e00e71dc1c2f1c3b12e3879c7a681ca2f5"
+    }
+  ],
+  "semantic_role_review_completed": false,
+  "novelty_accepted": false,
+  "scientific_acceptance": false
+}
