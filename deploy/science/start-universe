@@ -4,12 +4,13 @@ set -euo pipefail
 set +x
 W=/mnt/data/zhanglinfeng/workspace
 U="$W/universes/my-terminal-bench-science"
-export TMPDIR="$W/.tmp" PYTHONDONTWRITEBYTECODE=1
+export TMPDIR="$U/.tmp" PYTHONDONTWRITEBYTECODE=1
 export XDG_CONFIG_HOME="$U/.config" XDG_STATE_HOME="$U/.state"
 export XDG_DATA_HOME="$U/.local/share" XDG_CACHE_HOME="$U/.cache"
 export HOME="$U/.local/home" GIT_CONFIG_GLOBAL="$U/.config/gitconfig"
 export GEWU_HARNESS=native
 export GEWU_DAILY_ROLE_SESSIONS=3
+export GEWU_FORGEJO_TIMEOUT_SECS=120
 export GEWU_ROLE_BROKER_CONFIG="$W/.state/science-role-broker/config.json"
 PY="$W/acs-harbor-test/.venv/bin/python"
 PRODUCT="$W/.local/libexec/gewu-multiverse"

@@ -383,6 +383,25 @@ pub struct ForgejoClient {
 impl ForgejoClient {
     /// Build a client, refusing a URL that is not a base URL.
     pub fn new(url: &str, token: Secret, timeout: Duration) -> Result<Self, ForgejoError> {
+        // Workspace-backed Forgejo writes (notably merge) can legitimately take
+        // longer than the interactive default. The operator opts in explicitly;
+        // an invalid deployment setting must not silently restore a short limit.
+        let timeout = match std::env::var("GEWU_FORGEJO_TIMEOUT_SECS") {
+            Ok(value) => match value.parse::<u64>() {
+                Ok(seconds @ 1..=300) => Duration::from_secs(seconds),
+                _ => {
+                    return Err(ForgejoError::Transport {
+                        message: "GEWU_FORGEJO_TIMEOUT_SECS must be between 1 and 300".into(),
+                    });
+                }
+            },
+            Err(std::env::VarError::NotPresent) => timeout,
+            Err(_) => {
+                return Err(ForgejoError::Transport {
+                    message: "GEWU_FORGEJO_TIMEOUT_SECS is not valid text".into(),
+                });
+            }
+        };
         let base = normalise_url(url)?;
         if token.is_empty() {
             return Err(ForgejoError::MissingToken);

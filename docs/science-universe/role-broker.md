@@ -88,3 +88,24 @@ Workspace Git tests separately passed6; broker routing/budget tests passed2.
 Final ACS audit used the Kubernetes Python client: two empty snapshots of four
 resource kinds and404for all8known trial Pods. A broken local kubectl binary
 is being replaced separately; its crash was not counted as a successful query.
+
+The installed launcher uses the controller-owned universe `.tmp` directory.
+Using the operator's workspace `.tmp` allowed UI startup but made Forgejo
+repository creation fail with permission denied; real private-repository creation
+caught this, and the launcher was corrected.
+
+Pilot main protection now requires two whitelisted approvals (`science-evaluator`
+and `owner`), applies to admins, clears stale approvals and permits merges only
+by `science-curator`. `configure_review_protection.py` applies and reads back this
+policy without approving or merging a task. `test_curator_merge_gate.py --live` uses a disposable private local repository.
+It verified explicit denial for zero/one approvals, owner bypass and stale
+approvals, followed by successful curator merge after two current official
+approvals. The synthetic repository was deleted and checked404. No real task
+was approved or merged. Async "Please try again later" responses are retried
+and are not counted as proof of an approval-policy denial.
+
+The merge took21.04seconds on FUSE. The science launcher explicitly selects
+`GEWU_FORGEJO_TIMEOUT_SECS=120`; generic clients keep their caller-selected
+timeout unless this deployment override is present. Invalid overrides fail.
+The local kubectl was repaired tov1.34.1 using the official Debian package;
+its binary matches the official standalone SHA256 and a real ACS query passed.
