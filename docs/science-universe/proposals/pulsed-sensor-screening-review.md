@@ -72,3 +72,24 @@ No access restriction was bypassed. The full-text/calibration-independence gate
 remains unresolved. A possible model-discrepancy study now has a concrete
 calibration-asset lead, but needs actual data/protocol checks and independent
 proposal review before implementation. See pulsed-sensor-asset-map.json.
+
+## Concentration-support and calibration limitations
+
+Single-ion repository metadata explicitly declares seven anions at three
+concentrations(1e-1,1e-3,1e-5M), experiment-levelrun_id and source-filefile_id,
+and anodic/cathodic pulse-reset protocol. These are useful evidence leads, not
+checks of the undownloaded file or proof of independent repeated batches.
+Synthetic metadata describes quadratic trends in negative-log concentration,
+noninteracting-ion composition and concentration sampling within[1e-5,1e-1]M.
+With only three declared concentration levels, a quadratic trend can interpolate
+those points without providing out-of-concentration validation. Do not confuse
+parameter interpolation with demonstrated physical generalization.
+
+Exact decimal comparison against the measured file's six recipes finds four
+outside that declared synthetic support in at least one ion:mix1Cl,mix2HPO4,
+mix3NO3,and all three target ions in mix6. Mix4/5are inside the stated box, but
+that alone does not prove density, joint support or calibration independence.
+Any eventual synthetic-to-real evaluation must distinguish concentration
+extrapolation, recipe sparsity, electrode effects, duplicated payloads and actual
+model discrepancy. Prediction errors alone cannot identify their causes.
+See pulsed-sensor-support-audit.json and the retained comparison script.

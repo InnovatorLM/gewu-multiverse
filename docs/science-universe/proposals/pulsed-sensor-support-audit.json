@@ -1,0 +1,73 @@
+{
+  "comparison": "Actually inventoried measured mixture concentrations versus synthetic-repository declared concentration range [1e-5,1e-1]M",
+  "mixtures": [
+    {
+      "mixture": "mix_1",
+      "concentration_M": [
+        "0.03",
+        "0.000003",
+        "0.0006"
+      ],
+      "outside_repository_declared_synthetic_range": [
+        "Cl"
+      ]
+    },
+    {
+      "mixture": "mix_2",
+      "concentration_M": [
+        "0.0002",
+        "0.01",
+        "0.000003"
+      ],
+      "outside_repository_declared_synthetic_range": [
+        "HPO4"
+      ]
+    },
+    {
+      "mixture": "mix_3",
+      "concentration_M": [
+        "0.000003",
+        "0.0005",
+        "0.04"
+      ],
+      "outside_repository_declared_synthetic_range": [
+        "NO3"
+      ]
+    },
+    {
+      "mixture": "mix_4",
+      "concentration_M": [
+        "0.04",
+        "0.08",
+        "0.03"
+      ],
+      "outside_repository_declared_synthetic_range": []
+    },
+    {
+      "mixture": "mix_5",
+      "concentration_M": [
+        "0.0001",
+        "0.0007",
+        "0.0008"
+      ],
+      "outside_repository_declared_synthetic_range": []
+    },
+    {
+      "mixture": "mix_6",
+      "concentration_M": [
+        "0.000006",
+        "0.000003",
+        "0.000004"
+      ],
+      "outside_repository_declared_synthetic_range": [
+        "NO3",
+        "Cl",
+        "HPO4"
+      ]
+    }
+  ],
+  "out_of_range_mixtures": 4,
+  "scope": "A covariate-support mismatch only; not proof of bad sensors, failed predictions, incorrect release or physical mechanism. The single-ion record declares only three calibration concentrations and raw content remains uninspected.",
+  "scientific_acceptance": false,
+  "model_calls": 0
+}
