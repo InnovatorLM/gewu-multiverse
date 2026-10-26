@@ -1,7 +1,8 @@
 # EIS finite-band inference: proposed contract v2
 
-Status: proposed replacement for the unsettled inference/uncertainty clauses;
-not approved, not implemented as a Harbor task, no scientific acceptance.
+Status: conditionally approved for research prototyping (see independent review);
+not implemented as a Harbor task, no scientific acceptance. Concrete interface
+fixtures and their limitations are recorded in the research README.
 This version keeps the research goal of finding what measurements establish
 and what additional measurement can discriminate. It replaces unsupported
 statistical language with explicit deterministic feasibility claims.

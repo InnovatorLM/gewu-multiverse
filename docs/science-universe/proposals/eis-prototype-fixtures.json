@@ -1,0 +1,281 @@
+{
+  "kind": "synthetic research prototype",
+  "scientific_acceptance": false,
+  "difficulty_measured": false,
+  "model_calls": 0,
+  "cases": {
+    "ambiguous": {
+      "units": {
+        "omega": "rad/s",
+        "impedance": "ohm",
+        "tau": "s"
+      },
+      "boxes": {
+        "rs": [
+          "0",
+          "20"
+        ],
+        "r": [
+          "1",
+          "300"
+        ],
+        "tau": [
+          "0.00001",
+          "1"
+        ]
+      },
+      "observations": [
+        {
+          "omega": "1",
+          "real": "204.979999600",
+          "imag": "-1.999919984",
+          "error_real": "0.01",
+          "error_imag": "0.01"
+        },
+        {
+          "omega": "3",
+          "real": "204.820140292",
+          "imag": "-5.994963885",
+          "error_real": "0.01",
+          "error_imag": "0.01"
+        },
+        {
+          "omega": "10",
+          "real": "203.019566698",
+          "imag": "-19.803144786",
+          "error_real": "0.01",
+          "error_imag": "0.01"
+        },
+        {
+          "omega": "30",
+          "real": "188.484420442",
+          "imag": "-55.048628830",
+          "error_real": "0.01",
+          "error_imag": "0.01"
+        },
+        {
+          "omega": "100",
+          "real": "104.994000300",
+          "imag": "-99.999999700",
+          "error_real": "0.01",
+          "error_imag": "0.01"
+        },
+        {
+          "omega": "300",
+          "real": "24.997840281",
+          "imag": "-59.997120194",
+          "error_real": "0.01",
+          "error_imag": "0.01"
+        },
+        {
+          "omega": "1000",
+          "real": "6.979962784",
+          "imag": "-19.800815719",
+          "error_real": "0.01",
+          "error_imag": "0.01"
+        },
+        {
+          "omega": "3000",
+          "real": "5.221948979",
+          "imag": "-6.658868851",
+          "error_real": "0.01",
+          "error_imag": "0.01"
+        },
+        {
+          "omega": "10000",
+          "real": "5.019995601",
+          "imag": "-1.999680068",
+          "error_real": "0.01",
+          "error_imag": "0.01"
+        }
+      ],
+      "measurement_options": [
+        {
+          "omega": "10",
+          "error_real": "0.001",
+          "error_imag": "0.001",
+          "cost": "1",
+          "cost_unit": "synthetic acquisition units"
+        },
+        {
+          "omega": "100",
+          "error_real": "0.000000001",
+          "error_imag": "0.000000001",
+          "cost": "5",
+          "cost_unit": "synthetic acquisition units"
+        },
+        {
+          "omega": "1000",
+          "error_real": "0.000000001",
+          "error_imag": "0.000000001",
+          "cost": "5",
+          "cost_unit": "synthetic acquisition units"
+        }
+      ]
+    },
+    "excluded": {
+      "units": {
+        "omega": "rad/s",
+        "impedance": "ohm",
+        "tau": "s"
+      },
+      "boxes": {
+        "rs": [
+          "0",
+          "20"
+        ],
+        "r": [
+          "1",
+          "300"
+        ],
+        "tau": [
+          "0.00001",
+          "1"
+        ]
+      },
+      "observations": [
+        {
+          "omega": "1",
+          "real": "203.811801188",
+          "imag": "-11.961188039",
+          "error_real": "0.01",
+          "error_imag": "0.01"
+        },
+        {
+          "omega": "3",
+          "real": "195.091023126",
+          "imag": "-33.267520776",
+          "error_real": "0.01",
+          "error_imag": "0.01"
+        },
+        {
+          "omega": "10",
+          "real": "144.992000800",
+          "imag": "-60.799920008",
+          "error_real": "0.01",
+          "error_imag": "0.01"
+        },
+        {
+          "omega": "30",
+          "real": "96.928064742",
+          "imag": "-38.397841942",
+          "error_real": "0.01",
+          "error_imag": "0.01"
+        },
+        {
+          "omega": "100",
+          "real": "85.396039604",
+          "imag": "-19.801980198",
+          "error_real": "0.01",
+          "error_imag": "0.01"
+        },
+        {
+          "omega": "300",
+          "real": "78.527680762",
+          "imag": "-26.013909112",
+          "error_real": "0.01",
+          "error_imag": "0.01"
+        },
+        {
+          "omega": "1000",
+          "real": "45.011998800",
+          "imag": "-41.199880012",
+          "error_real": "0.01",
+          "error_imag": "0.01"
+        },
+        {
+          "omega": "3000",
+          "real": "13.001333319",
+          "imag": "-24.399995556",
+          "error_real": "0.01",
+          "error_imag": "0.01"
+        },
+        {
+          "omega": "10000",
+          "real": "5.792199208",
+          "imag": "-8.040791959",
+          "error_real": "0.01",
+          "error_imag": "0.01"
+        }
+      ],
+      "measurement_options": [
+        {
+          "omega": "10",
+          "error_real": "0.001",
+          "error_imag": "0.001",
+          "cost": "1",
+          "cost_unit": "synthetic acquisition units"
+        },
+        {
+          "omega": "100",
+          "error_real": "0.000000001",
+          "error_imag": "0.000000001",
+          "cost": "5",
+          "cost_unit": "synthetic acquisition units"
+        },
+        {
+          "omega": "1000",
+          "error_real": "0.000000001",
+          "error_imag": "0.000000001",
+          "cost": "5",
+          "cost_unit": "synthetic acquisition units"
+        }
+      ]
+    }
+  },
+  "known_witness_reports": {
+    "ambiguous": {
+      "two_branch": {
+        "rs": "5",
+        "branches": [
+          {
+            "r": "80",
+            "tau": "1/100"
+          },
+          {
+            "r": "120",
+            "tau": "10001/1000000"
+          }
+        ]
+      },
+      "single_branch_status": "feasible",
+      "one_branch": {
+        "rs": "5",
+        "branches": [
+          {
+            "r": "200",
+            "tau": "50003/5000000"
+          }
+        ]
+      },
+      "interpretation": "finite_band_ambiguity_for_submitted_witnesses",
+      "d_vector": [
+        "581998079964000000/257576066115289448480909",
+        "60009600180000000000/1000160012800480009",
+        "582095043600000000000/25765686752882480909"
+      ],
+      "next_measurement": 1
+    },
+    "excluded": {
+      "two_branch": {
+        "rs": "5",
+        "branches": [
+          {
+            "r": "80",
+            "tau": "1/1000"
+          },
+          {
+            "r": "120",
+            "tau": "1/10"
+          }
+        ]
+      },
+      "single_branch_status": "excluded",
+      "certificate": [
+        0,
+        1,
+        3
+      ]
+    }
+  }
+}
