@@ -9,10 +9,25 @@ from build_task_images import validate_build_receipt
 from role_exec import role_processes
 
 
+def catalog_status(registry, published):
+    expected=evaluation_catalog(registry)
+    entries=published.get('evaluations')
+    if not isinstance(entries,list):
+        raise ValueError('Published catalog lacks evaluation list')
+    identifiers=[item['evaluation_id'] for item in entries]
+    if len(identifiers)!=len(set(identifiers)):
+        raise ValueError('Published catalog has duplicate evaluation IDs')
+    return {'published_matches_current_registry':published==expected,
+            'visible_evaluation_ids':set(identifiers)}
+
+
 def audit():
     queue=json.loads(root_file(W/'.config/science-evaluation/queue.json').read_text())
     registry=json.loads(root_file(queue['registry']).read_text())
-    visible={item['evaluation_id'] for item in evaluation_catalog(registry)['evaluations']}
+    catalog_path=Path(queue['inbox']).parent/'catalog.json'
+    published=json.loads(root_file(catalog_path).read_text())
+    catalog=catalog_status(registry,published)
+    visible=catalog.pop('visible_evaluation_ids')
     day=datetime.now(timezone.utc).date().isoformat()
     claims=[]
     for path in sorted(Path(queue['state']).glob('*/claim.json')):
@@ -22,7 +37,7 @@ def audit():
         claims.append({'job_id':claim['job_id'],'day':claim['day'],
                        'cleanup_confirmed':result.get('cleanup_confirmed') is True})
     count=sum(c['day']==day for c in claims)
-    evidence={'day_utc':day,'dispatch_budget':{'configured':queue['max_jobs_per_day'],'claimed_today':count,'remaining':max(0,queue['max_jobs_per_day']-count)},
+    evidence={'published_catalog':catalog,'day_utc':day,'dispatch_budget':{'configured':queue['max_jobs_per_day'],'claimed_today':count,'remaining':max(0,queue['max_jobs_per_day']-count)},
               'prior_dispatch_cleanup_confirmed':all(c['cleanup_confirmed'] for c in claims),
               'dedicated_uid_live_process_counts':{str(uid):len(role_processes(uid)) for uid in (21001,21002,21003,21012)},'candidate_routes':{}}
     for identifier in ('eis-research-v1','eis-research-v1-quality','eis-research-v1-semantic'):

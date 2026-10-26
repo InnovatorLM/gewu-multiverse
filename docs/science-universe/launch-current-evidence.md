@@ -28,3 +28,8 @@ validated privately, but NOT executed. Existing evaluator instruction item4
 requires explicit user authorization for reference-solution execution. It would
 be an infrastructure/reference self-check with no model score or API credentials;
 it must never be reported as target-model performance.
+
+The audit now reads the actual published evaluator catalog and compares it with
+current registry projection. It does not infer visibility solely from registry
+flags. Tests cover stale disabled entries, changed snapshot hashes and duplicate
+IDs; the current real catalog matches the registry and all EIS routes are absent.
