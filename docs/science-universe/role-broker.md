@@ -100,6 +100,24 @@ The response allowance change is explicit in the science launcher; no provider
 or model fallback was introduced. A subsequent live session is still required
 to demonstrate actual proposal delivery.
 
+The second proposal session correctly failed on length at8192tokens, again
+without a proposal. The final response contained reasoning_content but no visible
+content. The science launcher now explicitly selects
+`GEWU_CHAT_THINKING=disabled`, which sends `thinking.type=disabled` to the designated
+DawnFM endpoint; generic chat clients omit that provider extension. Invalid modes
+fail before sending requests. The setting is recorded in actual request bodies;
+it changes neither the account nor the model and is not difficulty evidence.
+
+Startup also needs actual work assignment: the product system prompt permits
+Forgejo work only on assigned issues and the role's own PRs. Author instruction
+alone does not create that assignment. `ensure_proposal_issue.py --apply --output
+<fresh-private-path>` creates the documented local proposal task once, assigns
+science-author and verifies read-back using the author's token. Existing matching
+tasks must have the exact documented body and operator identity. It posts only to
+the fixed local repository and grants no scientific approval. See
+[startup task body](proposal-startup-task.md). A live proposal session must still
+demonstrate delivery before authoring effectiveness is considered established.
+
 Library fixtures select the native mock transport explicitly at compile time
 to prevent an installed Codex from being launched accidentally during unit
 tests. Black-box Codex integration tests still use their explicit fake CLI.

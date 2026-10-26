@@ -2680,6 +2680,11 @@ fn model_loop(
         Ok(value) => value,
         Err(reason) => return RunEnd::failed(reason),
     };
+    let thinking = match std::env::var("GEWU_CHAT_THINKING") {
+        Ok(value) if matches!(value.as_str(), "enabled" | "disabled") => Some(value),
+        Err(std::env::VarError::NotPresent) => None,
+        _ => return RunEnd::failed("GEWU_CHAT_THINKING must be enabled or disabled".to_owned()),
+    };
     let instruction_text = String::from_utf8_lossy(instruction).into_owned();
     let mut messages = vec![
         Message::system(system_prompt(plan, forgejo.as_ref())),
@@ -2729,8 +2734,13 @@ fn model_loop(
             "[turn {turn}] waiting for the model {} at {}",
             plan.model, plan.endpoint
         ));
-        let exchange = match model::chat(&config, &messages, &declared_tools, Some(response_tokens))
-        {
+        let exchange = match model::chat_with_thinking(
+            &config,
+            &messages,
+            &declared_tools,
+            Some(response_tokens),
+            thinking.as_deref(),
+        ) {
             Ok(exchange) => exchange,
             Err(error) => {
                 let class = error.class();

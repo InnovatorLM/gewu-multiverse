@@ -629,6 +629,23 @@ pub fn chat(
     tools: &[ToolSpec],
     max_tokens: Option<u32>,
 ) -> Result<Exchange, ModelError> {
+    chat_with_thinking(config, messages, tools, max_tokens, None)
+}
+
+/// Explicit provider extension; omitted by default for other compatible endpoints.
+pub fn chat_with_thinking(
+    config: &ModelConfig,
+    messages: &[Message],
+    tools: &[ToolSpec],
+    max_tokens: Option<u32>,
+    thinking: Option<&str>,
+) -> Result<Exchange, ModelError> {
+    if thinking.is_some_and(|mode| !matches!(mode, "enabled" | "disabled")) {
+        return Err(ModelError::Transport {
+            endpoint: config.endpoint.clone(),
+            message: "GEWU_CHAT_THINKING must be enabled or disabled".to_owned(),
+        });
+    }
     let endpoint = config.endpoint.trim();
     if !endpoint.starts_with("http://") && !endpoint.starts_with("https://") {
         return Err(ModelError::BadUrl {
@@ -659,6 +676,9 @@ pub fn chat(
         }
         if let Some(max_tokens) = max_tokens {
             object.insert("max_tokens".to_owned(), serde_json::json!(max_tokens));
+        }
+        if let Some(mode) = thinking {
+            object.insert("thinking".to_owned(), serde_json::json!({"type": mode}));
         }
     }
     let request_body = serde_json::to_string(&body).map_err(|error| ModelError::Transport {
@@ -1229,6 +1249,34 @@ mod tests {
         assert_eq!(requests[0].body, exchange.request_body);
         assert!(requests[0].body.contains("\"stream\":false"));
         assert!(requests[0].body.contains("\"max_tokens\":8"));
+        assert!(!requests[0].body.contains("\"thinking\""));
+    }
+
+    #[test]
+    fn explicit_thinking_mode_is_sent_and_invalid_mode_sends_nothing() {
+        let stub = Stub::start(vec![StubReply::json(COMPLETION)]);
+        let config = config(&stub.url());
+        assert!(
+            chat_with_thinking(
+                &config,
+                &[Message::user("do it")],
+                &[],
+                Some(8),
+                Some("other")
+            )
+            .is_err()
+        );
+        assert!(stub.requests().is_empty());
+        chat_with_thinking(
+            &config,
+            &[Message::user("do it")],
+            &[],
+            Some(8),
+            Some("disabled"),
+        )
+        .unwrap();
+        let body: serde_json::Value = serde_json::from_str(&stub.requests()[0].body).unwrap();
+        assert_eq!(body["thinking"]["type"], "disabled");
     }
 
     #[test]
