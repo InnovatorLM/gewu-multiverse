@@ -3,10 +3,38 @@
 import argparse
 from datetime import datetime,timezone
 import json
+import re
+import stat
+import tomllib
 from pathlib import Path
 from evaluation_queue import W,root_file,validated_template,evaluation_catalog
 from build_task_images import validate_build_receipt
 from role_exec import role_processes
+
+
+def role_session_budget(state, launcher_text, now):
+    limits = re.findall(r'^export GEWU_DAILY_ROLE_SESSIONS=([0-9]+)$', launcher_text, re.M)
+    if len(limits) != 1 or not 1 <= int(limits[0]) <= 10:
+        raise ValueError('Installed role-session allowance is not an unambiguous supported literal')
+    limit = int(limits[0])
+    day = int(now.timestamp()) // 86400
+    roles = {}
+    for role in ('author', 'evaluator', 'curator'):
+        count = 0
+        directory = Path(state) / role
+        if directory.exists():
+            for run in directory.iterdir():
+                plan = run / 'plan.json'
+                if plan.exists():
+                    info = plan.lstat()
+                    if not stat.S_ISREG(info.st_mode):
+                        raise ValueError('Unexpected role plan type')
+                    # Match the native supervisor: prepared, failed and future-dated
+                    # plans count; opening the board does not reset the allowance.
+                    count += int(info.st_mtime) // 86400 >= day
+        roles[role] = {'prepared_today': count, 'remaining': max(0, limit - count)}
+    return {'configured_per_role': limit, 'roles': roles,
+            'scope': 'Persisted plan modification dates, matching the native UTC-day budget; not solver dispatch claims.'}
 
 
 def catalog_status(registry, published):
@@ -55,7 +83,18 @@ def audit():
         claims.append({'job_id':claim['job_id'],'day':claim['day'],
                        'cleanup_confirmed':result.get('cleanup_confirmed') is True})
     count=sum(c['day']==day for c in claims)
+    universe=W/'universes/my-terminal-bench-science'
+    settings_path=universe/'.config/gewu-multiverse/multiverse.toml'
+    info=settings_path.lstat()
+    if not stat.S_ISREG(info.st_mode) or info.st_uid not in (0,65534) or info.st_mode & 0o022:
+        raise ValueError('Controller settings ownership/type/mode refused')
+    settings=tomllib.loads(settings_path.read_text())
+    agents=settings['agents']
+    if sorted(a['name'] for a in agents)!=['author','curator','evaluator']:
+        raise ValueError('Unexpected science role inventory')
     evidence={'published_catalog':catalog,'day_utc':day,'dispatch_budget':{'configured':queue['max_jobs_per_day'],'claimed_today':count,'remaining':max(0,queue['max_jobs_per_day']-count)},
+              'role_session_budget':role_session_budget(universe/'.state/gewu-multiverse',root_file(universe/'start').read_text(),datetime.now(timezone.utc)),
+              'role_desired_states':{a['name']:a['desired'] for a in agents},
               'prior_dispatch_cleanup_confirmed':all(c['cleanup_confirmed'] for c in claims),
               'dedicated_uid_live_process_counts':{str(uid):len(role_processes(uid)) for uid in (21001,21002,21003,21012)},'candidate_routes':{}}
     for identifier in ('eis-research-v1','eis-research-v1-quality','eis-research-v1-semantic'):

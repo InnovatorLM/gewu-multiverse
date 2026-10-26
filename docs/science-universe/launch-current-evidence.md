@@ -6,6 +6,14 @@ source/receipt hashes, links retained image smokes, checks dedicated UID process
 counts and durable daily dispatch claims. It makes no API/model/ACS calls and
 never authorizes release. Retained smoke evidence is not a fresh cluster query.
 
+It also reads the installed launcher's literal per-role allowance, persisted
+role plans and current desired states. Prepared/failed/future-dated plans count
+conservatively using the native supervisor's UTC-day rule. Solver dispatch and
+author/evaluator/curator allowances are reported separately. A stopped process
+does not imply its desired state is stopped: after interrupted UI sessions,
+inspect both before reopening the board. An actual interrupted evaluator left
+desired=started; this was repaired to stopped before further UI use.
+
 The audit now separates author proposal startup from first-task admission.
 Its legacy `launch_ready` field applies to admission only. A qualified first task
 is not a prerequisite for author proposal work; current role allowance, processes,
