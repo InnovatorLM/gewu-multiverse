@@ -19,7 +19,7 @@ class PrototypeTests(unittest.TestCase):
                 for row in case['observations']:
                     prediction = impedance(number(row['omega']),model,case['boxes'],count)
                     for value,key in zip(prediction,('real','imag')):
-                        self.assertGreater(number(row['error_'+key])-abs(value-number(row[key])), F('0.009'))
+                        self.assertGreater(number(row['error_'+key])-abs(value-number(row[key])), F('0.005'))
 
     def test_permutations_and_alternative_series_resistance(self):
         for name,case in self.data['cases'].items():

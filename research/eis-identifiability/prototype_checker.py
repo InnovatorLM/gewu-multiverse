@@ -67,7 +67,33 @@ def measurement(case, one, two):
     return distances, min(options)[1] if options else 'not_resolvable'
 
 
+def validate_case(case):
+    if case.get('measurement_goal','conditional_pair') not in ('conditional_pair','separating_witness_pair'):
+        raise ValueError('unknown public measurement goal')
+    if case['units'] != {'omega':'rad/s','impedance':'ohm','tau':'s'}:
+        raise ValueError('unsupported units')
+    for key in ('rs','r','tau'):
+        limits = list(map(number,case['boxes'][key]))
+        if len(limits)!=2 or not 0 <= limits[0] < limits[1] or (key!='rs' and limits[0]==0):
+            raise ValueError('invalid public parameter bounds')
+    previous = Q(0)
+    if len(case['observations']) < 3:
+        raise ValueError('at least three observations required')
+    for row in case['observations']:
+        frequency = number(row['omega'])
+        if frequency <= previous or min(number(row[k]) for k in ('error_real','error_imag')) <= 0:
+            raise ValueError('ordered positive frequencies and error bounds required')
+        previous = frequency
+        number(row['real']); number(row['imag'])
+    if not case['measurement_options']:
+        raise ValueError('measurement menu required')
+    for option in case['measurement_options']:
+        if min(number(option[k]) for k in ('omega','error_real','error_imag')) <= 0 or number(option['cost']) < 0:
+            raise ValueError('invalid measurement option')
+
+
 def check(case, report):
+    validate_case(case)
     feasible(case, report['two_branch'], 2)
     status = report['single_branch_status']
     if status == 'excluded':
@@ -78,7 +104,9 @@ def check(case, report):
         if report['interpretation'] != 'finite_band_ambiguity_for_submitted_witnesses':
             raise ValueError('unsupported inference')
         distances, choice = measurement(case, report['one_branch'], report['two_branch'])
-        if list(map(number, report['d_vector'])) != distances or report['next_measurement'] != choice or type(report['next_measurement']) is bool:
+        if case.get('measurement_goal','conditional_pair') == 'separating_witness_pair' and max(distances) <= 1:
+            raise ValueError('public objective requires a strictly separating witness pair')
+        if list(map(number, report['d_vector'])) != distances or report['next_measurement'] != choice or type(report['next_measurement']) not in (int,str):
             raise ValueError('incorrect conditional measurement decision')
     else:
         raise ValueError('unsupported status')

@@ -9,6 +9,7 @@ evidence.
 |---|---|---|
 | robust-sensor-calibration | Three normal target-model trials succeeded. Independent numerical reproduction and rounded output pass the unchanged grader. A reviewer false-rejection claim was refuted. Remaining review claims are not fully adjudicated. | Infrastructure pilot only. No demonstrated target difficulty; redesign scientific work before more difficulty trials. |
 | reactor-safety-control-pilot | Compared directly with Git objects at upstream commit1892516e4321ebffb307de3b638506582ef28916: all30upstream files identical,0modified,0missing;3extra workflow records. Instruction, reference controller and verifier are inherited. | Imported reference fixture, not a new universe task. Preserve attribution; do not count as original output or rename it to imply novelty. |
+| EIS finite-band research prototype | Independently scoped v2/v3 research interface; both public-data numerical fits pass exact rational verification; 10 offline tests; low-band ambiguity and broad-band single-branch exclusion; future precision0.01ohm. | Research only. A public contrast objective addresses the near-merged-pair shortcut, but fits take under a second locally. No Harbor package, actual model difficulty or scientific acceptance. |
 | science-image-publication-smoke | Real image build/publication, source registration and Beijing ACS runtime smoke passed. Diagnostic registrations are disabled. | Infrastructure fixture only; no scientific acceptance or difficulty claim. |
 
 The reactor comparison used the import repository's actual original commit,

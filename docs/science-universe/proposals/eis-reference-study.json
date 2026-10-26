@@ -1,0 +1,93 @@
+{
+  "kind": "offline public-data numerical reference study",
+  "results": {
+    "ambiguous": {
+      "report": {
+        "two_branch": {
+          "rs": "19.9999996853",
+          "branches": [
+            {
+              "r": "93.5199122353",
+              "tau": "0.00279024460827"
+            },
+            {
+              "r": "91.4800880815",
+              "tau": "0.0111397385962"
+            }
+          ]
+        },
+        "single_branch_status": "feasible",
+        "one_branch": {
+          "rs": "19.9999999923",
+          "branches": [
+            {
+              "r": "184.999290178",
+              "tau": "0.00691873826188"
+            }
+          ]
+        },
+        "interpretation": "finite_band_ambiguity_for_submitted_witnesses",
+        "d_vector": [
+          "392830549354617395743843566485960422833157409615393986678213757441492342647097400681147/3125561735809985634867849139426046744848707991917091285833546677025579615465842420000000",
+          "470901183534628831950745849176228681044966129113857481698989987775101250/558067815918049109650570594354551618448570184142333851278980773292121",
+          "4890890114383812228869804302105026412136803473461126830101001222489875/8391766496808211434672051504648811718133947101983851278980773292121"
+        ],
+        "next_measurement": 1
+      },
+      "metrics": {
+        "two_branch_fit": {
+          "squared_residual": 5.477665397794971e-12,
+          "forward_projections": 3721
+        },
+        "one_branch_fit": {
+          "squared_residual": 7.957470543415635e-06,
+          "forward_projections": 163
+        },
+        "elapsed_seconds": 0.08056043274700642
+      },
+      "minimum_exact_feasibility_slack_ohm": "46791774566577103241208141102875093/6250299180869602514271632090000000000"
+    },
+    "excluded": {
+      "report": {
+        "two_branch": {
+          "rs": "5.00000000045",
+          "branches": [
+            {
+              "r": "79.9999999996",
+              "tau": "0.00100000000002"
+            },
+            {
+              "r": "120",
+              "tau": "0.0999999999992"
+            }
+          ]
+        },
+        "single_branch_status": "excluded",
+        "certificate": [
+          0,
+          1,
+          3
+        ]
+      },
+      "metrics": {
+        "two_branch_fit": {
+          "squared_residual": 2.0480216189962607e-18,
+          "forward_projections": 4213
+        },
+        "elapsed_seconds": 0.1328258030116558
+      },
+      "minimum_exact_feasibility_slack_ohm": "8789159369037987881836523035358320549000721102589991/878916015642578476562366409765621962500000020250000000"
+    }
+  },
+  "public_cases_sha256": "db27d2224ee566193f3fc25b0954cc71a736c6cde69ec5d81960599e9026d61e",
+  "source_sha256": {
+    "prototype_checker.py": "b92c96a08abcd971a61f70999bc04cfb6c28f1162efc383ea91927128fbdb481",
+    "reference_fit.py": "107befb74f003d4d4b1d3d8692961997c1bb3b3ad7b64de7969eb9223c35ed9d",
+    "run_reference_study.py": "b9b997e08fa0cfd8f5a687d1d24962b84daf861b32df189a9a7367efa527fade"
+  },
+  "timing_scope": "local host, not a measured 2CPU/4Gi ACS allocation",
+  "global_optimizer_guarantee": false,
+  "scientific_acceptance": false,
+  "difficulty_measured": false,
+  "model_calls": 0
+}

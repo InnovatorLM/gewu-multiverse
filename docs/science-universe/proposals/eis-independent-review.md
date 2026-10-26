@@ -68,3 +68,45 @@ exact closed-rectangle controls in the controller environment. This supports
 the conditional pairwise scoring formula, not full-family identifiability or
 proposal completion. Next authorized step is the research prototype under the
 specified scope, followed by further independent review before Harbor release.
+
+
+## Concrete finite-band prototype review
+
+The independent reviewer subsequently ran all9then-existing offline tests and
+both public-data-only reference fits. Both exact checks passed; local fits took
+approximately0.06/0.10seconds. Future precision0.01ohm is sufficient for the
+new low-band ambiguous case; fitted-witness D values were approximately
+[0.126,843.805,582.819], selecting index1. Generated parameter matching is not
+required; a different feasible Rsnear20illustrates parameter ambiguity.
+This resolves the initial hypothetical1e-9precision issue for this synthetic
+exercise, not instrument/cost realism or scientific/benchmark difficulty.
+
+The reviewer found a valid v2difficulty bypass: split a fitted single branch's
+resistance equally with tau±1e-10. Both branches fit; all future D<5e-13;
+`not_resolvable` is accepted. This conforms to the current conditional-pair
+contract and must not be retrospectively penalized. The controller retained
+this reproduction as test_v2_near_merged_pair_is_a_legal_easy_answer.
+The reviewer does not approve scientific release or target-model difficulty;
+local normal-equation fitting is not global optimization. A public objective
+amendment, with fairness/feasibility review, is required if the task must demand
+a distinguishable pair of explanations.
+
+
+## Public contrast-objective amendment review
+
+The same independent reviewer approved v3only for research-interface prototyping.
+The reviewer judged that explicitly requiring a feasible witness pair with
+max(D)>1changes the public objective fairly, while preserving v2conditional
+mode. It must not be marketed as full-family identifiability, mechanism
+uniqueness or optimal experimental design. Unknown modes must be rejected;
+missing mode may retain v2; excluded cases do not need a single-branch pair.
+The document now explicitly limits distinction to bounded-error prediction
+rectangles being disjoint, not identification of a real physical mechanism.
+This is not Harbor-release permission or empirical difficulty qualification.
+
+The reviewer then checked the actual v3implementation read-only: all10tests
+passed, both public-data fits were exact-verified, unknown/missing goal handling
+and near-merged conditional/contrast behavior matched the approved scope.
+An additional direct check confirmed that an excluded case remains accepted
+even with the separating goal, since no feasible single-branch pair is required.
+No source edits, API calls or ACS launches were made by the reviewer.

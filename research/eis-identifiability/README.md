@@ -62,30 +62,61 @@ this threshold classification.
 
 ## Concrete interface prototype
 
-`prototype.py` now builds two nine-frequency synthetic cases with explicit
-parameter boxes, component envelopes and a finite measurement menu. Run
-`PYTHONDONTWRITEBYTECODE=1 python3 prototype.py`; the retained output is
-`docs/science-universe/proposals/eis-prototype-fixtures.json` from repository root.
-Known witnesses are research fixtures only; this is not a numerical fitting
-solution or a solver-visible Harbor package. `prototype_checker.py` separately
-implements rational forward evaluation and interval exclusion without importing
-`feasibility.py` or the generator. The generator calls the checker to validate
-its fixture reports; this is not independent scientific review of their design.
+`prototype.py` builds two synthetic cases with explicit boxes, error envelopes
+and a finite future-measurement menu. The ambiguous case has five low-frequency
+observations from0.01to1rad/s and well-separated tau values0.001/0.01s.
+A single branch fits this narrow band, but expanded-frequency measurements can
+distinguish the supplied alternatives at the same0.01ohm component precision.
+The excluded case has nine observations from1to10000rad/s and a valid exact
+triple certificate. All future menu precision is0.01ohm; acquisition costs are
+synthetic units, not calibrated physical instrument costs. This supersedes the
+initial close-tau fixture requiring1e-9ohm hypothetical future precision.
 
-Seven test methods now pass, including serialized feasibility slack greater
-than0.009ohm for both fixture witness types, branch permutations, alternative
-series resistance, false certificates/statuses, fabricated D vectors, wrong
-units/negative resistances, equal-tau reductions and binary float refusal.
-The earlier486single-branch controls and7203rectangle controls remain passing.
+`prototype_checker.py` separately implements rational forward evaluation and
+interval exclusion, importing no generator or fitter. Public units, bounds,
+ordered frequencies, positive errors and nonnegative costs are validated.
+The generator invokes it to check fixture reports; this is not independent
+scientific review. Ten test methods pass, including known serialized-witness
+slack>0.005ohm, branch permutations, alternative series resistance, false
+certificates/statuses, fabricated D vectors, wrong units/negative resistances,
+equal-tau reductions, binary float refusal and noninteger measurement indices.
+The earlier486single-branch and7203rectangle controls remain passing.
 
-The original close-tau pair is so similar that1e-6ohm future precision does not
-separate it in this menu. The explicit fixture therefore uses1e-9ohm precision
-for two options solely to exercise the strictly-separating/tied-cost interface.
-These are synthetic acquisition units and hypothetical precision, not a claim
-of attainable instrument accuracy or meaningful scientific measurement costs.
-This is a concrete warning for redesign: a realistic harder candidate needs
-physically justified measurement precision/cost and less trivial ambiguity,
-followed by numerical fitting/resource measurement and independent review.
-The checker trusts operator-authored public case metadata; it is not yet a
-hardened general input-schema validator or a release-ready Harbor verifier.
-No models, ACS instances or acceptance workflows are invoked by these checks.
+`reference_fit.py` independently fits numeric parameters using public data only:
+log-tau grid, variable projection onto linear resistances, eight starting points
+and coordinate refinement. It uses floating least squares/normal equations;
+ill conditioning and local minima remain possible. Optimizer failure cannot
+establish exclusion. Reports are serialized and then independently checked with
+exact rational arithmetic. Generated parameters are never privileged.
+The low-band case actually yields a different feasible series resistance near
+the public upper bound, illustrating parameter ambiguity rather than proving
+that bound is scientifically meaningful. Both cases solve in under a second
+on the local host in the retained study: this is not target-model difficulty or
+an ACS2CPU/4Gi resource measurement, and the toy may be much too easy.
+
+Reproduce using only the public case mapping (no known witnesses):
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 python3 research/eis-identifiability/run_reference_study.py \
+  docs/science-universe/proposals/eis-prototype-public-cases.json
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s research/eis-identifiability -v
+```
+
+The retained `eis-reference-study.json` binds source/public-data hashes and
+reports exact feasibility slack, numerical search counts and local timings.
+Known-witness research fixtures remain in `eis-prototype-fixtures.json`;
+none of these files is a packaged solver-visible Harbor task. No models,
+ACS instances or acceptance workflows are invoked. Scientific suitability,
+realistic acquisition constraints, meaningful difficulty and independent review
+remain prerequisites to release.
+
+
+The independently scoped v3amendment adds an explicitly public
+`measurement_goal: separating_witness_pair` to the ambiguous research case.
+It asks for a pair with disjoint bounded-error prediction rectangles at one or
+more menu points, then the cheapest such point for that pair. Unknown goals
+are rejected; missing/`conditional_pair` retains v2. The near-merged bypass is
+retained as a regression: legal under conditional mode, rejected under the
+explicit contrast objective. This closes that objective loophole without
+hidden parameter gaps; it still does not establish target-model difficulty.
+The excluded case does not require a feasible single-branch contrast pair.
