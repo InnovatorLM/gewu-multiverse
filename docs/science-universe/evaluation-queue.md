@@ -361,3 +361,13 @@ receipt validation and was deliberately disabled in the evaluator catalog.
 No LLM or ACS was launched for this proof; it is not a scientific candidate or
 an acceptance/difficulty result. Offline tests reject mismatched commits, hashes,
 publication status, image repositories, provenance labels and Pod overrides.
+
+
+The operator evaluation wrapper now checks the configured Kubernetes pull
+Secret before loading model credentials or launching Harbor. It requires the
+Docker-config Secret type and entries for both runtime/verifier registry hosts.
+This checks existence and configuration, not credential validity; only a real
+image pull can establish that. A live check passed against the restored Shanghai
+Secret and a nonexistent-secret negative check refused before launch. The
+Secret was found missing during new-image ACS validation despite older successful
+runs, so historical trial evidence must not replace a current preflight.

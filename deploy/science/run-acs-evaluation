@@ -30,6 +30,21 @@ for p in [Path(c['jobs_dir']).resolve(), Path(c['environment']['kwargs']['kubeco
 for dataset in c.get('datasets', []):
     if not Path(dataset['path']).resolve().is_relative_to(w):
         raise SystemExit('Task datasets must be workspace-local')
+# Check current cluster state rather than trusting a historical successful run.
+# Inspect only the configured Secret; never log or materialize its credentials.
+import base64
+from kubernetes import client, config
+kw = c['environment']['kwargs']
+try:
+    config.load_kube_config(config_file=kw['kubeconfig'])
+    secret = client.CoreV1Api().read_namespaced_secret(
+        kw['image_pull_secret'], kw.get('namespace', 'default'), _request_timeout=25)
+    auths = json.loads(base64.b64decode(secret.data['.dockerconfigjson']))['auths']
+    hosts = {kw[key].split('/', 1)[0] for key in ['runtime_image', 'verifier_image']}
+    if secret.type != 'kubernetes.io/dockerconfigjson' or not hosts <= set(auths):
+        raise ValueError('Pull Secret does not cover configured image registries')
+except Exception:
+    raise SystemExit('ACR preflight failed: configured pull Secret is unavailable or does not cover image registries') from None
 PY_VALIDATE
 # Original credentials remain 0600; no copying to authors or task repositories.
 source "$W/.config/llm/dawnfm.env"
