@@ -146,7 +146,16 @@ def process(config, request_path, mock=False):
     registry = json.loads(root_file(config['registry']).read_text())
     if request['evaluation_id'] not in registry:
         raise ValueError('Evaluation ID has not been registered by operator')
-    template = validated_template(registry[request['evaluation_id']], request)
+    entry = registry[request['evaluation_id']]
+    template = validated_template(entry, request)
+    dispatch = entry.get('dispatch', 'solver')
+    if dispatch not in {'solver', 'quality_diagnostic'}:
+        raise ValueError('Unknown registered dispatch')
+    if dispatch == 'quality_diagnostic':
+        from role_exec import trusted
+        review_root = trusted(entry['review_root'], directory=True)
+        if not review_root.is_relative_to(W / '.state/science-review-tools') or digest_tree(review_root / 'task') != entry['snapshot_sha256']:
+            raise ValueError('Registered review root/task mismatch')
     for claim in state.glob('*/claim.json'):
         retained = claim.parent / 'result.json'
         if not retained.exists() or json.loads(retained.read_text()).get('cleanup_confirmed') is not True:
@@ -177,7 +186,10 @@ def process(config, request_path, mock=False):
         atomic_json(job / 'config.json', template)
         env = os.environ.copy()
         env.update(PYTHONDONTWRITEBYTECODE='1', PYTHONPATH=str(W / '.local/harbor-extensions') + ':' + str(W / 'acs-harbor-test/harbor/src'))
-        command = [str(W / 'gewu-multiverse/deploy/science/run-acs-evaluation'), str(job / 'config.json'), str(job / 'report.json')]
+        if dispatch == 'quality_diagnostic':
+            command = [str(W / 'gewu-multiverse/deploy/science/run-quality-diagnostic'), '--evaluation-id', request['evaluation_id'], '--root', str(review_root), '--job', str(job / 'quality')]
+        else:
+            command = [str(W / 'gewu-multiverse/deploy/science/run-acs-evaluation'), str(job / 'config.json'), str(job / 'report.json')]
         with (job / 'controller.log').open('w') as log:
             child = None
             def stop(_number, _frame):
@@ -198,7 +210,18 @@ def process(config, request_path, mock=False):
                     child.wait(timeout=180)
             finally:
                 signal.signal(signal.SIGTERM, previous)
-        if not (job / 'report.json').exists():
+        if dispatch == 'quality_diagnostic':
+            summary = job / 'quality/summary.json'
+            if summary.exists():
+                answer.update(json.loads(root_file(summary).read_text()))
+            else:
+                from role_exec import role_processes
+                import time
+                deadline = time.monotonic() + 10
+                while role_processes(21012) and time.monotonic() < deadline:
+                    time.sleep(.1)
+                answer.update(status='quality_diagnostic_failed', cleanup_confirmed=not role_processes(21012), quality_acceptance=False, scientific_acceptance=False, release_eligible=False, factual_verification_required=True)
+        elif not (job / 'report.json').exists():
             answer.update(status='failed', cleanup_confirmed=False, quality_acceptance=False)
         else:
             answer.update(aggregate(json.loads((job / 'report.json').read_text()), job / 'runs' / template['job_name'] / 'result.json'))

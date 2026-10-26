@@ -57,9 +57,10 @@ A separate test terminated the worker after a real Pod appeared: cancelled,
 reward unknown, cleanup confirmed, known Pod404. It is not a difficulty sample.
 Installed UI start/stop with the worker also passed without enabling roles.
 
-This queue currently dispatches registered solver trials. It does not build new
-candidate images, register arbitrary author commits, run independent quality or
-semantic novelty reviews, produce acceptance receipts or merge tasks. Those
+The queue dispatches registered solver trials and the quality diagnostic route
+described below. It does not build new candidate images, automatically register
+author commits, adjudicate factual correctness, run semantic novelty reviews,
+produce acceptance receipts or merge tasks. Those
 workflow stages still require implementation/validation before unattended
 scientific production can be declared ready. The calibration task remains an
 infrastructure pilot, not an accepted scientific task.
@@ -167,7 +168,8 @@ concurrent-session rejection and fabricated evidence rejection. It makes no LLM
 or ACS calls. Evidence-reference validation proves a quotation exists, not that
 the command or scientific inference is correct. Factual audit, dynamic task
 execution, semantic comparison and final acceptance are separate gates. This
-operator entry point is not yet dispatched by the evaluator queue.
+operator entry point is now available through the diagnostic queue route below;
+that route does not grant acceptance.
 
 Tool-backed final reports use the schema-bearing `submit_review` function.
 After10shell calls the controller removes the shell tool and forces submission.
@@ -204,3 +206,43 @@ not an accepted scientific judgment. `review_diagnostic_status.py` creates a
 hash-bound nonacceptance summary for a report and its factual audit; even a score
 of100and no_blocker_found cannot make its release_eligible flag true. This
 summary is not a release receipt, signature, quality gate or role-queue result.
+
+## Quality diagnostic queue dispatch
+
+The worker also supports operator-registered `quality_diagnostic` entries.
+`register_quality_diagnostic.py --source-evaluation-id <solver-id>
+--evaluation-id <new-id> --review-root <prepared-root>` reuses an existing frozen
+solver snapshot/configuration and requires a hash-matching root-owned tool root
+under private review state. Registration cannot overwrite an ID. Only the ID,
+hash and diagnostic purpose enter the evaluator catalog; requests retain exactly
+the original three-field schema. No caller may choose commands/provider/root.
+
+The fixed `run-quality-diagnostic` wrapper sources the designated workspace LLM
+account controller-side. It runs a new isolated tool review and, only if that
+fails with retained evidence, one JSON-body finalization of the same review.
+Failures remain in private attempts/logs. The evaluator result includes the
+model's diagnostic review and usage, never raw tool logs, controller paths,
+prompts or provider credentials. No ACS resources are created by this route.
+Results are `quality_diagnostic_complete` or `quality_diagnostic_failed`, with
+`quality_acceptance=false`, `scientific_acceptance=false`,
+`release_eligible=false` and `factual_verification_required=true`.
+
+Quality diagnostics share the durable daily dispatch allowance and previous-job
+cleanup gate with solver trials. Cancellation waits for dedicated reviewer UID
+cleanup; unconfirmed cleanup blocks subsequent jobs. Offline mocked quality
+queue tests cover route selection, a missing report and unknown dispatch refusal.
+Mock orchestration tests cover failed initial review, same-evidence finalization,
+and nonacceptance. These are separate from live queue evidence. This diagnostic
+route does not complete semantic comparison, factual adjudication, fresh task
+builds, dynamic verification or scientific acceptance.
+
+Live diagnostic dispatch passed: evaluator submitted and read back job
+`0bc28e9253f04957a6dc453edd0495a3` without a provider key. It made9shell calls;
+the first review failed final validation and same-evidence JSON finalization
+succeeded. Cleanup confirmed; no ACS resources launched. Private retained
+provider responses account for156902input/17691output tokens in the initial
+review (8requests), plus19978input/1678output in finalization (1request).
+These are reviewer costs, not solver difficulty metrics. The live role summary
+omitted source-review usage; it is preserved in separate private evidence and
+the forwarding correction is covered by runner tests. Diagnostic score56.25
+and no_blocker_found remain model claims requiring factual verification.
