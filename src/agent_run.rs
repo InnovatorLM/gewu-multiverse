@@ -2671,6 +2671,15 @@ fn model_loop(
     transcript: &mut Transcript,
     log: &mut RunLog,
 ) -> RunEnd {
+    let response_tokens = match std::env::var("GEWU_RESPONSE_TOKENS") {
+        Ok(value) => model::response_token_limit(Some(&value)),
+        Err(std::env::VarError::NotPresent) => model::response_token_limit(None),
+        Err(_) => Err("GEWU_RESPONSE_TOKENS is not valid text".to_owned()),
+    };
+    let response_tokens = match response_tokens {
+        Ok(value) => value,
+        Err(reason) => return RunEnd::failed(reason),
+    };
     let instruction_text = String::from_utf8_lossy(instruction).into_owned();
     let mut messages = vec![
         Message::system(system_prompt(plan, forgejo.as_ref())),
@@ -2720,12 +2729,8 @@ fn model_loop(
             "[turn {turn}] waiting for the model {} at {}",
             plan.model, plan.endpoint
         ));
-        let exchange = match model::chat(
-            &config,
-            &messages,
-            &declared_tools,
-            Some(model::DEFAULT_MAX_TOKENS),
-        ) {
+        let exchange = match model::chat(&config, &messages, &declared_tools, Some(response_tokens))
+        {
             Ok(exchange) => exchange,
             Err(error) => {
                 let class = error.class();
@@ -2831,6 +2836,15 @@ fn model_loop(
                 }
             }
             None => log.line(&format!("[turn {turn}] the model {}", reply.summary())),
+        }
+
+        if reply.finish_reason.as_deref() == Some("length") {
+            return RunEnd::failed(format!(
+                "the model response was truncated (finish_reason=length; max_tokens={response_tokens}); no truncated tool calls were executed"
+            ));
+        }
+        if reply.tool_calls.is_empty() && reply.content.as_deref().unwrap_or("").trim().is_empty() {
+            return RunEnd::failed("the model returned no final text or tool calls".to_owned());
         }
 
         messages.push(Message::assistant(
@@ -4806,6 +4820,57 @@ mod tests {
         );
         assert!(hide.iter().any(|path| path == &config));
         let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_truncated_reply_is_failure_and_its_tool_is_not_executed() {
+        let (root, config, skills, credentials) = agent_source("agent-run-truncated");
+        let dir = run_dir(&root);
+        fs::write(config.join("instruction.md"), "write an artifact\n").unwrap();
+        let marker = config.join("workspace/truncated-tool-ran");
+        let mut reply: serde_json::Value = serde_json::from_str(&tool_call_completion(
+            "truncated",
+            &format!("touch '{}'", marker.display()),
+        ))
+        .unwrap();
+        reply["choices"][0]["finish_reason"] = "length".into();
+        let stub = Stub::start(vec![StubReply::json(reply.to_string())]);
+        plan_with(
+            &dir,
+            &config,
+            &skills,
+            &credentials,
+            &stub.url(),
+            4,
+            Vec::new(),
+        );
+        let end = execute(&dir);
+        assert!(!end.is_success());
+        assert!(end.reason.unwrap().contains("finish_reason=length"));
+        assert!(!marker.exists());
+        assert!(!events(&dir).contains(&"tool_call".to_owned()));
+        assert_eq!(stub.requests().len(), 1);
+    }
+
+    #[test]
+    fn an_empty_final_reply_is_not_success() {
+        let (root, config, skills, credentials) = agent_source("agent-run-empty-final");
+        let dir = run_dir(&root);
+        fs::write(config.join("instruction.md"), "produce a proposal\n").unwrap();
+        let stub = Stub::start(vec![StubReply::json(completion(""))]);
+        plan_with(
+            &dir,
+            &config,
+            &skills,
+            &credentials,
+            &stub.url(),
+            4,
+            Vec::new(),
+        );
+        let end = execute(&dir);
+        assert!(!end.is_success());
+        assert!(end.reason.unwrap().contains("no final text or tool calls"));
+        assert_eq!(stub.requests().len(), 1);
     }
 
     #[test]

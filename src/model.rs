@@ -37,6 +37,34 @@ pub const PROBE_TIMEOUT: Duration = Duration::from_secs(15);
 /// The most tokens one reply may hold.
 pub const DEFAULT_MAX_TOKENS: u32 = 2048;
 
+/// Operator-selected native reply allowance; generic installations keep the default.
+pub fn response_token_limit(value: Option<&str>) -> Result<u32, String> {
+    match value {
+        None => Ok(DEFAULT_MAX_TOKENS),
+        Some(text) => text
+            .parse::<u32>()
+            .ok()
+            .filter(|n| (256..=16384).contains(n))
+            .ok_or_else(|| {
+                "GEWU_RESPONSE_TOKENS must be an integer between 256 and 16384".to_owned()
+            }),
+    }
+}
+
+#[cfg(test)]
+mod response_allowance_tests {
+    use super::*;
+
+    #[test]
+    fn explicit_allowance_and_default_are_distinct_from_invalid_configuration() {
+        assert_eq!(response_token_limit(None).unwrap(), 2048);
+        assert_eq!(response_token_limit(Some("8192")).unwrap(), 8192);
+        for value in ["", "0", "-1", "255", "16385", "unknown"] {
+            assert!(response_token_limit(Some(value)).is_err(), "{value}");
+        }
+    }
+}
+
 /// The most reply body that is kept in a transcript line.
 pub const MAX_BODY_BYTES: usize = 128 * 1024;
 

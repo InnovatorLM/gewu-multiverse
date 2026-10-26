@@ -29,7 +29,7 @@ if not args.tools_only:
     proc_self.mkdir(parents=True, exist_ok=True)
     if not (proc_self / 'exe').exists():
         (proc_self / 'exe').symlink_to('/usr/local/bin/codex')
-for binary in ['/bin/bash', '/bin/ls', '/bin/cat', '/usr/bin/find', '/usr/bin/head', '/usr/bin/wc', '/usr/bin/sed', '/usr/bin/grep', '/usr/bin/env', '/usr/bin/id', '/usr/bin/timeout', '/usr/bin/diff', '/usr/bin/awk', '/usr/local/bin/python3.10', '/usr/bin/git', '/usr/lib/git-core/git-remote-http', '/usr/bin/curl', '/usr/bin/mkdir', '/usr/bin/cp', '/usr/bin/mv', '/usr/bin/rm', '/usr/bin/chmod', '/usr/bin/touch', '/usr/bin/sleep', '/usr/bin/setsid', '/usr/bin/sort', '/usr/bin/sha256sum', '/usr/bin/tar', '/usr/bin/gzip', '/usr/bin/mktemp']:
+for binary in ['/bin/bash', '/bin/ls', '/bin/cat', '/usr/bin/find', '/usr/bin/head', '/usr/bin/tail', '/usr/bin/cut', '/usr/bin/tr', '/usr/bin/xargs', '/usr/bin/basename', '/usr/bin/dirname', '/usr/bin/date', '/usr/bin/uniq', '/usr/bin/readlink', '/usr/bin/wc', '/usr/bin/sed', '/usr/bin/grep', '/usr/bin/env', '/usr/bin/id', '/usr/bin/timeout', '/usr/bin/diff', '/usr/bin/awk', '/usr/local/bin/python3.10', '/usr/bin/git', '/usr/lib/git-core/git-remote-http', '/usr/bin/curl', '/usr/bin/mkdir', '/usr/bin/cp', '/usr/bin/mv', '/usr/bin/rm', '/usr/bin/chmod', '/usr/bin/touch', '/usr/bin/sleep', '/usr/bin/setsid', '/usr/bin/sort', '/usr/bin/sha256sum', '/usr/bin/tar', '/usr/bin/gzip', '/usr/bin/mktemp']:
     source = Path(binary)
     if not source.exists():
         continue

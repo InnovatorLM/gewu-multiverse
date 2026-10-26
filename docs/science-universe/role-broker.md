@@ -81,9 +81,24 @@ The engine refuses broker-mode starts without a daily session budget of1..10,
 or with more than24model turns. The launcher selects3sessions per role per UTC
 day. Every prepared plan counts, including errors/cancellations; durable plan
 timestamps preserve consumption across board restarts. Normal per-response
-output remains bounded by2048tokens. This is a session/turn/output bound,
+output is explicitly configured to8192tokens in this deployment; generic
+installations keep the2048default. `GEWU_RESPONSE_TOKENS` accepts256..16384;
+invalid values fail before any model request. This is a session/turn/output bound,
 not a currency ceiling or a claim of exact token billing. Independent ACS
 evaluation remains a separately guarded one-trial/no-retry workflow.
+
+The first real proposal session made10model requests and16shell tool calls, then
+received an empty response with finish_reason=length at2048completion tokens.
+No proposal was delivered. Its historical outcome was warned because a prior
+shell command also lacked tail; the independently retained assessment marks the
+session incomplete, not successful authoring. Runtime handling now fails on
+length before executing any returned tools and fails on an empty final response.
+The chroot provisioner includes tail and common text/path utilities, and all
+three role UIDs passed actual tail/cut checks. The updated native library passed
+337nonroot tests, including truncated-tool refusal and empty-final handling.
+The response allowance change is explicit in the science launcher; no provider
+or model fallback was introduced. A subsequent live session is still required
+to demonstrate actual proposal delivery.
 
 Library fixtures select the native mock transport explicitly at compile time
 to prevent an installed Codex from being launched accidentally during unit

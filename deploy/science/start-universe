@@ -10,6 +10,7 @@ export XDG_DATA_HOME="$U/.local/share" XDG_CACHE_HOME="$U/.cache"
 export HOME="$U/.local/home" GIT_CONFIG_GLOBAL="$U/.config/gitconfig"
 export GEWU_HARNESS=native
 export GEWU_DAILY_ROLE_SESSIONS=3
+export GEWU_RESPONSE_TOKENS=8192
 export GEWU_FORGEJO_TIMEOUT_SECS=120
 export GEWU_ROLE_BROKER_CONFIG="$W/.state/science-role-broker/config.json"
 PY="$W/acs-harbor-test/.venv/bin/python"
