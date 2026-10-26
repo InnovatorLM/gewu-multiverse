@@ -35,3 +35,5 @@ protected evaluator+owner approvals remain required before curator merge.
 No real candidate has yet reached that approval stage.
 
 See [independent EIS task-value review](proposals/eis-scientific-value-review.md). A new scientifically grounded proposal is required before further EIS candidate development or difficulty evaluation.
+
+The pulsed-sensor research direction was also independently screened: current evidence does not justify a concentration/generalization task or repackaging known anomalies as a scientific audit task. See [direction decision](proposals/pulsed-sensor-direction-decision.md). Reopening requires experiment hierarchy, concrete deployment decision, independent validation assets and fair scoring.
