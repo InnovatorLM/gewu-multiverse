@@ -555,3 +555,25 @@ trajectory as tamper-proof. The read gate does not grant file access to roles,
 call a model, or claim semantic validity of trace contents. Tests cover changed
 identity/raw/ATIF, image substitution, public permissions, cancelled state,
 unconfirmed cleanup, missing retention and changed-snapshot flags.
+
+## Prepare a native private trajectory-review trial
+
+`prepare_private_trial.py --evaluation-id <id> --directory <private-job>
+--output <fresh-private-state-dir>` revalidates retention, current registration,
+worker job/result identity, guard success/cleanup and exactly one normal Harbor
+trial at the registered task path with the designated model. It assembles ATIF,
+verifier stdout and minimal configuration/result data, preserving source and
+prepared-file hashes. Both config.json and result.json use explicit allowlists:
+Harbor result.json embeds a complete config, so copying it wholesale would
+reintroduce provider environment values. Native trajectory input validation
+runs before a preparation manifest is written. Changed inputs or validation
+failures remove this tool's incomplete output.
+
+This makes no model calls, does not copy artifact collections, and explicitly
+retains native warnings about missing artifacts. It is not a full trial export,
+scientific review or proof of complete evidence. Trace/verifier text remains
+private untrusted content; secret/content review is still required before any
+judge call. Tests use a synthetic normal trial and native input validator, with
+mocked upstream retention validation. They verify no secret sentinel from either
+embedded config appears in prepared metadata, reject foreign worker jobs and
+wrong executed task paths. This is not live science retention evidence.
