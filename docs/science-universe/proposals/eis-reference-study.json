@@ -43,7 +43,7 @@
           "squared_residual": 7.957470543415635e-06,
           "forward_projections": 163
         },
-        "elapsed_seconds": 0.08056043274700642
+        "elapsed_seconds": 0.08112871088087559
       },
       "minimum_exact_feasibility_slack_ohm": "46791774566577103241208141102875093/6250299180869602514271632090000000000"
     },
@@ -74,14 +74,14 @@
           "squared_residual": 2.0480216189962607e-18,
           "forward_projections": 4213
         },
-        "elapsed_seconds": 0.1328258030116558
+        "elapsed_seconds": 0.13229724392294884
       },
       "minimum_exact_feasibility_slack_ohm": "8789159369037987881836523035358320549000721102589991/878916015642578476562366409765621962500000020250000000"
     }
   },
   "public_cases_sha256": "db27d2224ee566193f3fc25b0954cc71a736c6cde69ec5d81960599e9026d61e",
   "source_sha256": {
-    "prototype_checker.py": "b92c96a08abcd971a61f70999bc04cfb6c28f1162efc383ea91927128fbdb481",
+    "prototype_checker.py": "2ccd1ba8723eca0949f221d227b6da1b3ac431086319c5e82355f7f2fdf15e31",
     "reference_fit.py": "107befb74f003d4d4b1d3d8692961997c1bb3b3ad7b64de7969eb9223c35ed9d",
     "run_reference_study.py": "b9b997e08fa0cfd8f5a687d1d24962b84daf861b32df189a9a7367efa527fade"
   },

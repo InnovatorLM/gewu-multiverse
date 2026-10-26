@@ -1,10 +1,13 @@
 """Independent exact checker for the research interface; imports no generator/fitter."""
 from fractions import Fraction as Q
+import re
 
 
 def number(v):
     if type(v) not in (str, int):
         raise ValueError('exact integer/decimal/rational required')
+    if type(v) is str and not re.fullmatch(r'(?:[+-]?[0-9]+/[1-9][0-9]*|[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?)',v):
+        raise ValueError('invalid exact numeric string syntax')
     return Q(v)
 
 
@@ -106,6 +109,8 @@ def check(case, report):
         distances, choice = measurement(case, report['one_branch'], report['two_branch'])
         if case.get('measurement_goal','conditional_pair') == 'separating_witness_pair' and max(distances) <= 1:
             raise ValueError('public objective requires a strictly separating witness pair')
+        if any(type(value) is not str for value in report['d_vector']):
+            raise ValueError('D vector entries must be exact numeric strings')
         if list(map(number, report['d_vector'])) != distances or report['next_measurement'] != choice or type(report['next_measurement']) not in (int,str):
             raise ValueError('incorrect conditional measurement decision')
     else:

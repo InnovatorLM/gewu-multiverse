@@ -1,0 +1,93 @@
+{
+  "status": "research/draft; no enabled registration",
+  "mechanical": {
+    "snapshot_sha256": "8abf10ca270feaa260abd9026d86e8b155f427b7c5422e9181b456f12a5845da",
+    "harbor_version": "0.20.0",
+    "task_config_source_sha256": "d1f58e067efa996bed2a20d85aa822657f26516497076f921dceae81293b2c2f",
+    "checker_source_sha256": "5177af5dd64acf972abaf5a6d698683d372710a12c661bff6ea733f4f83f13d9",
+    "schema_parsed": true,
+    "required_files_nonempty": true,
+    "shell_syntax_valid": true,
+    "schema_resolved_resources": {
+      "cpus": 2,
+      "memory_mb": 4096,
+      "storage_mb": 30720,
+      "gpus": null
+    },
+    "schema_resolved_timeouts": {
+      "agent": 300.0,
+      "verifier": 60.0,
+      "build": 300.0
+    },
+    "task_code_executed": false,
+    "scientific_acceptance": false,
+    "license_verified": false,
+    "runtime_verified": false
+  },
+  "local_image_layer_audit": {
+    "image_config_id": "sha256:740b695933bb7de1812b7e89174f596cf987e877df538efdc06fb41cb9ea3690",
+    "build_exit": 0,
+    "all_layer_metadata_scanned": true,
+    "forbidden_task_code_paths": [],
+    "public_data_layer_hashes": [
+      "cb7cf688c79ae83153d822fd3265269c937b3f785800f91601249ace328d8ca0"
+    ],
+    "expected_public_data_sha256": "cb7cf688c79ae83153d822fd3265269c937b3f785800f91601249ace328d8ca0",
+    "public_data_exact": true,
+    "layers": [
+      {
+        "archive_path": "blobs/sha256/a70f6272827f64e1427d048ced77491aab5d64ab95725e56920802ff391197d7",
+        "entry_count": 3271,
+        "app_entries": []
+      },
+      {
+        "archive_path": "blobs/sha256/535a5d38abecfac4fa49da33fa942b53c53c463bd0d39a860967e46eb03faafe",
+        "entry_count": 547,
+        "app_entries": []
+      },
+      {
+        "archive_path": "blobs/sha256/6972161a9a77e7c1afb997daac15abc54f5b70c7b40b814601f53e038d8c398c",
+        "entry_count": 2492,
+        "app_entries": []
+      },
+      {
+        "archive_path": "blobs/sha256/d86e9bd004831a6069b9a02e5caac80b73526315f52719079b4017b099956ed2",
+        "entry_count": 8,
+        "app_entries": []
+      },
+      {
+        "archive_path": "blobs/sha256/693594d3b12a34a42917b393012a5333b41b9ac79cb187921e77c437c1146cf9",
+        "entry_count": 1,
+        "app_entries": [
+          "app"
+        ]
+      },
+      {
+        "archive_path": "blobs/sha256/5dd581cea086383f3ea390dae2feba6c410f1442a907349a8bb55131efc63c54",
+        "entry_count": 3,
+        "app_entries": [
+          "app",
+          "app/data",
+          "app/data/cases.json"
+        ]
+      }
+    ],
+    "acs_launched": false,
+    "model_calls": 0,
+    "container_executed": false,
+    "scientific_acceptance": false,
+    "scope": "path inventory and expected data bytes, not exhaustive inherited-base secret or malicious-content analysis"
+  },
+  "offline_package_checks": {
+    "tests_total": 12,
+    "standalone_solution_and_verifier": "pass",
+    "solver_editable_data_does_not_override_grading": "pass",
+    "invalid_report_controls": "pass",
+    "environment_payload_allowlist": "pass"
+  },
+  "evidence_scope": "Host offline package execution and local image build/layer inventory; not actual Harbor trial or ACS lifecycle",
+  "model_calls": 0,
+  "acs_launched": false,
+  "scientific_acceptance": false,
+  "difficulty_measured": false
+}

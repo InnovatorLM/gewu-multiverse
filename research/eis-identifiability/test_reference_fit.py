@@ -46,6 +46,11 @@ class ReferenceFitTests(unittest.TestCase):
         for key,value in [('omega','Hz'),('impedance','kilohm')]:
             bad=copy.deepcopy(case);bad['units'][key]=value
             with self.assertRaises(ValueError):check(bad,report)
+        self.assertEqual(number('1e-3'),number('1/1000'))
+        for value in ('1_000',' 1','1/-2'):
+            with self.assertRaises(ValueError):number(value)
+        bad=copy.deepcopy(report);bad['d_vector'][0]=1
+        with self.assertRaises(ValueError):check(case,bad)
         for value in (True,1.0):
             bad=copy.deepcopy(report);bad['next_measurement']=value
             with self.assertRaises(ValueError):check(case,bad)

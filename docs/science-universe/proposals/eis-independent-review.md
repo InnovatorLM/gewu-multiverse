@@ -110,3 +110,19 @@ and near-merged conditional/contrast behavior matched the approved scope.
 An additional direct check confirmed that an excluded case remains accepted
 even with the separating goal, since no feasible single-branch pair is required.
 No source edits, API calls or ACS launches were made by the reviewer.
+
+## Standard Harbor draft packaging review
+
+The independent reviewer approved reproducible standard-Harbor research
+packaging without release, enabled registration, models or ACS. It then read
+the actual generated package and ran all12offline tests: source-file hashes
+matched provenance; solver context contained only Dockerfile/public cases;
+tests used authoritative public copies; independent numerical solution passed.
+No blocking scientific/interface defect was found for this draft scope.
+
+The reviewer identified numeric lexical ambiguity and D-string inconsistency.
+The controller made scientific notation explicit in the public instruction,
+rejected whitespace/underscore/negative-denominator string forms, and required
+D entries to be strings. The reviewer reran12tests successfully and confirmed
+these fixes. Its review did not inspect Docker or actual Harbor lifecycle
+isolation; separate local layer evidence has a narrower stated scope.

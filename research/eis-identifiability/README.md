@@ -120,3 +120,34 @@ retained as a regression: legal under conditional mode, rejected under the
 explicit contrast objective. This closes that objective loophole without
 hidden parameter gaps; it still does not establish target-model difficulty.
 The excluded case does not require a feasible single-branch contrast pair.
+
+
+## Standard Harbor research draft
+
+`package_draft.py --output <fresh-workspace-directory>` generates standard
+`task.toml`, `instruction.md`, `environment/`, `tests/`, `solution/` and
+`authoring/` assets. This is independently scoped research packaging, not
+release or enabled registration. Only Dockerfile and public `data/cases.json`
+enter the solver build context. Case IDs are neutral; no known witnesses or
+checker enter the environment. Tests grade against their own authoritative
+copy of the PUBLIC observations, so editing solver-visible data cannot relax
+tolerances. Reference fitting has no generator or original-parameter access.
+
+Twelve offline tests pass, including executing the generated standalone
+solution and grading code in a clean working directory, exact-case coverage,
+invalid witnesses/certificates/D/index fields, duplicate JSON keys and
+solver-data tampering controls. The generated fixture at workspace state
+`.state/eis-harbor-draft-v1` passed installed Harbor0.20.0schema and shell syntax
+checks with2CPU/4096MiB metadata. A real local Docker build succeeded; all6image
+layer inventories were scanned with no draft checker/reference/test paths and
+exact public-data bytes. The audit is path/data checking, not exhaustive inherited
+base secret analysis. The image was NOT executed, published to ACR or used on
+ACS; no actual Harbor lifecycle, model score or scientific acceptance follows.
+Public scoped evidence: `docs/science-universe/proposals/eis-harbor-draft-validation.json`.
+
+The retained first draft's provenance binds research source hashes and its
+parent repository commit; the builder itself was uncommitted when that local
+fixture was generated, so it is not an immutable registered-source receipt.
+Before any real evaluation, regenerate from a frozen committed builder, commit
+the candidate package, review source/answer isolation, publish matching images
+and register the complete bundle disabled pending operator review.

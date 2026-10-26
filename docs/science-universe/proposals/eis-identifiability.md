@@ -1,7 +1,12 @@
 # Proposal: impedance model identifiability under finite-band noisy measurements
 
-Status: proposal only; not approved for implementation, not a Harbor task,
-not scientifically accepted, and no empirical difficulty result. Proposed ID:
+Current status: v2/v3 research prototyping and draft Harbor packaging have
+independent scope approval; no release, scientific acceptance or empirical
+difficulty result. The original proposal below is historical: its covariance,
+uncertainty and profile-bound clauses were superseded by
+[eis-contract-v2.md](eis-contract-v2.md) and the public contrast objective in
+[eis-contrast-contract-v3.md](eis-contrast-contract-v3.md). Draft packaging does
+not authorize admission to the universe. Proposed ID:
 `eis-identifiability`. Domain: physical sciences / electrochemistry.
 
 The research work is deciding which relaxation mechanisms and parameter
