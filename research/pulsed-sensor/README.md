@@ -16,3 +16,14 @@ OCV must be checked, not guessed. No finite-value/timing/duplicate/experimental
 independence audit has yet been done. Concentration, pC and mixture labels are
 present: exposing them in a concentration-prediction input would leak targets.
 See public structural summary and independent screening in the proposal docs.
+
+`audit_protocol.py` now checks all rows for selected signal finiteness, nulls by
+step, stored-order time monotonicity, file identity consistency and exact
+selected-payload duplicates. All5353OCVrows lack current/nominal current;CProws
+do not. Time and potential are finite, no file-local time decreases/adjacent
+duplicate times or identity changes were found. Eleven duplicate payload groups
+were found across distinctfileIDs, including PVC01/PVC02mix1records. This is
+identity of(time,potential,current) sequences, not all columns and not evidence
+of misconduct or a proven acquisition cause. It must be accounted for before
+claiming electrode-held-out independence. Public report retains the affected
+anonymized fileIDs/conditions for reproducibility. No training or task approved.

@@ -1,0 +1,333 @@
+{
+  "rows_by_step": {
+    "OCV": {
+      "rows": 5353,
+      "null_current": 5353,
+      "null_nominal_current": 5353,
+      "nonfinite_time": 0,
+      "nonfinite_potential": 0
+    },
+    "CP": {
+      "rows": 4589800,
+      "null_current": 0,
+      "null_nominal_current": 0,
+      "nonfinite_time": 0,
+      "nonfinite_potential": 0
+    }
+  },
+  "files": 583,
+  "files_with_identity_changes": 0,
+  "files_with_time_decreases": 0,
+  "files_with_duplicate_adjacent_times": 0,
+  "duplicate_time_potential_current_payload_groups": 11,
+  "duplicate_selected_payloads": [
+    [
+      {
+        "file_id": "file_01eac029a9ca",
+        "identity": [
+          "PVC",
+          "PVC01",
+          "mix_1",
+          1,
+          "OCV"
+        ],
+        "rows": 101
+      },
+      {
+        "file_id": "file_b9433ae054cb",
+        "identity": [
+          "PVC",
+          "PVC02",
+          "mix_1",
+          1,
+          "OCV"
+        ],
+        "rows": 101
+      }
+    ],
+    [
+      {
+        "file_id": "file_9bbe46d314c6",
+        "identity": [
+          "PVC",
+          "PVC01",
+          "mix_1",
+          2,
+          "CP"
+        ],
+        "rows": 10010
+      },
+      {
+        "file_id": "file_148a99e15d1f",
+        "identity": [
+          "PVC",
+          "PVC02",
+          "mix_1",
+          2,
+          "CP"
+        ],
+        "rows": 10010
+      }
+    ],
+    [
+      {
+        "file_id": "file_ff506d709b2e",
+        "identity": [
+          "PVC",
+          "PVC01",
+          "mix_1",
+          3,
+          "CP"
+        ],
+        "rows": 10010
+      },
+      {
+        "file_id": "file_8f762969e187",
+        "identity": [
+          "PVC",
+          "PVC02",
+          "mix_1",
+          3,
+          "CP"
+        ],
+        "rows": 10010
+      }
+    ],
+    [
+      {
+        "file_id": "file_089a20f76eed",
+        "identity": [
+          "PVC",
+          "PVC01",
+          "mix_1",
+          4,
+          "CP"
+        ],
+        "rows": 10010
+      },
+      {
+        "file_id": "file_8c5d4f654b24",
+        "identity": [
+          "PVC",
+          "PVC02",
+          "mix_1",
+          4,
+          "CP"
+        ],
+        "rows": 10010
+      }
+    ],
+    [
+      {
+        "file_id": "file_58bc295208db",
+        "identity": [
+          "PVC",
+          "PVC01",
+          "mix_1",
+          5,
+          "CP"
+        ],
+        "rows": 10010
+      },
+      {
+        "file_id": "file_08bc72071795",
+        "identity": [
+          "PVC",
+          "PVC02",
+          "mix_1",
+          5,
+          "CP"
+        ],
+        "rows": 10010
+      }
+    ],
+    [
+      {
+        "file_id": "file_0b6ec237ca97",
+        "identity": [
+          "PVC",
+          "PVC01",
+          "mix_1",
+          6,
+          "CP"
+        ],
+        "rows": 10010
+      },
+      {
+        "file_id": "file_12080e5f4eba",
+        "identity": [
+          "PVC",
+          "PVC02",
+          "mix_1",
+          6,
+          "CP"
+        ],
+        "rows": 10010
+      }
+    ],
+    [
+      {
+        "file_id": "file_245c93def8d2",
+        "identity": [
+          "PVC",
+          "PVC01",
+          "mix_1",
+          7,
+          "CP"
+        ],
+        "rows": 10010
+      },
+      {
+        "file_id": "file_36f92e6dbcff",
+        "identity": [
+          "PVC",
+          "PVC02",
+          "mix_1",
+          7,
+          "CP"
+        ],
+        "rows": 10010
+      }
+    ],
+    [
+      {
+        "file_id": "file_1a313cede42a",
+        "identity": [
+          "PVC",
+          "PVC01",
+          "mix_1",
+          8,
+          "CP"
+        ],
+        "rows": 10010
+      },
+      {
+        "file_id": "file_b82d45a609a5",
+        "identity": [
+          "PVC",
+          "PVC02",
+          "mix_1",
+          8,
+          "CP"
+        ],
+        "rows": 10010
+      }
+    ],
+    [
+      {
+        "file_id": "file_d0775222c2df",
+        "identity": [
+          "PVC",
+          "PVC01",
+          "mix_1",
+          9,
+          "CP"
+        ],
+        "rows": 10010
+      },
+      {
+        "file_id": "file_fc89ac469972",
+        "identity": [
+          "PVC",
+          "PVC02",
+          "mix_1",
+          9,
+          "CP"
+        ],
+        "rows": 10010
+      }
+    ],
+    [
+      {
+        "file_id": "file_eb381c51fee6",
+        "identity": [
+          "PVC",
+          "PVC01",
+          "mix_1",
+          10,
+          "CP"
+        ],
+        "rows": 5510
+      },
+      {
+        "file_id": "file_4f59fa690cf5",
+        "identity": [
+          "PVC",
+          "PVC02",
+          "mix_1",
+          10,
+          "CP"
+        ],
+        "rows": 5510
+      }
+    ],
+    [
+      {
+        "file_id": "file_35e0e984a285",
+        "identity": [
+          "PVC",
+          "PVC01",
+          "mix_1",
+          11,
+          "CP"
+        ],
+        "rows": 1010
+      },
+      {
+        "file_id": "file_c6fbe9864bcf",
+        "identity": [
+          "PVC",
+          "PVC02",
+          "mix_1",
+          11,
+          "CP"
+        ],
+        "rows": 1010
+      }
+    ]
+  ],
+  "distinct_mix_concentration_combinations": 6,
+  "concentration_combinations": [
+    [
+      "mix_1",
+      0.03,
+      3e-06,
+      0.0006
+    ],
+    [
+      "mix_2",
+      0.0002,
+      0.01,
+      3e-06
+    ],
+    [
+      "mix_3",
+      3e-06,
+      0.0005,
+      0.04
+    ],
+    [
+      "mix_4",
+      0.04,
+      0.08,
+      0.03
+    ],
+    [
+      "mix_5",
+      0.0001,
+      0.0007,
+      0.0008
+    ],
+    [
+      "mix_6",
+      6e-06,
+      3e-06,
+      4e-06
+    ]
+  ],
+  "scope": "Stored row order per file; identical selected signal payloads only. No claim of acquisition chronology, independent experiments, calibration validity or absence of near duplicates.",
+  "model_calls": 0,
+  "scientific_acceptance": false,
+  "input_sha256": "9fac0644a9eb9946a25a43f4e4649c51dd321717f1395dbcb5d58719b199af0a",
+  "script_sha256": "62a33bf4c0517d67f251ad4571d9592441f842778f68191c6bef2555dab39a7b"
+}
