@@ -186,3 +186,18 @@ package versions. Each unique Pod has a deadline; guarded release requires
 known404 plus two empty snapshots. It never enables the registration or executes
 a Harbor trial. A verifier image smoke checks the clean base before Harbor's
 later test upload; this does not prove the full upload/score lifecycle.
+
+## Retained randomized certificate controls
+
+`PYTHONDONTWRITEBYTECODE=1 python3 research/eis-identifiability/certificate_controls.py`
+reproduces4000exact rational known-feasible single-branch controls at seed12917.
+The direct imaginary-component construction is separate from the generator and
+checker forward evaluator. Frequencies, positive parameters, unequal component
+error envelopes and interior/endpoint perturbations vary; no legal single branch
+was excluded. The output binds source hashes and a deterministic transcript hash,
+retained in `eis-certificate-controls.json`. This is a new retained experiment,
+not recovery or validation of the reviewer's earlier unretained random script
+(the reused seed alone does not imply the same cases). All certificates should
+be inconclusive on these feasible controls. Existing separated two-branch
+positive-exclusion tests remain passing; finite random controls do not prove
+universal soundness, useful exclusion power, physical validity or difficulty.

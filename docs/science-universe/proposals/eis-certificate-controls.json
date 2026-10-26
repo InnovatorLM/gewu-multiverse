@@ -1,0 +1,13 @@
+{
+  "seed": 12917,
+  "cases": 4000,
+  "known_feasible_single_branches": 4000,
+  "false_exclusions": 0,
+  "inconclusive_certificates": 4000,
+  "generated_control_transcript_sha256": "3658a944a87ce5a4143f28c58d78a868083560d95057b0242351f8e1ea69867a",
+  "script_sha256": "8f41622e48c3d923201e92c64b3651818c73fae24802cc98501b299636599341",
+  "checker_sha256": "2ccd1ba8723eca0949f221d227b6da1b3ac431086319c5e82355f7f2fdf15e31",
+  "scope": "Exact seeded feasible-single-branch controls with heterogeneous bounded imaginary errors; not a mathematical proof, calibration or scientific acceptance.",
+  "model_calls": 0,
+  "scientific_acceptance": false
+}
