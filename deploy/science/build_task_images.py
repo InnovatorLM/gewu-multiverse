@@ -1,0 +1,155 @@
+#!/usr/bin/env python3
+"""Operator build/publish of commit-frozen Harbor images, with source receipts.
+
+This is build provenance, never a scientific acceptance or an oracle-leak audit.
+Dockerfile code runs only in the configured Docker build service, not host shell.
+"""
+import argparse
+import fcntl
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+
+from evaluation_queue import W, atomic_json, digest_tree
+from register_evaluation import freeze
+
+REGISTRY='dptech-sh-pai-acr-registry.cn-shanghai.cr.aliyuncs.com/terminal-bench-universe'
+PINNED=re.compile(r'^[A-Za-z0-9][A-Za-z0-9._:/-]*@sha256:[a-f0-9]{64}$')
+HARNESS={'mini-swe-agent':'2.2.8','litellm':'1.106.2','openai':'2.54.0','mcp':'2.3.0'}
+
+
+def validate_dockerfile(path,python_base):
+    stages=set();bases=[]
+    for line in Path(path).read_text().splitlines():
+        if not re.match(r'^\s*FROM\s',line,re.I):continue
+        match=re.fullmatch(r'\s*FROM\s+(?:--platform=\S+\s+)?(\S+)(?:\s+AS\s+([A-Za-z0-9_.-]+))?\s*',line,re.I)
+        if not match:raise ValueError('Unsupported FROM syntax; supply a reviewed explicit base')
+        image=match[1].replace('${PYTHON_BASE}',python_base).replace('$PYTHON_BASE',python_base)
+        if image!='scratch' and image.lower() not in stages and not PINNED.fullmatch(image):raise ValueError('Every external FROM must use a digest or the explicit pinned PYTHON_BASE')
+        bases.append(image)
+        if match[2]:stages.add(match[2].lower())
+    if not bases:raise ValueError('Dockerfile requires FROM')
+    return bases
+
+
+def validate_context(directory):
+    directory=Path(directory);sha=digest_tree(directory)
+    for path in directory.rglob('*'):
+        if path.is_file():
+            if path.name in {'.env','kubeconfig','id_rsa','id_ed25519'} or '.git' in path.relative_to(directory).parts or path.relative_to(directory).as_posix()=='.docker/config.json':
+                raise ValueError('Known credential/config path refused in build context')
+            if b'-----BEGIN PRIVATE KEY-----' in path.read_bytes() or b'-----BEGIN OPENSSH PRIVATE KEY-----' in path.read_bytes():
+                raise ValueError('Private key marker refused in build context')
+    return sha
+
+
+def receipt_labels(commit,snapshot_hash,context_hash,role):
+    return {'org.opencontainers.image.revision':commit,'science.task.snapshot':snapshot_hash,'science.build.context':context_hash,'science.image.role':role}
+
+
+def validate_build_receipt(receipt,snapshot,commit,task_path,template):
+    snapshot=Path(snapshot);snapshot_hash=digest_tree(snapshot)
+    if receipt.get('source_commit')!=commit or receipt.get('source_task_path')!=task_path or receipt.get('task_name')!=Path(task_path).name or receipt.get('snapshot_sha256')!=snapshot_hash:
+        raise ValueError('Build receipt does not match frozen author commit/task')
+    if receipt.get('published') is not True or receipt.get('registry_config_linkage_verified') is not True or receipt.get('scientific_acceptance') is not False:
+        raise ValueError('Require published source receipt, not scientific acceptance')
+    if receipt.get('environment_context_sha256')!=digest_tree(snapshot/'environment') or receipt.get('tests_context_sha256')!=digest_tree(snapshot/'tests'):
+        raise ValueError('Build contexts differ from frozen task')
+    if receipt.get('harness_versions')!=HARNESS:
+        raise ValueError('Harness version receipt mismatch')
+    images=receipt['images'];expected_prefix=REGISTRY+'/'+Path(task_path).name
+    for role,context_hash in [('official',receipt['environment_context_sha256']),('runtime',receipt['runtime_adapter_context_sha256']),('verifier',receipt['verifier_effective_context_sha256'])]:
+        image=images[role];reference=image.get('published_digest','')
+        repository=expected_prefix+('-verifier' if role=='verifier' else '')
+        if not re.fullmatch(re.escape(repository)+r'@sha256:[a-f0-9]{64}',reference) or not re.fullmatch(r'sha256:[a-f0-9]{64}',image.get('image_config_id','')):
+            raise ValueError('Unexpected published project image/config ID')
+        if image.get('labels')!=receipt_labels(commit,snapshot_hash,context_hash,role):
+            raise ValueError('Receipt image provenance labels mismatch')
+    environment=template['environment']['kwargs']
+    for role in ['runtime','verifier']:
+        if environment.get(role+'_image')!=images[role]['published_digest']:
+            raise ValueError('Evaluation image is not the source-bound published image')
+    overrides=environment.get('pod_overrides',{}).get('spec',{}).get('containers',[])
+    if len(overrides)!=1 or overrides[0].get('image')!=images['runtime']['published_digest']:
+        raise ValueError('Pod image override conflicts with source-bound runtime')
+    return snapshot_hash
+
+
+class Docker:
+    def __init__(self,output):
+        self.output=output;self.step=0
+        self.env={'PATH':os.environ.get('PATH','/usr/bin:/bin'),'HOME':str(W/'.state/harbor-home'),'DOCKER_CONFIG':str(W/'.state/docker-config-shanghai-public'),'TMPDIR':str(W/'.tmp')}
+        for name in ['DOCKER_HOST','DOCKER_TLS_VERIFY','DOCKER_CERT_PATH','HTTP_PROXY','HTTPS_PROXY','NO_PROXY','http_proxy','https_proxy','no_proxy']:
+            if name in os.environ:self.env[name]=os.environ[name]
+    def run(self,args,json_output=False):
+        self.step+=1
+        # Logs stay root-private; do not print daemon output or registry errors.
+        result=subprocess.run(['docker',*args],env=self.env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=1200)
+        path=self.output/f'docker-{self.step:02d}.log';path.write_bytes(result.stdout+b'\n'+result.stderr);path.chmod(0o600)
+        if result.returncode:raise ValueError(f'Docker step {self.step} failed; inspect private build log')
+        return json.loads(result.stdout) if json_output else result.stdout.decode()
+
+
+def publish_image(docker,tag,image_id):
+    docker.run(['push',tag])
+    image=docker.run(['image','inspect',tag],True)[0]
+    if image['Id']!=image_id:raise ValueError('Local image changed during publication')
+    repository=tag.rsplit(':',1)[0]
+    refs=[ref for ref in image.get('RepoDigests',[]) if ref.startswith(repository+'@sha256:')]
+    if len(refs)!=1:raise ValueError('Require one unambiguous published image digest')
+    manifest=docker.run(['manifest','inspect',refs[0]],True)
+    if manifest.get('config',{}).get('digest')!=image_id:raise ValueError('Registry manifest configuration differs from built image')
+    return refs[0]
+
+
+def main():
+    parser=argparse.ArgumentParser(description=__doc__)
+    for flag in ['repo','commit','task-path','output','python-base']:parser.add_argument('--'+flag,required=True)
+    parser.add_argument('--publish',action='store_true',help='Push project Shanghai ACR images and verify manifest/config linkage')
+    args=parser.parse_args();output=Path(args.output)
+    if os.geteuid()!=0 or not output.resolve().is_relative_to(W) or output.exists() or not PINNED.fullmatch(args.python_base):raise ValueError('Require operator, fresh workspace output and pinned base image')
+    task_name=Path(args.task_path).name
+    if not re.fullmatch('[a-z0-9][a-z0-9._-]{0,90}',task_name):raise ValueError('Task directory must already have a lowercase registry-compatible ID')
+    state=W/'.state/science-image-builds';state.mkdir(mode=0o700,exist_ok=True)
+    with (state/'builder.lock').open('a') as lock:
+        fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        output.mkdir(mode=0o700)
+        snapshot=output/'task';task_hash=freeze(args.repo,args.commit,args.task_path,snapshot)
+        env_hash=validate_context(snapshot/'environment');tests_hash=validate_context(snapshot/'tests')
+        bases=validate_dockerfile(snapshot/'environment/Dockerfile',args.python_base)
+        if (snapshot/'tests/Dockerfile').exists():verifier_bases=validate_dockerfile(snapshot/'tests/Dockerfile',args.python_base)
+        else:verifier_bases=[]
+        identity={'source_commit':args.commit,'source_task_path':args.task_path,'task_name':task_name,'snapshot_sha256':task_hash,'environment_context_sha256':env_hash,'tests_context_sha256':tests_hash,'python_base':args.python_base,'runtime_source_bases':bases,'verifier_source_bases':verifier_bases,'scientific_acceptance':False,'oracle_leakage_review_required':True,'hermetic_build':False,'published':False}
+        atomic_json(output/'identity.json',identity)
+        docker=Docker(output);images={}
+        def build(role,context,tag,context_hash,extra=()):
+            labels=receipt_labels(args.commit,task_hash,context_hash,role)
+            command=['build','--force-rm','--build-arg','PYTHON_BASE='+args.python_base,'-t',tag]
+            for key,value in labels.items():command.extend(['--label',key+'='+value])
+            command.extend(extra);command.append(str(context));docker.run(command)
+            image=docker.run(['image','inspect',tag],True)[0]
+            if any(image['Config'].get('Labels',{}).get(key)!=value for key,value in labels.items()):raise ValueError('Built image provenance labels mismatch')
+            images[role]={'tag':tag,'image_config_id':image['Id'],'labels':labels,'published_digest':None}
+            if args.publish:images[role]['published_digest']=publish_image(docker,tag,image['Id'])
+            atomic_json(output/'images-in-progress.json',images)
+            return images[role]['published_digest'] or image['Id']
+        official=build('official',snapshot/'environment',REGISTRY+'/'+task_name+':official',env_hash)
+        runtime=output/'runtime';runtime.mkdir()
+        requirements=' '.join("'"+name+'=='+version+"'" for name,version in HARNESS.items())
+        (runtime/'Dockerfile').write_text('FROM '+official+'\nENV PIP_NO_CACHE_DIR=1 LITELLM_LOCAL_MODEL_COST_MAP=True\nRUN python3 -m pip install --timeout 30 --retries 1 '+requirements+'\nRUN python3 -c "from minisweagent.models.litellm_model import LitellmModel"\n')
+        runtime_hash=validate_context(runtime)
+        build('runtime',runtime,REGISTRY+'/'+task_name+':minisweagent-2.2.8',runtime_hash)
+        if (snapshot/'tests/Dockerfile').exists():
+            verifier_context=snapshot/'tests'
+        else:
+            verifier_context=output/'verifier';verifier_context.mkdir();(verifier_context/'Dockerfile').write_text('FROM '+official+'\n')
+        verifier_hash=validate_context(verifier_context)
+        build('verifier',verifier_context,REGISTRY+'/'+task_name+'-verifier:official',verifier_hash)
+        if digest_tree(snapshot)!=task_hash or digest_tree(snapshot/'environment')!=env_hash or digest_tree(snapshot/'tests')!=tests_hash:raise ValueError('Frozen source changed during image build')
+        atomic_json(output/'receipt.json',{**identity,'images':images,'runtime_adapter_context_sha256':runtime_hash,'verifier_effective_context_sha256':verifier_hash,'harness_versions':HARNESS,'published':args.publish,'registry_config_linkage_verified':args.publish,'standard_tests_uploaded_by_harbor':not (snapshot/'tests/Dockerfile').exists(),'scientific_acceptance':False})
+        print(json.dumps({'source_commit':args.commit,'task_name':task_name,'published':args.publish,'receipt_complete':True,'scientific_acceptance':False}))
+
+
+if __name__=='__main__':main()

@@ -68,6 +68,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ['evaluation-id', 'repo', 'commit', 'task-path', 'template']:
         parser.add_argument('--' + name, required=True)
+    parser.add_argument('--build-receipt', required=True, help='Root-owned source-bound publication receipt')
+    parser.add_argument('--disabled', action='store_true', help='Retain provenance without exposing infrastructure fixtures for dispatch')
     args = parser.parse_args()
     if os.geteuid() != 0:
         raise SystemExit('Operator/root required')
@@ -90,9 +92,14 @@ def main():
             sha = freeze(args.repo, args.commit, args.task_path, snapshot)
             template = json.loads(root_file(args.template).read_text())
             template['datasets'] = [{'path': str(parent), 'task_names': [name]}]
+            from build_task_images import validate_build_receipt
+            receipt_path = root_file(args.build_receipt)
+            validate_build_receipt(json.loads(receipt_path.read_text()), snapshot, args.commit, args.task_path, template)
             template_path = parent / 'template.json'
             atomic_json(template_path, template)
-            entry = {'snapshot': str(snapshot), 'snapshot_sha256': sha, 'template': str(template_path), 'template_sha256': hashlib.sha256(template_path.read_bytes()).hexdigest(), 'source_commit': args.commit, 'source_task_path': args.task_path}
+            receipt_copy = parent / 'build-receipt.json'
+            atomic_json(receipt_copy, json.loads(receipt_path.read_text()))
+            entry = {'snapshot': str(snapshot), 'snapshot_sha256': sha, 'template': str(template_path), 'template_sha256': hashlib.sha256(template_path.read_bytes()).hexdigest(), 'source_commit': args.commit, 'source_task_path': args.task_path, 'build_receipt_sha256': hashlib.sha256(receipt_copy.read_bytes()).hexdigest(), 'enabled': not args.disabled}
             validated_template(entry, {'snapshot_sha256': sha})
             atomic_json(parent / 'provenance.json', {**entry, 'scientific_acceptance': False})
             registry[args.evaluation_id] = entry
