@@ -63,3 +63,22 @@ semantic novelty reviews, produce acceptance receipts or merge tasks. Those
 workflow stages still require implementation/validation before unattended
 scientific production can be declared ready. The calibration task remains an
 infrastructure pilot, not an accepted scientific task.
+
+
+## Register another immutable task (operator)
+
+`register_evaluation.py` accepts `--evaluation-id`, `--repo`, `--commit`
+(full 40-character commit), `--task-path` (relative directory), and `--template`
+(root-owned trusted solver configuration). Run with the controller stopped.
+The tool reads Git objects rather than the mutable checkout, rejects links and
+special files, requires standard Harbor files, and preserves source commit/path
+in private provenance. It freezes the snapshot, rewrites the dataset selection,
+validates the existing designated-provider/image rules, and publishes only the
+ID/hash in the evaluator catalog. Existing IDs cannot be overwritten.
+
+This is operator registration, not automatic author registration or a build
+service. The operator must first verify that the trusted template's digest-pinned
+images match the task environment. No image/task correspondence or scientific
+acceptance is inferred by this command. If publication of the catalog fails after
+registry persistence, repair the catalog from the registry; do not reuse the ID.
+Offline boundary checks: `deploy/science/test_register_evaluation.py`.
