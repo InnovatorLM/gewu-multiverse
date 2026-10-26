@@ -371,3 +371,13 @@ image pull can establish that. A live check passed against the restored Shanghai
 Secret and a nonexistent-secret negative check refused before launch. The
 Secret was found missing during new-image ACS validation despite older successful
 runs, so historical trial evidence must not replace a current preflight.
+
+
+The new source-built runtime subsequently passed a real Beijing ACS image smoke:
+2CPU/4GiB actual requests and limits, pinned package-version assertions and
+mini-swe-agent import succeeded, exit0. Pod image used the published manifest
+digest; the container runtime reported its configuration digest, which exactly
+matched the build receipt (these are distinct OCI digest types). The unique Pod
+was deleted/404 and two resource snapshots were empty. This smoke called no LLM
+and is infrastructure evidence only. The restored pull Secret is persistent
+configuration, not a leaked compute resource.
