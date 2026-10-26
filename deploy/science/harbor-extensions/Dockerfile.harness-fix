@@ -1,0 +1,4 @@
+FROM dptech-sh-pai-acr-registry.cn-shanghai.cr.aliyuncs.com/terminal-bench-universe/robust-sensor-calibration@sha256:c7ff86ca71d44525c40503784c6d14eb39fec2839b2aec4d83ccf7b6eaddee10
+ENV PIP_NO_CACHE_DIR=1 LITELLM_LOCAL_MODEL_COST_MAP=True
+RUN python3 -m pip install -i https://pypi.tuna.tsinghua.edu.cn/simple --timeout 20 --retries 1 'mini-swe-agent==2.2.8' 'litellm==1.106.2' 'openai==2.54.0' mcp
+RUN python3 -c 'from minisweagent.models.litellm_model import LitellmModel'
