@@ -129,3 +129,10 @@ tokens. A preceding valid-JSON response omitted the mandatory limitations field
 and was rejected. The successful review is still model-produced evidence:
 its factual claims need checking, and it does not establish dynamic correctness,
 novelty, difficulty or acceptance.
+
+A factual audit of that report found incorrect numerical claims and unsupported
+scientific inferences. Therefore the47.5score and blocker verdict remain
+untrusted diagnostic output, not an approved quality decision. Schema-valid
+output alone does not qualify this reviewer for unattended production.
+Credential-free isolated calculation tools and evidence verification are still
+required; this static entry point does not complete the production review gate.
