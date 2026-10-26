@@ -110,3 +110,9 @@ cost. No live model or ACS run has been launched for this proposal.
 5. Only then implement a standard Harbor package with independent reference,
    verifier, provenance record and reproducible dependencies. Final user
    approval applies at first-pilot acceptance after a complete review package.
+
+
+Follow-up [literature and contract review](eis-literature-review.md) records a
+verified primary preprint, the distinction between structural identifiability
+and finite-band practical ambiguity, and required corrections to uncertainty
+and experimental-design claims. This does not approve implementation.

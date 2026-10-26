@@ -68,5 +68,75 @@
     "scientific_acceptance": false
   },
   "implementation_approved": false,
-  "scientific_acceptance": false
+  "scientific_acceptance": false,
+  "primary_literature_search": [
+    {
+      "query": "electrochemical impedance spectroscopy equivalent circuit structural identifiability",
+      "url": "https://api.crossref.org/works?query=electrochemical+impedance+spectroscopy+equivalent+circuit+structural+identifiability&rows=5&select=DOI%2Ctitle%2Cauthor%2Cpublished%2CURL%2Cabstract%2Clink",
+      "retrieved_utc": "2026-10-26T20:20:05.614089+00:00",
+      "sha256": "1c375ef545c67b8746b5e19501b7693b6ab2d935b3413e94b551577ea552125a",
+      "success": true
+    },
+    {
+      "query": "electrochemical impedance parameter estimation optimal experimental design",
+      "url": "https://api.crossref.org/works?query=electrochemical+impedance+parameter+estimation+optimal+experimental+design&rows=5&select=DOI%2Ctitle%2Cauthor%2Cpublished%2CURL%2Cabstract%2Clink",
+      "retrieved_utc": "2026-10-26T20:20:07.338228+00:00",
+      "sha256": "9b31faf1dd73affa43a629f026a7b21f5e26254d835f23bbf861f61548c79516",
+      "success": true
+    }
+  ],
+  "primary_literature_discovery": [
+    {
+      "doi": "10.1016/j.automatica.2022.110463",
+      "title": "Structural identifiability of impedance spectroscopy fractional-order equivalent circuit models with two constant phase elements",
+      "abstract": "",
+      "oa_locations": [
+        {
+          "landing_page_url": "http://arxiv.org/abs/2103.00226",
+          "pdf_url": "https://arxiv.org/pdf/2103.00226",
+          "license": null
+        },
+        {
+          "landing_page_url": "https://doi.org/10.48550/arxiv.2103.00226",
+          "pdf_url": null,
+          "license": null
+        }
+      ],
+      "retrieved_utc": "2026-10-26T20:20:32.210120+00:00",
+      "sha256": "7e64e1dc1bea6f83801c5d2b43475ae1528341bf3c328ab10b83379214663ec1",
+      "success": true
+    },
+    {
+      "doi": "10.1016/j.electacta.2012.09.073",
+      "title": "Revisiting parameter identification in electrochemical impedance spectroscopy: Weighted least squares and optimal experimental design",
+      "abstract": "",
+      "oa_locations": [],
+      "retrieved_utc": "2026-10-26T20:20:33.174932+00:00",
+      "sha256": "2b7f2a36233e7767caa2c66cf896832be48188b9e5a9a6b729a25da33bcc4f9f",
+      "success": true
+    }
+  ],
+  "retrieved_preprint": {
+    "id": "arXiv:2103.00226v1",
+    "journal_doi_metadata": "10.1016/j.automatica.2022.110463",
+    "journal_preprint_identity_not_verified": true,
+    "files": [
+      {
+        "name": "identifiability-abstract.html",
+        "sha256": "eac0243577092652407f523e96b569a75a13e1c360480120731c2268a51db452",
+        "bytes": 41373
+      },
+      {
+        "name": "identifiability-html.html",
+        "sha256": "a5c2fa2391c7d1f3965e0bc06463223fb131b22b154b44a6ae4989a6320f6afb",
+        "bytes": 220176
+      },
+      {
+        "name": "identifiability-pdf.pdf",
+        "sha256": "22f7d3124bb71aef641a3aa0664c4cb821de3869223918cf0e4fc7f1db8ed836",
+        "bytes": 868396
+      }
+    ],
+    "license_observed": "arXiv.org perpetual non-exclusive license; no code/data redistribution permission inferred"
+  }
 }
