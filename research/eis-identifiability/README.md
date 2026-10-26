@@ -177,3 +177,12 @@ This is a local nonroot command proof, not a Harbor/ACS trial. The trusted
 solver template opts into worker-owned private trajectory retention for a
 future authorized run; no trajectory has yet been generated. Public evidence
 is in `docs/science-universe/proposals/eis-image-publication.json`.
+
+`deploy/science/smoke_registered_image.py` performs an operator-only no-model
+ACS image check from the exact registered receipt/template. It checks actual
+2CPU/4GiB allocation, Beijing node, image config digest, public-data hash,
+absence of tests/solution/oracle/provider env/service-account token and runtime
+package versions. Each unique Pod has a deadline; guarded release requires
+known404 plus two empty snapshots. It never enables the registration or executes
+a Harbor trial. A verifier image smoke checks the clean base before Harbor's
+later test upload; this does not prove the full upload/score lifecycle.

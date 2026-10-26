@@ -601,3 +601,10 @@ checks passed. The future trusted template opts into private retention; this
 is configuration only, with no live solver or trajectory evidence. See
 [publication evidence](proposals/eis-image-publication.json). No ACS/LLM was
 launched, scientific acceptance and difficulty remain unverified.
+
+Both frozen EIS runtime and verifier-base images now passed actual BeijingACS
+smokes at2CPU/4GiB with config-digest/public-data correspondence and clean task
+boundaries. Both exit0; known Pod404 and two empty snapshots confirm release.
+No model or Harbor trial ran; staged test upload, scoring lifecycle, private
+trace retention and scientific/difficulty reviews remain unverified. See
+[ACS image evidence](proposals/eis-acs-image-smoke.json).

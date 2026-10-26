@@ -1,0 +1,128 @@
+{
+  "scope": "Actual Beijing ACS runtime/verifier base-image smoke; no Harbor lifecycle or model score",
+  "reports": {
+    "runtime": {
+      "run_id": "eis-image-272d77cb4f0d4e99",
+      "mode": "registered-image-smoke",
+      "evaluation_id": "eis-research-v1",
+      "snapshot_sha256": "af04c33398026976e93fce87bc4a4eeb03be565c94c3341da02b61aff48e4270",
+      "source_commit": "b2ec8f4d0f4594159e731a2f15a65cb3e942b322",
+      "image_role": "runtime",
+      "image": "dptech-sh-pai-acr-registry.cn-shanghai.cr.aliyuncs.com/terminal-bench-universe/eis-identifiability@sha256:0e439691a6f5c056c98d8c64308ef3dd625f7347f813e8e6416375fd51f3138c",
+      "expected_image_config_id": "sha256:a8252934ca9b5f38ef2de068e0c246d22472bde096bf2586da90ec1d5503e981",
+      "expected_public_data_sha256": "cb7cf688c79ae83153d822fd3265269c937b3f785800f91601249ace328d8ca0",
+      "model_calls": 0,
+      "provider_credentials_loaded": false,
+      "harbor_trial_executed": false,
+      "scientific_acceptance": false,
+      "cleanup": {
+        "confirmed": true,
+        "checked_at_utc": "2026-10-26T21:07:39.452317+00:00",
+        "deleted_by_guard": [
+          {
+            "kind": "pods",
+            "name": "eis-image-272d77cb4f0d4e99"
+          }
+        ],
+        "known_resource_404": {
+          "pods/eis-image-272d77cb4f0d4e99": true
+        },
+        "remaining": {
+          "sandboxsets": [],
+          "sandboxclaims": [],
+          "sandboxes": [],
+          "pods": [],
+          "jobs": [],
+          "configmaps": []
+        }
+      },
+      "known_resource": {
+        "name": "eis-image-272d77cb4f0d4e99",
+        "uid": "bbf54031-f7a8-46e0-ba78-01d0a6467d66"
+      },
+      "phase": "Succeeded",
+      "exit_code": 0,
+      "image_id": "sha256:a8252934ca9b5f38ef2de068e0c246d22472bde096bf2586da90ec1d5503e981",
+      "resources": {
+        "limits": {
+          "cpu": "2",
+          "ephemeral-storage": "30Gi",
+          "memory": "4Gi"
+        },
+        "requests": {
+          "cpu": "2",
+          "ephemeral-storage": "30Gi",
+          "memory": "4Gi"
+        }
+      },
+      "node": "virtual-kubelet-cn-beijing-i",
+      "node_region": "cn-beijing",
+      "public_data_and_boundary_verified": true,
+      "pinned_dependencies_verified": true,
+      "image_config_linkage_verified": true
+    },
+    "verifier": {
+      "run_id": "eis-image-079a2bb3ecea43c0",
+      "mode": "registered-image-smoke",
+      "evaluation_id": "eis-research-v1",
+      "snapshot_sha256": "af04c33398026976e93fce87bc4a4eeb03be565c94c3341da02b61aff48e4270",
+      "source_commit": "b2ec8f4d0f4594159e731a2f15a65cb3e942b322",
+      "image_role": "verifier",
+      "image": "dptech-sh-pai-acr-registry.cn-shanghai.cr.aliyuncs.com/terminal-bench-universe/eis-identifiability-verifier@sha256:747c4a858037a8e7cb38ef9c0fda88ba4b98271f755912d14da5c6e5aa2ba5e6",
+      "expected_image_config_id": "sha256:faa0c98b0c82249ef7e7b377835232428282d9fe6f6ea66ac11ffa22697a9726",
+      "expected_public_data_sha256": "cb7cf688c79ae83153d822fd3265269c937b3f785800f91601249ace328d8ca0",
+      "model_calls": 0,
+      "provider_credentials_loaded": false,
+      "harbor_trial_executed": false,
+      "scientific_acceptance": false,
+      "cleanup": {
+        "confirmed": true,
+        "checked_at_utc": "2026-10-26T21:08:42.735078+00:00",
+        "deleted_by_guard": [
+          {
+            "kind": "pods",
+            "name": "eis-image-079a2bb3ecea43c0"
+          }
+        ],
+        "known_resource_404": {
+          "pods/eis-image-079a2bb3ecea43c0": true
+        },
+        "remaining": {
+          "sandboxsets": [],
+          "sandboxclaims": [],
+          "sandboxes": [],
+          "pods": [],
+          "jobs": [],
+          "configmaps": []
+        }
+      },
+      "known_resource": {
+        "name": "eis-image-079a2bb3ecea43c0",
+        "uid": "3c8d4311-748a-4868-aac4-fd87a251de52"
+      },
+      "phase": "Succeeded",
+      "exit_code": 0,
+      "image_id": "sha256:faa0c98b0c82249ef7e7b377835232428282d9fe6f6ea66ac11ffa22697a9726",
+      "resources": {
+        "limits": {
+          "cpu": "2",
+          "ephemeral-storage": "30Gi",
+          "memory": "4Gi"
+        },
+        "requests": {
+          "cpu": "2",
+          "ephemeral-storage": "30Gi",
+          "memory": "4Gi"
+        }
+      },
+      "node": "virtual-kubelet-cn-beijing-i",
+      "node_region": "cn-beijing",
+      "public_data_and_boundary_verified": true,
+      "pinned_dependencies_verified": false,
+      "image_config_linkage_verified": true
+    }
+  },
+  "model_calls": 0,
+  "harbor_trial_executed": false,
+  "scientific_acceptance": false
+}
