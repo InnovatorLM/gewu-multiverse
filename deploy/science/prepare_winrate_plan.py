@@ -20,7 +20,19 @@ def verify_package_inputs(manifest):
     validated_template(entry, {'snapshot_sha256': manifest['snapshot_sha256']})
     if entry['snapshot'] != manifest['candidate_path']:
         raise ValueError('Registered candidate identity changed')
+    corpus=Path(manifest['corpus_path'])
+    if hashlib.sha256(root_file(corpus/'manifest.json').read_bytes()).hexdigest()!=manifest['corpus_manifest_sha256']:
+        raise ValueError('Comparison corpus manifest changed')
+    rows,corpus_manifest=load_corpus(corpus)
+    if corpus_manifest.get('selection_scope')!='active':
+        raise ValueError('Comparison corpus is not active-task scope')
     for record in manifest['references']:
+        index=record['corpus_reference_index']
+        if type(index) is not int or not 0<=index<len(rows):
+            raise ValueError('Reference index outside bound corpus')
+        row=rows[index]
+        if any(record[key]!=row[source] for key,source in [('dataset','dataset'),('source_commit','commit'),('instruction_sha256','sha256')]) or record['source_task_path']!=str(Path(row['path']).parent):
+            raise ValueError('Reference source differs from bound corpus row')
         path = Path(record['snapshot_path'])
         if not path.resolve().is_relative_to(W) or digest_tree(path) != record['snapshot_sha256']:
             raise ValueError('Frozen full reference package changed')
@@ -64,7 +76,7 @@ def main():
         if hashlib.sha256((target/'instruction.md').read_bytes()).hexdigest() != row['sha256']:
             raise ValueError('Full package differs from pinned instruction corpus')
         records.append(record)
-    manifest = {'evaluation_id': args.evaluation_id, 'candidate_path': entry['snapshot'], 'snapshot_sha256': entry['snapshot_sha256'], 'corpus_manifest_sha256': hashlib.sha256(root_file(args.corpus/'manifest.json').read_bytes()).hexdigest(), 'references': records, 'selection': 'explicit diagnostic subset; not a representative quality sample', 'scientific_acceptance': False, 'model_calls': 0, 'acs_launched': False}
+    manifest = {'evaluation_id': args.evaluation_id, 'candidate_path': entry['snapshot'], 'snapshot_sha256': entry['snapshot_sha256'], 'corpus_path':str(args.corpus.resolve()), 'corpus_manifest_sha256': hashlib.sha256(root_file(args.corpus/'manifest.json').read_bytes()).hexdigest(), 'references': records, 'selection': 'explicit diagnostic subset; not a representative quality sample', 'scientific_acceptance': False, 'model_calls': 0, 'acs_launched': False}
     verify_package_inputs(manifest)
     atomic_json(output/'source-manifest.json', manifest)
     env = {'PATH': os.environ.get('PATH','/usr/bin:/bin'), 'HOME': str(W/'.state/harbor-home'), 'TMPDIR': str(W/'.tmp'), 'PYTHONDONTWRITEBYTECODE': '1', 'PYTHONPATH': str(UE), 'UE_DATA_DIR': str(output/'pipeline-data'), 'UE_RUNTIME_DIR': str(output/'runtime')}

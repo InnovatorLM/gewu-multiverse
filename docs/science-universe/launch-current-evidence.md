@@ -40,3 +40,9 @@ full-package binary hashes were verified before/after planning. Four pairs with
 swapped order imply8planned judge calls,0executed. This is the explicit pilot
 diagnostic subset, not a representative quality sample or semantic-novelty
 result. See proposals/eis-winrate-preparation.json. No judge score exists.
+
+WinRate preparation now revalidates the actual bound corpus manifest and loaded
+active instruction corpus, plus each selected row's dataset, commit, source path
+and instruction hash. Merely recording a corpus hash was insufficient for later
+reuse. Changed-source/corpus negative controls pass; the EIS plan was regenerated
+with this binding. Historical plans missing corpus_path must be regenerated.

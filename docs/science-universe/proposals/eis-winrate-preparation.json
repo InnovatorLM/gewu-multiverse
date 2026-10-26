@@ -45,7 +45,7 @@
     "acs_launched": false,
     "scientific_acceptance": false
   },
-  "plan_sha256": "88bb6af539a0ca75312c84e8ddc26d6c1a46326b0fb1003a2ef817aba349b2fe",
+  "plan_sha256": "236d10066ccc7c47b582d80d44f917dae7992de71ce77e69f58dbe584a158f80",
   "selection": "Explicit four-task diagnostic subset reused from prior pilot; two tasks per benchmark source. Not statistically representative or a novelty result.",
   "planned_calls_are_not_executed": true,
   "scientific_acceptance": false,
@@ -56,5 +56,12 @@
     "Judge account compatibility and credential-free execution still require live validation.",
     "Current EIS task may be too easy; no score or inferred win rate is claimed.",
     "Full active-corpus semantic comparison remains separate and unexecuted for EIS."
-  ]
+  ],
+  "corpus_revalidation": {
+    "manifest_hash_rechecked": true,
+    "active_instruction_corpus_loaded_and_validated": true,
+    "selected_rows_source_commit_path_and_instruction_hash_checked": true,
+    "stale_corpus_and_changed_source_commit_negative_controls": "pass",
+    "legacy_plans_without_corpus_path": "refused; regenerate before reuse"
+  }
 }
