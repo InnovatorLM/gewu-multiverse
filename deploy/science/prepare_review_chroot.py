@@ -1,17 +1,34 @@
-import json, os, shutil, subprocess, stat
+import argparse, json, os, shutil, subprocess, stat
 from pathlib import Path
 
 w = Path('/mnt/data/zhanglinfeng/workspace')
-root = w / '.state/role-chroot-proof'
+parser = argparse.ArgumentParser()
+parser.add_argument('--root', type=Path, default=w / '.state/role-chroot-proof')
+parser.add_argument('--uid', type=int, default=21002)
+parser.add_argument('--task', type=Path, default=w / 'universes/my-terminal-bench-science/workspaces/author/candidates/robust-sensor-calibration')
+parser.add_argument('--tools-only', action='store_true')
+args = parser.parse_args()
+root = args.root.resolve()
+uid = args.uid
+if os.geteuid() != 0 or not root.is_relative_to(w) or not args.task.resolve().is_relative_to(w) or uid < 20000:
+    raise SystemExit('Require root, workspace paths, and dedicated UID>=20000')
+if args.tools_only:
+    from evaluation_queue import digest_tree
+    if uid != 21012:
+        raise SystemExit('Tools-only reviewer reserves UID21012')
+    digest_tree(args.task)
+if args.tools_only and root.exists():
+    raise SystemExit('Tools-only root must be fresh')
 root.mkdir(parents=True, exist_ok=True)
-codex = root / 'usr/local/bin/codex'
-codex.parent.mkdir(parents=True, exist_ok=True)
-shutil.copy2('/opt/codex-pkg/bin/codex', codex)
-# Static executable lookup only; never expose the host proc filesystem.
-proc_self = root / 'proc/self'
-proc_self.mkdir(parents=True, exist_ok=True)
-if not (proc_self / 'exe').exists():
-    (proc_self / 'exe').symlink_to('/usr/local/bin/codex')
+if not args.tools_only:
+    codex = root / 'usr/local/bin/codex'
+    codex.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2('/opt/codex-pkg/bin/codex', codex)
+    # Static executable lookup only; never expose the host proc filesystem.
+    proc_self = root / 'proc/self'
+    proc_self.mkdir(parents=True, exist_ok=True)
+    if not (proc_self / 'exe').exists():
+        (proc_self / 'exe').symlink_to('/usr/local/bin/codex')
 for binary in ['/bin/bash', '/bin/ls', '/bin/cat', '/usr/bin/find', '/usr/bin/head', '/usr/bin/wc', '/usr/bin/sed', '/usr/bin/grep', '/usr/bin/env', '/usr/bin/id', '/usr/bin/timeout', '/usr/bin/diff', '/usr/bin/awk', '/usr/local/bin/python3.10', '/usr/bin/git', '/usr/lib/git-core/git-remote-http', '/usr/bin/curl', '/usr/bin/mkdir', '/usr/bin/cp', '/usr/bin/mv', '/usr/bin/rm', '/usr/bin/chmod', '/usr/bin/touch', '/usr/bin/sleep', '/usr/bin/setsid', '/usr/bin/sort', '/usr/bin/sha256sum', '/usr/bin/tar', '/usr/bin/gzip', '/usr/bin/mktemp']:
     source = Path(binary)
     if not source.exists():
@@ -42,12 +59,12 @@ for name in ['/etc/resolv.conf', '/etc/hosts', '/etc/nsswitch.conf', '/etc/ssl/c
     target = root / name.lstrip('/')
     target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(name, target)
-(root / 'etc/passwd').write_text('review:x:21002:21002:review:/home/review:/bin/bash\n')
-(root / 'etc/group').write_text('review:x:21002:\n')
-for name in ['home/review', 'runtime', 'tmp']:
+(root / 'etc/passwd').write_text(f'review:x:{uid}:{uid}:review:/home/review:/bin/bash\n')
+(root / 'etc/group').write_text(f'review:x:{uid}:\n')
+for name in (['tmp'] if args.tools_only else ['home/review', 'runtime', 'tmp']):
     target = root / name
     target.mkdir(parents=True, exist_ok=True)
-    os.chown(target, 21002, 21002)
+    os.chown(target, uid, uid)
     target.chmod(0o700)
 (root / 'dev').mkdir(exist_ok=True)
 devices = {}
@@ -66,7 +83,7 @@ if not null.exists():
     null.touch(mode=0o666)
     null.chmod(0o666)
     devices['null'] = 'regular-file-fallback-no-pty'
-task = w / 'universes/my-terminal-bench-science/workspaces/author/candidates/robust-sensor-calibration'
+task = args.task
 dest = root / 'task'
 if dest.exists():
     shutil.rmtree(dest)
@@ -74,11 +91,14 @@ shutil.copytree(task, dest, symlinks=False)
 for item in [dest, *dest.rglob('*')]:
     os.chown(item, 0, 0)
     item.chmod(0o555 if item.is_dir() else 0o444)
-config = (w / '.config/ue-dawnfm-flash/config.toml').read_text()
-config = 'sandbox_mode = "danger-full-access"\napproval_policy = "never"\nproject_doc_max_bytes = 0\nmodel_reasoning_effort = "low"\n' + config
-config += '\n[shell_environment_policy]\ninherit = "none"\nset = { PATH = "/usr/local/bin:/usr/bin:/bin", HOME = "/home/review", TMPDIR = "/tmp" }\n'
-target = root / 'home/review/config.toml'
-target.write_text(config)
-os.chown(target, 21002, 21002)
-target.chmod(0o600)
-print(json.dumps({'root': str(root), 'devices': devices, 'task_files': len(list(dest.rglob('*'))), 'credentials_copied': False}))
+if not args.tools_only:
+    config = (w / '.config/ue-dawnfm-flash/config.toml').read_text()
+    config = 'sandbox_mode = "danger-full-access"\napproval_policy = "never"\nproject_doc_max_bytes = 0\nmodel_reasoning_effort = "low"\n' + config
+    config += '\n[shell_environment_policy]\ninherit = "none"\nset = { PATH = "/usr/local/bin:/usr/bin:/bin", HOME = "/home/review", TMPDIR = "/tmp" }\n'
+    target = root / 'home/review/config.toml'
+    target.write_text(config)
+    os.chown(target, uid, uid)
+    target.chmod(0o600)
+print(json.dumps({'root': str(root), 'devices': devices, 'task_files': len(list(dest.rglob('*'))), 'credentials_copied': False, 'uid': uid, 'tools_only': args.tools_only}))
+
+(root / 'workspace').mkdir(exist_ok=True, mode=0o755)

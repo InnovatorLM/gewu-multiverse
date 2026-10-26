@@ -136,3 +136,49 @@ untrusted diagnostic output, not an approved quality decision. Schema-valid
 output alone does not qualify this reviewer for unattended production.
 Credential-free isolated calculation tools and evidence verification are still
 required; this static entry point does not complete the production review gate.
+
+## Credential-free calculation tools (operator)
+
+Prepare a fresh task-matched tool root with `prepare_review_chroot.py
+--tools-only --uid 21012 --root <private-review-state>/root --task <snapshot>`.
+The reserved private state directory is workspace `.state/science-review-tools`.
+Tools-only preparation copies no Codex provider configuration or credentials.
+The root contains standard shell/Python utilities, read-only task files, and
+writable scratch. It does not mount host proc. Network remains permitted.
+
+`review_registered_task.py --tool-root <prepared-root>` enables `review_shell`.
+The controller alone calls DawnFM. Each command runs as UID/GID21012 with a clean
+environment through the existing nonroot chroot executor. This UID is distinct
+from all role UIDs. A global session lock prevents concurrent reviewers sharing
+that UID, the staged task hash must match the registered snapshot, and scratch
+is reset at session entry. The executor watches a controller connection in a
+separate helper; EOF cleans commands even if the controller is killed. Detached
+children are cleaned by dedicated-UID process handles.
+
+The review is limited to10shell calls and12model turns. Every issue must cite a
+successful actual tool-call ID and an exact output substring. Missing/fabricated
+references are rejected. Full commands/results and model responses stay private;
+provider keys never enter tool environments. Aggregate provider token usage and
+tool-call count are recorded separately from solver difficulty metrics.
+
+`test_review_tools.py` checks actual credential-free chroot calculations,
+read-only task access, process cleanup after detachment and controller SIGKILL,
+concurrent-session rejection and fabricated evidence rejection. It makes no LLM
+or ACS calls. Evidence-reference validation proves a quotation exists, not that
+the command or scientific inference is correct. Factual audit, dynamic task
+execution, semantic comparison and final acceptance are separate gates. This
+operator entry point is not yet dispatched by the evaluator queue.
+
+Tool-backed final reports use the schema-bearing `submit_review` function.
+After10shell calls the controller removes the shell tool and forces submission.
+An invalid citation may be resubmitted once against the unchanged actual output;
+both rejected and resubmitted model responses are retained. This is continuation
+of the same review, not a new independent sample. Quotation checks still do not
+prove scientific correctness. Mock driver integration explicitly tests accepted
+submission, token aggregation and persistent fabricated-evidence refusal.
+
+Live tool review status: three attempts executed real isolated calculations but
+none produced an accepted final report (call-budget/final JSON structure,
+fabricated call IDs, then malformed function arguments). These are failed
+review attempts, not qualified reviewer evidence. Offline six-tool-boundary
+tests and mock driver integration pass; live reviewer readiness is still open.
