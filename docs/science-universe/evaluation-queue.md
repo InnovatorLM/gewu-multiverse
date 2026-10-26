@@ -381,3 +381,37 @@ matched the build receipt (these are distinct OCI digest types). The unique Pod
 was deleted/404 and two resource snapshots were empty. This smoke called no LLM
 and is infrastructure evidence only. The restored pull Secret is persistent
 configuration, not a leaked compute resource.
+
+## Register a complete candidate handoff
+
+`register_candidate_bundle.py` combines immutable solver registration, a fresh
+credential-free reviewer root and fixed-corpus semantic registration. It accepts
+`--evaluation-id`, `--repo`, `--commit`, `--task-path`, `--template`,
+`--build-receipt` and `--corpus`. The receipt comes from the separate reviewed
+image build/publish step; a caller cannot supply a mutable task or substitute
+images. IDs are `<id>`, `<id>-quality` and `<id>-semantic`. All three bind the
+same snapshot, source commit and template. The quality route binds a newly
+prepared UID21012 tool root; the semantic route binds a validated corpus manifest.
+
+The operator tool prepares and rechecks every input before one atomic registry
+publication. Preparation failures remove its new snapshot/reviewer root and
+publish no routes. A catalog-projection failure after registry persistence keeps
+the evidence: regenerate the catalog from the registry, do not reuse the ID.
+SIGKILL/host failure can leave unpublished staging directories; investigate those
+exact destinations before removing them. The tool does not claim crash-atomic
+filesystem rollback. Never run two operations against the same bundle ID.
+
+`--disabled` keeps all three infrastructure-proof entries out of the catalog.
+Normal registration makes diagnostic routes dispatchable; it does not execute
+them, grant acceptance, bypass daily allowance or approve a merge. This remains
+an operator action after reviewing the author proposal/Dockerfile and evidence.
+No role receives registry write access, build-service privileges or credentials.
+
+Real infrastructure handoff proof passed with all three routes disabled: shared
+source/template hashes validated, active comparison corpus validated, a real
+UID21012 reviewer command verified read-only task access, absent provider/admin
+environment and absent host proc. Reviewer process cleanup was confirmed.
+Duplicate IDs and a wrong source receipt were rejected with byte-identical
+registry preservation; failed fresh-registration destinations were absent.
+These checks made zero model calls and launched no ACS resources. They verify
+handoff mechanics, not reviewer factual reliability or candidate acceptance.
