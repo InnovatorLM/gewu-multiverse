@@ -415,3 +415,39 @@ Duplicate IDs and a wrong source receipt were rejected with byte-identical
 registry preservation; failed fresh-registration destinations were absent.
 These checks made zero model calls and launched no ACS resources. They verify
 handoff mechanics, not reviewer factual reliability or candidate acceptance.
+
+## Operator factual adjudication ledger
+
+`review_adjudication.py --report <review.json> --audit <operator-ledger.json>
+--output <fresh-private-file>` validates the provenance of an explicit operator
+judgment. The ledger uses `schema_version: 1`, exact `report_sha256` and
+`snapshot_sha256`, an attributed `operator`, and false `scientific_acceptance`
+and `factual_acceptance` flags. Its `decisions` cover every `issue:<id>`,
+`dimension:<name>`, `summary`, `gate`, `difficulty`, `suggestions:<index>` and
+`limitations:<index>` exactly once. Each has `claim_id`, `verdict` (`supported`,
+`refuted`, `unresolved`), `rationale` and `evidence`. Supported/refuted decisions
+require actual workspace-relative evidence paths, SHA256 hashes and exact text
+quotes. Unresolved entries remain explicit; do not omit difficult claims.
+
+The validator checks identity, coverage and evidence linkage. It cannot prove
+that quoted evidence supports an operator inference or authenticate a human
+signature. Even an all-supported ledger has machine_factual_verification=false
+and release_eligible=false. Neither model output nor this ledger authorizes a
+merge; independent scientific review and final approval remain separate.
+Private commands, source reports and calculations stay outside source control.
+
+`review_diagnostic_status.py` no longer treats the mere presence of an audit
+file as audited evidence. Old unbound files yield `diagnostic_audit_unbound`;
+fully bound version1 ledgers yield `diagnostic_adjudication_recorded`, with
+supported/refuted/unresolved counts and all acceptance flags false. Changed
+reports/snapshots/evidence, missing claims and fabricated quotes are rejected.
+
+A real isolated UID21012 reproduction selected the excluded point through
+exhaustive leave-one-out least-squares SSE minimization. Its independent fit and
+six-decimal result passed the unchanged calibration grader; a deliberate0.001
+scale shift failed. The original retained command also explicitly added0.001,
+and its file hash matches finalization provenance. The false alternate-MAD
+rejection claim is recorded as refuted, while17other report items remain
+unresolved. This calculation used no model/ACS and is not a new review or
+scientific acceptance. Tests also confirm that an all-supported operator ledger
+cannot become automatic factual verification or release permission.

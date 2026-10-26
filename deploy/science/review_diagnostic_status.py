@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 from evaluation_queue import W, atomic_json, root_file
+from review_adjudication import validate_adjudication
 
 
 def diagnostic_status(directory):
@@ -14,7 +15,7 @@ def diagnostic_status(directory):
         raise ValueError('Evidence must be workspace-local')
     review_path = directory / 'review.json'
     audit_path = directory / 'factual-audit.json'
-    status = {'report_validated':False,'factual_audit_present':False,'scientific_acceptance':False,'quality_acceptance':False,'release_eligible':False,'role_queue_dispatch_verified':False}
+    status = {'report_validated':False,'factual_audit_present':False,'factual_audit_binding_verified':False,'scientific_acceptance':False,'quality_acceptance':False,'release_eligible':False,'role_queue_dispatch_verified':False}
     if review_path.exists():
         path = root_file(review_path)
         data = json.loads(path.read_text())
@@ -30,7 +31,10 @@ def diagnostic_status(directory):
         if audit.get('factual_acceptance') is not False or audit.get('scientific_acceptance') is not False:
             raise ValueError('Diagnostic factual audit must not authorize acceptance')
         status.update(factual_audit_present=True, factual_audit_sha256=hashlib.sha256(path.read_bytes()).hexdigest())
-    status['state'] = 'diagnostic_audited' if status['report_validated'] and status['factual_audit_present'] else 'diagnostic_unverified'
+        if audit.get('schema_version') == 1:
+            status['adjudication'] = validate_adjudication(review_path, audit)
+            status['factual_audit_binding_verified'] = True
+    status['state'] = 'diagnostic_adjudication_recorded' if status['factual_audit_binding_verified'] else 'diagnostic_audit_unbound' if status['factual_audit_present'] else 'diagnostic_unverified'
     return status
 
 

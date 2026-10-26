@@ -20,7 +20,8 @@ class DiagnosticTests(unittest.TestCase):
             for flag in ['scientific_acceptance','quality_acceptance','release_eligible','role_queue_dispatch_verified']:self.assertFalse(status[flag])
             (root/'factual-audit.json').write_text(json.dumps({'factual_acceptance':False,'scientific_acceptance':False}))
             status=diagnostic_status(root)
-            self.assertEqual(status['state'],'diagnostic_audited')
+            self.assertEqual(status['state'],'diagnostic_audit_unbound')
+            self.assertFalse(status['factual_audit_binding_verified'])
             self.assertFalse(status['release_eligible'])
             report['scientific_acceptance']=True
             (root/'review.json').write_text(json.dumps(report))
