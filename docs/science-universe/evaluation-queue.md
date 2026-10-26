@@ -539,3 +539,19 @@ rejection, absent-path public result and missing-retention ineligibility. Qualit
 and semantic queue regressions also pass. The private mode is not yet validated
 by a live science solver run; existing templates remain aggregate-only. Do not
 claim trajectory review/WinRate completion from this implementation.
+
+`validate_private_trajectory.py --evaluation-id <id> --directory <private-job>`
+is the controller-side read gate for retained evidence. It revalidates the
+current registered snapshot/template, exact runtime/verifier images, provider,
+model, private0700/0600ownership/modes, identity/raw/ATIF hashes and all post-run
+eligibility flags. Cancelled/incomplete runs and changed/copied evidence are
+refused. The queue now records cancellation before evaluating private eligibility,
+so a late stop cannot leave a cancelled trace marked reviewable.
+
+This remains operator provenance rather than a cryptographic proof of solver
+honesty: a solver can influence logs inside its container. Future judgments must
+consider verifier/terminal evidence and cannot treat an internally recorded
+trajectory as tamper-proof. The read gate does not grant file access to roles,
+call a model, or claim semantic validity of trace contents. Tests cover changed
+identity/raw/ATIF, image substitution, public permissions, cancelled state,
+unconfirmed cleanup, missing retention and changed-snapshot flags.

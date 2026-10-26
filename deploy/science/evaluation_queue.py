@@ -283,7 +283,7 @@ def process(config, request_path, mock=False):
                 for filename, key in [('identity.json', 'identity_sha256'), ('mini-swe-agent.trajectory.json', 'raw_sha256'), ('trajectory.json', 'atif_sha256')]:
                     if ready:
                         ready = hashlib.sha256(root_file(private / filename).read_bytes()).hexdigest() == metadata.get(key)
-            atomic_json(private / 'execution-binding.json', {'snapshot_sha256': entry['snapshot_sha256'], 'snapshot_unchanged_after_run': unchanged, 'solver_status': answer.get('status'), 'cleanup_confirmed': answer.get('cleanup_confirmed') is True, 'trajectory_retained': ready, 'review_input_eligible': unchanged and ready and answer.get('status') == 'solver_complete' and answer.get('cleanup_confirmed') is True, 'scientific_acceptance': False})
+            atomic_json(private / 'execution-binding.json', {'snapshot_sha256': entry['snapshot_sha256'], 'snapshot_unchanged_after_run': unchanged, 'solver_status': 'cancelled' if stop_requested else answer.get('status'), 'cleanup_confirmed': answer.get('cleanup_confirmed') is True, 'trajectory_retained': ready, 'review_input_eligible': not stop_requested and unchanged and ready and answer.get('status') == 'solver_complete' and answer.get('cleanup_confirmed') is True, 'scientific_acceptance': False})
     if stop_requested:
         answer['status'] = 'cancelled'
     atomic_json(job / 'result.json', answer)
