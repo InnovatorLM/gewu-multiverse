@@ -1,0 +1,60 @@
+{
+  "evaluation_id": "eis-research-v1",
+  "snapshot_sha256": "af04c33398026976e93fce87bc4a4eeb03be565c94c3341da02b61aff48e4270",
+  "corpus_manifest_sha256": "9b39e37aa21ca4a9b2ab246fcd81c15cd3264d3a858830fbad6e01eb2a5549cb",
+  "references": [
+    {
+      "corpus_reference_index": 11,
+      "dataset": "terminal-bench-4.0",
+      "source_commit": "e67a2cb7db4d9795c212909b3395d8c22ad60aec",
+      "source_task_path": "tasks/embedding-drift-monitor",
+      "instruction_sha256": "948fec73b3457300d42d258c2c17ece57052bde4d343063604dff3cb5bf5c5a9",
+      "snapshot_sha256": "fc78177e40d6622be6cf1b0aed1a21f40ae8317581f52e1be5ed437fff294bce"
+    },
+    {
+      "corpus_reference_index": 50,
+      "dataset": "terminal-bench-4.0",
+      "source_commit": "e67a2cb7db4d9795c212909b3395d8c22ad60aec",
+      "source_task_path": "tasks/roy-polymorph-cn",
+      "instruction_sha256": "da944cb2cafd1183cc2b9c6356e8872214af45111f1bbc800d9304e6c4d180e1",
+      "snapshot_sha256": "b73051477daf20b7031c49a5d8bdca6361e5ce3d67407f5705232fecc577a67d"
+    },
+    {
+      "corpus_reference_index": 69,
+      "dataset": "terminal-bench-science-v0.1",
+      "source_commit": "490884e24647f9b1f7e26457af56428d7763396c",
+      "source_task_path": "tasks/earth-sciences/geosciences/hbv-calibration-1",
+      "instruction_sha256": "3d474d4948847bb06138fefef9d739439702a1ed092d790ed91db514fdcd4197",
+      "snapshot_sha256": "c500b1f6f81f220ff2b65e48c2311c4b5defc6d5c7405c5afd85819ee6f5d9fa"
+    },
+    {
+      "corpus_reference_index": 77,
+      "dataset": "terminal-bench-science-v0.1",
+      "source_commit": "490884e24647f9b1f7e26457af56428d7763396c",
+      "source_task_path": "tasks/engineering-sciences/electrical-engineering/navigation-sensor-calibration",
+      "instruction_sha256": "8dee8d544ec28fb73b2786425c35402ef3ab4f6d320bd13329f506df2be46497",
+      "snapshot_sha256": "7685b97aed8fbb25e73a52b2ccdbadda05d7b52c83fdf7b5cb2fb390f7b47065"
+    }
+  ],
+  "validation": {
+    "full_package_hashes_verified": true,
+    "references": 4,
+    "planned_pairs": 4,
+    "planned_model_calls": 8,
+    "actual_model_calls": 0,
+    "acs_launched": false,
+    "scientific_acceptance": false
+  },
+  "plan_sha256": "88bb6af539a0ca75312c84e8ddc26d6c1a46326b0fb1003a2ef817aba349b2fe",
+  "selection": "Explicit four-task diagnostic subset reused from prior pilot; two tasks per benchmark source. Not statistically representative or a novelty result.",
+  "planned_calls_are_not_executed": true,
+  "scientific_acceptance": false,
+  "quality_acceptance": false,
+  "model_difficulty_measured": false,
+  "limitations": [
+    "Native dry-run planning only; no actual judge outputs.",
+    "Judge account compatibility and credential-free execution still require live validation.",
+    "Current EIS task may be too easy; no score or inferred win rate is claimed.",
+    "Full active-corpus semantic comparison remains separate and unexecuted for EIS."
+  ]
+}

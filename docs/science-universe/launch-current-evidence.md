@@ -33,3 +33,10 @@ The audit now reads the actual published evaluator catalog and compares it with
 current registry projection. It does not infer visibility solely from registry
 flags. Tests cover stale disabled entries, changed snapshot hashes and duplicate
 IDs; the current real catalog matches the registry and all EIS routes are absent.
+
+EIS task-quality WinRate inputs have now passed native dry-run planning with
+four full fixed-Git task packages (twoTB4, twoTBScience). Exact instructions and
+full-package binary hashes were verified before/after planning. Four pairs with
+swapped order imply8planned judge calls,0executed. This is the explicit pilot
+diagnostic subset, not a representative quality sample or semantic-novelty
+result. See proposals/eis-winrate-preparation.json. No judge score exists.
