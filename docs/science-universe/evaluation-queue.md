@@ -82,3 +82,34 @@ images match the task environment. No image/task correspondence or scientific
 acceptance is inferred by this command. If publication of the catalog fails after
 registry persistence, repair the catalog from the registry; do not reuse the ID.
 Offline boundary checks: `deploy/science/test_register_evaluation.py`.
+
+
+## Independent static quality review (operator)
+
+`review_registered_task.py --evaluation-id <id> --output <fresh-private-dir>`
+loads the registered immutable task and the private evaluator rubric. Explicitly
+source the workspace DawnFM environment before invoking it. The provider key
+stays in the controller process; no role shell or task code runs. All UTF-8 task
+files are supplied as untrusted data. Oversize or binary inputs are refused,
+not silently omitted. A response must finish normally and parse directly as
+valid rubric JSON; no prose stripping or formatting-repair acceptance occurs.
+The snapshot hash is rechecked after review. Response and review files remain
+private, mode0600, below a mode0700 output directory.
+
+This is independent complete-static-input quality evidence only. It does not
+prove runtime correctness, benchmark novelty, empirical difficulty or release
+acceptance, and it is not yet dispatched by the role queue. Offline input-limit
+checks live in `test_review_registered_task.py`; live evidence is separate.
+
+
+## Fixed benchmark comparison corpus
+
+`prepare_reference_corpus.py --tb4-commit <full-hash> --science-commit
+<full-hash> --output <fresh-private-dir>` extracts every tracked
+`*/instruction.md` directly from the two local benchmark Git commits. It records
+each source path, commit, Git blob and SHA256; dirty checkout files are ignored.
+Links are refused. Corpus text and manifest stay in private workspace storage,
+not in this repository. Source-pinning checks: `test_reference_corpus.py`.
+
+The initial corpus contains223TB4 and158TBScience instructions. This prepares
+comparison input; it does not perform a semantic review or assert novelty.
