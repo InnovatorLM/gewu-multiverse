@@ -1,0 +1,48 @@
+{
+  "queries_receipt_sha256": "91c357fb56c1994d73bc43c3d9556f3860bc15045edc87499949ce97b02547f3",
+  "focused_datacite_query": "\"electrochemical\" AND (\"time domain\" OR \"raw signal\" OR \"Lissajous\") AND types.resourceTypeGeneral:Dataset",
+  "focused_response_sha256": "3ef815076e121de12080306f91842d2b720ef63544d4814e76f36a7fd648407e",
+  "focused_records_returned": 17,
+  "screened_examples": [
+    {
+      "doi": "10.5281/zenodo.23220129",
+      "title": "Supplementary data for: Electrochemical corrosion analysis of Zr\u2013Nb and Zr\u2013Sn alloys using classical, noise, and wavelet-based methods",
+      "decision": "Not a direct match: processed noise data; description says original raw data available on request. No message sent."
+    },
+    {
+      "doi": "10.5281/zenodo.20058832",
+      "title": "Pulsed Current Anion Sensor Data for Multiple Nonspecific Ion Selective Electrodes - Mixed Ion Responses",
+      "decision": "Promising separate pulse-response sensor direction; not sine-wave EIS; actual file/schema/scientific value not reviewed."
+    },
+    {
+      "doi": "10.5522/04/26843797.v1",
+      "title": "Distinctiveness of acoustic signals from multiple lithium-ion batteries",
+      "decision": "Acoustic battery data, not impedance; do not substitute for EIS traces."
+    }
+  ],
+  "sensor_repository": {
+    "url": "https://zenodo.org/api/records/20058832",
+    "status": 200,
+    "sha256": "2f5e76471b99989ac1bbdc37a7ac4c1e3261ed04d2aa629f2478f1c18b5118f7",
+    "title": "Pulsed Current Anion Sensor Data for Multiple Nonspecific Ion Selective Electrodes - Mixed Ion Responses",
+    "license": {
+      "id": "cc-by-4.0"
+    },
+    "files": [
+      {
+        "key": "mixed_ion_raw_public.parquet",
+        "size": 172069948,
+        "checksum": "md5:7498e959c450654adc0ef5fb4a5fc3b5",
+        "links": {
+          "self": "https://zenodo.org/api/records/20058832/files/mixed_ion_raw_public.parquet/content"
+        }
+      }
+    ]
+  },
+  "data_downloaded": false,
+  "new_proposal_approved": false,
+  "model_calls": 0,
+  "acs_launched": false,
+  "scientific_acceptance": false,
+  "scope": "Metadata discovery and repository file inventory only. Search hits are not validated datasets or task difficulty evidence."
+}
