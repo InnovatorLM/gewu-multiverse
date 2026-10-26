@@ -1,0 +1,194 @@
+{
+  "spectrum-1": {
+    "measurement_goal": "separating_witness_pair",
+    "units": {
+      "omega": "rad/s",
+      "impedance": "ohm",
+      "tau": "s"
+    },
+    "boxes": {
+      "rs": [
+        "0",
+        "20"
+      ],
+      "r": [
+        "1",
+        "300"
+      ],
+      "tau": [
+        "0.00001",
+        "1"
+      ]
+    },
+    "observations": [
+      {
+        "omega": "1/100",
+        "real": "204.999998792",
+        "imag": "-0.012800000",
+        "error_real": "0.01",
+        "error_imag": "0.01"
+      },
+      {
+        "omega": "3/100",
+        "real": "204.999989128",
+        "imag": "-0.038399997",
+        "error_real": "0.01",
+        "error_imag": "0.01"
+      },
+      {
+        "omega": "1/10",
+        "real": "204.999879200",
+        "imag": "-0.127999880",
+        "error_real": "0.01",
+        "error_imag": "0.01"
+      },
+      {
+        "omega": "3/10",
+        "real": "204.998912810",
+        "imag": "-0.383996758",
+        "error_real": "0.01",
+        "error_imag": "0.01"
+      },
+      {
+        "omega": "1",
+        "real": "204.987921200",
+        "imag": "-1.279879932",
+        "error_real": "0.01",
+        "error_imag": "0.01"
+      }
+    ],
+    "measurement_options": [
+      {
+        "omega": "1",
+        "error_real": "0.01",
+        "error_imag": "0.01",
+        "cost": "1",
+        "cost_unit": "synthetic acquisition units"
+      },
+      {
+        "omega": "100",
+        "error_real": "0.01",
+        "error_imag": "0.01",
+        "cost": "5",
+        "cost_unit": "synthetic acquisition units"
+      },
+      {
+        "omega": "1000",
+        "error_real": "0.01",
+        "error_imag": "0.01",
+        "cost": "5",
+        "cost_unit": "synthetic acquisition units"
+      }
+    ]
+  },
+  "spectrum-2": {
+    "measurement_goal": "conditional_pair",
+    "units": {
+      "omega": "rad/s",
+      "impedance": "ohm",
+      "tau": "s"
+    },
+    "boxes": {
+      "rs": [
+        "0",
+        "20"
+      ],
+      "r": [
+        "1",
+        "300"
+      ],
+      "tau": [
+        "0.00001",
+        "1"
+      ]
+    },
+    "observations": [
+      {
+        "omega": "1",
+        "real": "203.811801188",
+        "imag": "-11.961188039",
+        "error_real": "0.01",
+        "error_imag": "0.01"
+      },
+      {
+        "omega": "3",
+        "real": "195.091023126",
+        "imag": "-33.267520776",
+        "error_real": "0.01",
+        "error_imag": "0.01"
+      },
+      {
+        "omega": "10",
+        "real": "144.992000800",
+        "imag": "-60.799920008",
+        "error_real": "0.01",
+        "error_imag": "0.01"
+      },
+      {
+        "omega": "30",
+        "real": "96.928064742",
+        "imag": "-38.397841942",
+        "error_real": "0.01",
+        "error_imag": "0.01"
+      },
+      {
+        "omega": "100",
+        "real": "85.396039604",
+        "imag": "-19.801980198",
+        "error_real": "0.01",
+        "error_imag": "0.01"
+      },
+      {
+        "omega": "300",
+        "real": "78.527680762",
+        "imag": "-26.013909112",
+        "error_real": "0.01",
+        "error_imag": "0.01"
+      },
+      {
+        "omega": "1000",
+        "real": "45.011998800",
+        "imag": "-41.199880012",
+        "error_real": "0.01",
+        "error_imag": "0.01"
+      },
+      {
+        "omega": "3000",
+        "real": "13.001333319",
+        "imag": "-24.399995556",
+        "error_real": "0.01",
+        "error_imag": "0.01"
+      },
+      {
+        "omega": "10000",
+        "real": "5.792199208",
+        "imag": "-8.040791959",
+        "error_real": "0.01",
+        "error_imag": "0.01"
+      }
+    ],
+    "measurement_options": [
+      {
+        "omega": "1",
+        "error_real": "0.01",
+        "error_imag": "0.01",
+        "cost": "1",
+        "cost_unit": "synthetic acquisition units"
+      },
+      {
+        "omega": "100",
+        "error_real": "0.01",
+        "error_imag": "0.01",
+        "cost": "5",
+        "cost_unit": "synthetic acquisition units"
+      },
+      {
+        "omega": "1000",
+        "error_real": "0.01",
+        "error_imag": "0.01",
+        "cost": "5",
+        "cost_unit": "synthetic acquisition units"
+      }
+    ]
+  }
+}

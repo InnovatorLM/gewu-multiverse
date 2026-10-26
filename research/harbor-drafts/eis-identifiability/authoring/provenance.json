@@ -1,0 +1,44 @@
+{
+  "status": "research/draft",
+  "registration_enabled": false,
+  "scientific_acceptance": false,
+  "difficulty_measured": false,
+  "model_calls": 0,
+  "acs_launched": false,
+  "data_origin": "original deterministic synthetic Debye spectra; no external data/code copied",
+  "observation_generation": "exact rational forward model then formatted to9decimal places via float conversion; exact witness slack independently tested",
+  "data_scope": "bounded deterministic component errors; synthetic acquisition costs; no physical instrument accuracy or statistical confidence claim",
+  "public_data_sha256": "cb7cf688c79ae83153d822fd3265269c937b3f785800f91601249ace328d8ca0",
+  "research_repository_commit": "a3cb826052285a2c0f006c555a936d837befc6e9",
+  "research_source_sha256": {
+    "package_draft.py": "f6b1604e61167018d4b8492a72ae7fd80fb66aad92fafabbc84058c2c26ca303",
+    "prototype.py": "e29b2dc4f23820aaf63d50658f72c9668dc9ff7ccc1606690a4acc7fdfe47cd0",
+    "feasibility.py": "6e73fc097c2d18b950cbf8a5200f60cb21eff8375796b576b43fd6c709986f8f",
+    "prototype_checker.py": "2ccd1ba8723eca0949f221d227b6da1b3ac431086319c5e82355f7f2fdf15e31",
+    "reference_fit.py": "107befb74f003d4d4b1d3d8692961997c1bb3b3ad7b64de7969eb9223c35ed9d"
+  },
+  "code_license": "repository MIT OR Apache-2.0; see repository LICENSE-MIT and LICENSE-APACHE",
+  "literature_scope": "see repository EIS literature/source receipts; structural-identifiability literature does not validate real physical mechanisms for these synthetic data",
+  "reference_algorithm": "public-data-only variable projection and local log-grid refinement, then exact verification; no global-optimum claim",
+  "environment_payload_allowlist": [
+    "Dockerfile",
+    "data/cases.json"
+  ],
+  "runtime_verified": false,
+  "oracle_container_verified": false,
+  "mechanical_checks_pending": true,
+  "package_files_sha256": {
+    "environment/Dockerfile": "e8c8b16d7d471d5e32977bfc76f04f0ff460286e5ab8de4e4e66c7a7665c599f",
+    "environment/data/cases.json": "cb7cf688c79ae83153d822fd3265269c937b3f785800f91601249ace328d8ca0",
+    "instruction.md": "2f4da15c4e3b7c8d92102585cf38cbb5d40f474d5875bc1b8ab4e84a44439914",
+    "solution/prototype_checker.py": "2ccd1ba8723eca0949f221d227b6da1b3ac431086319c5e82355f7f2fdf15e31",
+    "solution/reference_fit.py": "107befb74f003d4d4b1d3d8692961997c1bb3b3ad7b64de7969eb9223c35ed9d",
+    "solution/solve.py": "c8b17ca4e48b355f48161272dfa055f027418c5451b28dc46ad084986e16c733",
+    "solution/solve.sh": "5d8053be7a567a709d6bd6c99fc43ad9125325b1ecc58f7a7c92004f477cce90",
+    "task.toml": "829f4c89a6d32fea32e3e3cefc38fefedf12c5d1166fe929303553f578b84ddc",
+    "tests/grade.py": "f26eea73450ba73882b59d5f16188dd247f2b91452a13afff5eff2b5ce51051b",
+    "tests/prototype_checker.py": "2ccd1ba8723eca0949f221d227b6da1b3ac431086319c5e82355f7f2fdf15e31",
+    "tests/public-cases.json": "cb7cf688c79ae83153d822fd3265269c937b3f785800f91601249ace328d8ca0",
+    "tests/test.sh": "4eab6a385377a3b65a3b101f9d9d25cea77b42a85aa9ff012540b25b8fe11aae"
+  }
+}

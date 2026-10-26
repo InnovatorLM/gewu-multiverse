@@ -89,5 +89,40 @@
   "model_calls": 0,
   "acs_launched": false,
   "scientific_acceptance": false,
-  "difficulty_measured": false
+  "difficulty_measured": false,
+  "committed_builder_draft": {
+    "builder_commit": "a3cb826052285a2c0f006c555a936d837befc6e9",
+    "task_path": "research/harbor-drafts/eis-identifiability",
+    "mechanical": {
+      "snapshot_sha256": "af04c33398026976e93fce87bc4a4eeb03be565c94c3341da02b61aff48e4270",
+      "harbor_version": "0.20.0",
+      "task_config_source_sha256": "d1f58e067efa996bed2a20d85aa822657f26516497076f921dceae81293b2c2f",
+      "checker_source_sha256": "5177af5dd64acf972abaf5a6d698683d372710a12c661bff6ea733f4f83f13d9",
+      "schema_parsed": true,
+      "required_files_nonempty": true,
+      "shell_syntax_valid": true,
+      "schema_resolved_resources": {
+        "cpus": 2,
+        "memory_mb": 4096,
+        "storage_mb": 30720,
+        "gpus": null
+      },
+      "schema_resolved_timeouts": {
+        "agent": 300.0,
+        "verifier": 60.0,
+        "build": 300.0
+      },
+      "task_code_executed": false,
+      "scientific_acceptance": false,
+      "license_verified": false,
+      "runtime_verified": false
+    },
+    "source_hashes_verified": true,
+    "standalone_reference_and_grading": "pass",
+    "environment_matches_audited_image_context": true,
+    "environment_context_sha256": "ebdb595363700da4f0b76ba5661eeecff5a0b73a456b735d1eb63632bf7a8cc7",
+    "enabled_registration": false,
+    "runtime_verified": false,
+    "source_bound_published_images": false
+  }
 }

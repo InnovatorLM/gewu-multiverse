@@ -151,3 +151,12 @@ fixture was generated, so it is not an immutable registered-source receipt.
 Before any real evaluation, regenerate from a frozen committed builder, commit
 the candidate package, review source/answer isolation, publish matching images
 and register the complete bundle disabled pending operator review.
+
+
+A second draft has now been generated from committed buildera3cb826 at
+`research/harbor-drafts/eis-identifiability`. It passed the same official
+mechanical check and standalone reference/grader execution. Its environment
+context hash exactly matches the layer-audited first draft image; source hashes
+match the committed builder's research sources. Candidate package source must
+still be frozen/published/registered through the normal operator workflow
+before any live evaluation. It is currently unregistered and not launch-approved.
