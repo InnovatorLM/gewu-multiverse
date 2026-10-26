@@ -22,7 +22,15 @@ HARNESS={'mini-swe-agent':'2.2.8','litellm':'1.106.2','openai':'2.54.0','mcp':'2
 
 def validate_dockerfile(path,python_base):
     stages=set();bases=[]
-    for line in Path(path).read_text().splitlines():
+    source=Path(path).read_text()
+    if re.search(r'^\s*#\s*escape\s*=',source,re.I|re.M):
+        raise ValueError('Custom Dockerfile escape directives require separate review')
+    source=re.sub(r'\\\r?\n',' ',source)
+    for line in source.splitlines():
+        if re.match(r'^\s*(COPY|ADD)\s',line,re.I):
+            for reference in re.findall(r'--from=(\S+)',line):
+                if reference.lower() not in stages and not (reference.isdigit() and int(reference)<len(bases)) and not PINNED.fullmatch(reference):
+                    raise ValueError('External COPY/ADD source must use a digest')
         if not re.match(r'^\s*FROM\s',line,re.I):continue
         match=re.fullmatch(r'\s*FROM\s+(?:--platform=\S+\s+)?(\S+)(?:\s+AS\s+([A-Za-z0-9_.-]+))?\s*',line,re.I)
         if not match:raise ValueError('Unsupported FROM syntax; supply a reviewed explicit base')

@@ -42,7 +42,7 @@ class BuildTests(unittest.TestCase):
             self.assertNotEqual(validate_context(context),before)
             (context/'config.json').write_text('{"scientific_parameters":[]}')
             validate_context(context)
-            for source in ['FROM python:3.11-slim\n','FROM ${UNRESOLVED}\n']:
+            for source in ['FROM python:3.11-slim\n','FROM ${UNRESOLVED}\n','FROM \\\npython:latest AS hidden\nFROM '+BASE+'\n','FROM '+BASE+'\nCOPY --from=python:latest /x /x\n','# escape=`\nFROM '+BASE+'\n']:
                 dockerfile.write_text(source)
                 with self.assertRaises(ValueError):validate_dockerfile(dockerfile,BASE)
             dockerfile.write_text('FROM '+BASE+'\n')
