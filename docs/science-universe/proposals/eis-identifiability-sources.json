@@ -1,0 +1,72 @@
+{
+  "proposal": "eis-identifiability",
+  "status": "unapproved proposal",
+  "external_source_receipts": [
+    {
+      "name": "impedance_examples",
+      "url": "https://impedancepy.readthedocs.io/en/latest/examples.html",
+      "final_url": "https://impedancepy.readthedocs.io/en/latest/examples.html",
+      "retrieved_utc": "2026-10-26T20:17:04.141976+00:00",
+      "http_status": 200,
+      "sha256": "54a475d2e65baf8ec47a613b957d50d9742e067a15517981f198ea0500d6f0fa",
+      "bytes": 7331,
+      "success": true
+    },
+    {
+      "name": "impedance_faq",
+      "url": "https://impedancepy.readthedocs.io/en/latest/faq.html",
+      "final_url": "https://impedancepy.readthedocs.io/en/latest/faq.html",
+      "retrieved_utc": "2026-10-26T20:17:04.901281+00:00",
+      "http_status": 200,
+      "sha256": "3edb26e9991f13664f5cb984e6baa3e28d4839b99be7f7b16666fb358a1c7bdf",
+      "bytes": 12703,
+      "success": true
+    },
+    {
+      "name": "impedance_license",
+      "url": "https://raw.githubusercontent.com/ECSHackWeek/impedance.py/master/LICENSE",
+      "success": false,
+      "error_type": "SSLError"
+    },
+    {
+      "name": "scipy_least_squares",
+      "url": "https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html",
+      "final_url": "https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.least_squares.html",
+      "retrieved_utc": "2026-10-26T20:17:06.141328+00:00",
+      "http_status": 200,
+      "sha256": "cd8bceef256035736ddde8e0f690c2487efefd5afa773aeb50c822e5af632435",
+      "bytes": 93197,
+      "success": true
+    }
+  ],
+  "counterexample": {
+    "frequencies_hz": [
+      0.1,
+      10000.0
+    ],
+    "relative_complex_noise_scale": 0.002,
+    "two_relaxations": [
+      [
+        80,
+        0.01
+      ],
+      [
+        120,
+        0.010001
+      ]
+    ],
+    "effective_single_relaxation": [
+      [
+        200,
+        0.0100006
+      ]
+    ],
+    "max_relative_prediction_difference": 2.2626730289660313e-09,
+    "difference_to_noise_ratio": 1.1313365144830156e-06,
+    "branch_swap_prediction_difference": 0.0,
+    "conclusion": "unique circuit-count/parameter truth cannot be required for near-coincident modes at this noise level; canonical ordering removes labels only, not physical non-identifiability",
+    "scientific_acceptance": false
+  },
+  "implementation_approved": false,
+  "scientific_acceptance": false
+}
