@@ -1334,6 +1334,27 @@ impl Inner {
 
     fn block_reason(&self, index: usize) -> Option<String> {
         let agent = &self.agents[index];
+        if std::env::var_os(crate::role_broker::CONFIG_ENV).is_some() {
+            let allowance = match std::env::var("GEWU_DAILY_ROLE_SESSIONS")
+                .ok()
+                .and_then(|value| value.parse::<usize>().ok())
+            {
+                Some(limit @ 1..=10) => limit,
+                _ => return Some("daily role session budget is not configured".into()),
+            };
+            let path = match self.options.layout.agent(&agent.name) {
+                Ok(path) => path,
+                Err(_) => return Some("daily role budget path is unavailable".into()),
+            };
+            match crate::role_broker::daily_session_count(path.state_dir(), SystemTime::now()) {
+                Ok(count) if count < allowance => {}
+                Ok(_) => return Some("daily role session budget exhausted".into()),
+                Err(reason) => return Some(reason),
+            }
+            if self.settings.endpoint.turns() > 24 {
+                return Some("role model turn budget must not exceed 24".into());
+            }
+        }
         if agent.leftover.is_some() {
             // Never start a replacement beside a process the last cleanup could
             // not stop; the card says why and Start retries the cleanup.
@@ -2988,21 +3009,46 @@ fn provision_agent_job(inner: Arc<Mutex<Inner>>, name: String) {
         .lock()
         .map(|inner| inner.credentials.clone())
         .unwrap_or_default();
-    let result = match token {
-        Some(_) => identity::manage(&url, &name, &credentials)
-            .map_err(|error| sentence(&error))
-            .and_then(|identity| {
-                let admin = credentials::forgejo_admin_token(&credentials)
-                    .ok()
-                    .flatten()
-                    .ok_or_else(|| "the administrator token is not there".to_owned())?;
-                let client = ForgejoClient::new(&url, admin, DEFAULT_TIMEOUT)
-                    .map_err(|error| sentence(&error))?;
-                bundled_forgejo::join_team(&client, &identity.login)
-                    .map_err(|error| sentence(&error))?;
-                Ok(identity)
-            }),
-        None => Err("the Forgejo administrator token is not ready".to_owned()),
+    let result = if std::env::var_os(crate::role_broker::CONFIG_ENV).is_some() {
+        // These accounts have operator-provisioned per-repository ACLs. Never
+        // replace them or join the shared write-enabled agents team.
+        (|| -> Result<identity::AgentIdentity, String> {
+            let login = credentials::recorded_login(&credentials, &name)
+                .map_err(|error| sentence(&error))?
+                .ok_or("role account is not provisioned")?;
+            let role_token = credentials::forgejo_agent_token(&credentials, &name)
+                .map_err(|error| sentence(&error))?;
+            let client = ForgejoClient::new(&url, role_token, DEFAULT_TIMEOUT)
+                .map_err(|error| sentence(&error))?;
+            let viewer = client.viewer().map_err(|error| sentence(&error))?;
+            if viewer.login != login {
+                return Err("role token does not match its provisioned account".into());
+            }
+            Ok(identity::AgentIdentity {
+                agent: name.clone(),
+                login: login.clone(),
+                email: viewer.email.unwrap_or_else(|| identity::email_for(&login)),
+                created: false,
+                created_at: None,
+            })
+        })()
+    } else {
+        match token {
+            Some(_) => identity::manage(&url, &name, &credentials)
+                .map_err(|error| sentence(&error))
+                .and_then(|identity| {
+                    let admin = credentials::forgejo_admin_token(&credentials)
+                        .ok()
+                        .flatten()
+                        .ok_or_else(|| "the administrator token is not there".to_owned())?;
+                    let client = ForgejoClient::new(&url, admin, DEFAULT_TIMEOUT)
+                        .map_err(|error| sentence(&error))?;
+                    bundled_forgejo::join_team(&client, &identity.login)
+                        .map_err(|error| sentence(&error))?;
+                    Ok(identity)
+                }),
+            None => Err("the Forgejo administrator token is not ready".to_owned()),
+        }
     };
     if let Ok(mut inner) = inner.lock() {
         let Some(index) = inner.agent_index(&name) else {
@@ -5587,6 +5633,16 @@ mod tests {
         let board = engine.board();
         assert!(matches!(board.agents[0].session, SessionState::Idle));
         let run_dir = fake.last_run_dir().expect("the spawned run directory");
+        // The fake child is marked reaped before the background session job
+        // finishes its durable ending. Observe that separate completion event.
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while (crate::transcript::terminal_record(&run_dir).is_none()
+            || run_dir.join(crate::engine::session::PID_FILE).exists()
+            || run_dir.join(crate::run::PGID_FILE).exists())
+            && Instant::now() < deadline
+        {
+            std::thread::sleep(Duration::from_millis(10));
+        }
         assert!(
             crate::transcript::terminal_record(&run_dir).is_some(),
             "shutdown during spawn left no durable ending"

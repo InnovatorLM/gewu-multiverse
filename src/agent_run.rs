@@ -2244,6 +2244,12 @@ fn run(plan: &RunPlan, run_dir: &Path, transcript: &mut Transcript, log: &mut Ru
 
 /// Codex is the default; GEWU_HARNESS=native selects the legacy loop.
 pub fn codex_harness_selected() -> bool {
+    // Library fixtures use deterministic Chat Completions stubs. Never launch
+    // an installed live Codex from a credential-free unit test. Black-box Codex
+    // tests exercise the normal binary with their explicit fake executable.
+    if cfg!(test) {
+        return false;
+    }
     std::env::var("GEWU_HARNESS").as_deref() != Ok("native")
 }
 
@@ -3214,6 +3220,12 @@ fn tool_command(call: &ToolCall) -> Result<String, String> {
 /// The system message that sets an agent up. It names no secret and nothing
 /// outside the run.
 fn system_prompt(plan: &RunPlan, forgejo: Option<&ForgejoTools>) -> String {
+    let broker = std::env::var_os(crate::role_broker::CONFIG_ENV).is_some();
+    let visible_workspace = if broker {
+        "/workspace".to_owned()
+    } else {
+        plan.workspace.display().to_string()
+    };
     let mut prompt = format!(
         "You are the agent `{agent}`, working in your own workspace at {workspace}.\n\
          You are given one instruction. Do the work by calling the `{tool}` tool, one \
@@ -3222,9 +3234,15 @@ fn system_prompt(plan: &RunPlan, forgejo: Option<&ForgejoTools>) -> String {
          The workspace is a directory, not a sandbox: run only commands that serve the \
          instruction.\n",
         agent = plan.agent,
-        workspace = plan.workspace.display(),
+        workspace = visible_workspace,
         tool = model::SHELL_TOOL,
     );
+    if broker {
+        prompt = prompt.replace(
+            "The workspace is a directory, not a sandbox: run only commands that serve the instruction.",
+            "Shell commands run inside your own nonroot chroot at /workspace, with public network access. Host paths and other roles are unavailable. Run only commands that serve the instruction; commands have a 120-second limit and background processes are cleaned after each command.",
+        );
+    }
     if let Some(tools) = forgejo {
         prompt.push_str(&format!(
             "You also have the Forgejo tools {tools}: list the open issues assigned to \
@@ -3310,6 +3328,29 @@ impl Shell {
     /// Prepare the shell described by the plan. Nothing is created for an
     /// unconfined plan, so a host without a confinement keeps the old behaviour.
     fn prepare(plan: &RunPlan, run_dir: &Path) -> Result<Self, String> {
+        if std::env::var_os(crate::role_broker::CONFIG_ENV).is_some() {
+            if codex_harness_selected() {
+                return Err("role broker requires GEWU_HARNESS=native; no host fallback".into());
+            }
+            crate::role_broker::validate_role(&plan.workspace, &plan.agent)?;
+            if !crate::role_broker::available(std::slice::from_ref(&plan.workspace)) {
+                return Err("role broker boundary is unavailable; no host fallback".into());
+            }
+            return Ok(Self {
+                method: crate::confinement::Method::RoleBroker,
+                run_dir: run_dir.to_path_buf(),
+                workspace: plan.workspace.clone(),
+                hide: Vec::new(),
+                temp: None,
+                home: None,
+                askpass: None,
+                login: None,
+                root: None,
+                stage: None,
+                segments: None,
+                refused: None,
+            });
+        }
         Self::prepare_with(plan, run_dir, crate::confinement::landlock_enforced)
     }
 
@@ -3494,6 +3535,32 @@ fn run_shell(
     shell: &Shell,
     log: &mut RunLog,
 ) -> Result<ToolOutcome, String> {
+    if shell.method == crate::confinement::Method::RoleBroker {
+        crate::role_broker::validate_role(&plan.workspace, &plan.agent)?;
+        let output = crate::role_broker::execute(
+            &shell.workspace,
+            &["/bin/bash", "-c", command],
+            plan.timeout_secs.min(120),
+        )?;
+        let mut text = output.stdout;
+        if !output.stderr.is_empty() {
+            text.push('\n');
+            text.push_str(&output.stderr);
+        }
+        if let Some(reason) = output.termination {
+            text.push_str(&format!("\nrole command stopped: {reason}"));
+        }
+        let redacted = log.secret().redact(&text);
+        log.block(&redacted);
+        return Ok(ToolOutcome {
+            exit_code: Some(output.returncode),
+            signal: None,
+            excerpt: model::excerpt(&redacted, model::MAX_TOOL_OUTPUT),
+            segments: Vec::new(),
+            raw_failures: Vec::new(),
+            shell_prefixes: Vec::new(),
+        });
+    }
     // A shell whose promised boundary was refused may not run anything: the plan
     // said confined and falling back to an open `/bin/sh` would be the silent
     // unconfined run B9-R-R is about. The refusal is already on the board.
@@ -4483,7 +4550,8 @@ mod tests {
         );
         plan.confinement = "landlock".to_owned();
         plan.hide = vec![config.clone(), root.join("state")];
-        let shell = Shell::prepare(&plan, &dir).expect("the confined shell prepares");
+        // This fixture tests askpass placement, not this host's Landlock support.
+        let shell = Shell::prepare_with(&plan, &dir, || true).expect("the confined shell prepares");
         let askpass = shell.askpass.as_ref().expect("the run has a login file");
         let temp = shell.temp.as_ref().expect("the run has a private TMPDIR");
         // The file is under TMPDIR, which the Landlock path allows; the path beside

@@ -1,0 +1,56 @@
+#!/bin/bash
+# Root operator starts the broker; the UI/controller drops to nobody.
+set -euo pipefail
+set +x
+W=/mnt/data/zhanglinfeng/workspace
+U="$W/universes/my-terminal-bench-science"
+export TMPDIR="$W/.tmp" PYTHONDONTWRITEBYTECODE=1
+export XDG_CONFIG_HOME="$U/.config" XDG_STATE_HOME="$U/.state"
+export XDG_DATA_HOME="$U/.local/share" XDG_CACHE_HOME="$U/.cache"
+export HOME="$U/.local/home" GIT_CONFIG_GLOBAL="$U/.config/gitconfig"
+export GEWU_HARNESS=native
+export GEWU_DAILY_ROLE_SESSIONS=3
+export GEWU_ROLE_BROKER_CONFIG="$W/.state/science-role-broker/config.json"
+PY="$W/acs-harbor-test/.venv/bin/python"
+PRODUCT="$W/.local/libexec/gewu-multiverse"
+if [[ $(id -u) != 0 ]]; then
+    echo 'Start this deployment as the root operator; its controller drops privileges.' >&2
+    exit 1
+fi
+[[ -f "$GEWU_ROLE_BROKER_CONFIG" && -x "$PRODUCT" ]]
+mkdir -p "$W/.state/science-role-broker"
+"$PY" "$W/gewu-multiverse/deploy/science/role_exec.py" "$GEWU_ROLE_BROKER_CONFIG" \
+    > "$W/.state/science-role-broker/production-broker.log" 2>&1 &
+broker_pid=$!
+finish() {
+    kill -TERM "$broker_pid" 2>/dev/null || true
+    wait "$broker_pid" 2>/dev/null || true
+}
+trap finish EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+# Verify the process we own is live, then authenticate the real controller UID
+# before opening the board. A duplicate broker or broken root fails closed.
+"$PY" - "$broker_pid" <<'PY_CHECK'
+import json, os, socket, struct, sys, time
+from pathlib import Path
+config=json.loads(Path(os.environ['GEWU_ROLE_BROKER_CONFIG']).read_text())
+address='\0'+config['socket'][1:] if config['socket'].startswith('@') else config['socket']
+deadline=time.monotonic()+10
+while True:
+    try:
+        os.kill(int(sys.argv[1]),0)
+        with socket.socket(socket.AF_UNIX) as s:
+            s.settimeout(1)
+            s.connect(address)
+            peer_pid, peer_uid, _ = struct.unpack('3i',s.getsockopt(socket.SOL_SOCKET,socket.SO_PEERCRED,12))
+            if peer_pid != int(sys.argv[1]) or peer_uid != 0:
+                raise SystemExit('Socket belongs to another broker; controller not started')
+        break
+    except (ProcessLookupError, ConnectionRefusedError, FileNotFoundError):
+        if time.monotonic()>deadline:
+            raise SystemExit('Role broker failed startup; controller not started')
+        time.sleep(0.1)
+PY_CHECK
+export USER=nobody LOGNAME=nobody
+setpriv --reuid=65534 --regid=65534 --clear-groups "$PRODUCT" "$@"

@@ -52,6 +52,7 @@ pub mod model;
 pub mod naming;
 pub mod paths;
 pub mod pull_gate;
+pub mod role_broker;
 pub mod run;
 pub mod time;
 pub mod transcript;

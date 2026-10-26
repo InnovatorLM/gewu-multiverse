@@ -121,6 +121,8 @@ const PROBE_TIMEOUT: Duration = Duration::from_secs(2);
 /// The mechanism that confines a run's shell.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Method {
+    /// Operator-provisioned UNIX broker with separate nonroot chroots.
+    RoleBroker,
     /// A user and mount namespace through bubblewrap.
     Bwrap,
     /// A user and mount namespace through util-linux `unshare`.
@@ -136,6 +138,7 @@ impl Method {
     /// The word written into the run plan.
     pub fn as_str(self) -> &'static str {
         match self {
+            Self::RoleBroker => "role-broker",
             Self::Bwrap => "bwrap",
             Self::Unshare => "unshare",
             Self::Landlock => "landlock",
@@ -147,6 +150,7 @@ impl Method {
     /// `unshare`. Only a mechanism this computer really enforces is named.
     pub fn label(self) -> &'static str {
         match self {
+            Self::RoleBroker => "role broker",
             Self::Bwrap => "bwrap",
             Self::Unshare => "unshare",
             Self::Landlock => "Landlock",
@@ -157,6 +161,7 @@ impl Method {
     /// Read a plan's word back. An unknown word is no confinement, never a pretend.
     pub fn parse(text: &str) -> Self {
         match text.trim() {
+            "role-broker" => Self::RoleBroker,
             "bwrap" => Self::Bwrap,
             "unshare" => Self::Unshare,
             "landlock" => Self::Landlock,
@@ -284,6 +289,16 @@ pub(crate) fn effective_method(
     hide: &[PathBuf],
     workspace: &Path,
 ) -> (Method, Option<&'static str>) {
+    if requested == Method::RoleBroker {
+        return if crate::role_broker::available(&[workspace.to_path_buf()]) {
+            (requested, None)
+        } else {
+            (
+                Method::None,
+                Some("the configured role broker is unavailable"),
+            )
+        };
+    }
     if !requested.confined() {
         return (requested, None);
     }
@@ -334,6 +349,13 @@ pub fn detect(
     data_root: &Path,
     workspaces: &[PathBuf],
 ) -> Method {
+    if std::env::var_os(crate::role_broker::CONFIG_ENV).is_some() {
+        return if crate::role_broker::available(workspaces) {
+            Method::RoleBroker
+        } else {
+            Method::None
+        };
+    }
     let mut hide = vec![
         config_root.to_path_buf(),
         state_root.to_path_buf(),
@@ -966,6 +988,9 @@ pub fn run_confined_shell() -> i32 {
         Method::Unshare => exec_unshare(namespace_plan.expect("a namespace plan"), &command),
         Method::Landlock => exec_landlock(&workspace, &command),
         Method::None => exec_plain(&command),
+        Method::RoleBroker => Err(io::Error::other(
+            "role broker must be invoked by the controller",
+        )),
     };
     match result {
         Ok(never) => match never {},
@@ -2045,7 +2070,7 @@ mod tests {
         // the restore mount. The test computes the branch from the path instead of
         // assuming where cargo built it.
         let fixture = fixture("confinement-binary-under-tmp");
-        let exe = std::env::temp_dir().join(format!(
+        let exe = fixture.temp.join(format!(
             "gewu-product-under-tmp-{}-{}",
             std::process::id(),
             crate::time::now_unix_ms()

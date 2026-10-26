@@ -460,18 +460,20 @@ mod tests {
         crate::mode::set_mode(&script, 0o755).expect("the fake editor is executable");
 
         let stop = Arc::new(AtomicBool::new(false));
+        let stop_requested = Arc::new(std::sync::Mutex::new(None));
         let setter = {
             let stop = Arc::clone(&stop);
+            let stop_requested = Arc::clone(&stop_requested);
             let pid_file = pid_file.clone();
             std::thread::spawn(move || {
                 let deadline = Instant::now() + Duration::from_secs(2);
                 while !pid_file.is_file() && Instant::now() < deadline {
                     std::thread::sleep(Duration::from_millis(5));
                 }
+                *stop_requested.lock().expect("stop timestamp") = Some(Instant::now());
                 stop.store(true, Ordering::SeqCst);
             })
         };
-        let began = Instant::now();
         let status = handoff_with(
             script.to_str().expect("a UTF-8 path"),
             &root.join("instruction.md"),
@@ -479,8 +481,14 @@ mod tests {
             &|| stop.load(Ordering::SeqCst),
         )
         .expect("the hand-off returns after the stop");
-        let elapsed = began.elapsed();
+        let finished = Instant::now();
         setter.join().expect("the setter ends");
+        let elapsed = finished.duration_since(
+            stop_requested
+                .lock()
+                .expect("stop timestamp")
+                .expect("stop was requested"),
+        );
 
         let pid: u32 = std::fs::read_to_string(&pid_file)
             .expect("the fake editor wrote its pid")

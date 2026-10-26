@@ -2,3 +2,7 @@
 *.log
 
 # A generated file: cargo writes it, and it lists third-party crate versions by name.
+
+# Python deployment helper bytecode
+__pycache__/
+*.pyc

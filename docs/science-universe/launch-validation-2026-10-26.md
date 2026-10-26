@@ -6,13 +6,16 @@ verified cleanup. Aggregate usage: 11,176 input tokens, 2,264 output tokens,
 four native tool calls. Raw solver trajectories were not exported.
 
 The role repository access matrix and distinct-UID file-read matrix passed.
-Production per-role runtime wiring remains unfinished. Roles remain stopped.
+Production role broker wiring now passes all-role real SessionSpawner
+clone/reuse/fetch checks, all-role mock model loops and a live DawnFM author
+loop. Installed UI startup and normal exit passed. Roles remain stopped.
 
 The local evaluator could not use bubblewrap or Landlock in this environment.
 A non-root chroot prototype now supports real Codex shell inspection, read-only
 task files and hidden host credential paths without mounting host /proc.
-Network access is permitted as requested. This prototype is not yet a complete
-production role launcher. The regular-file /dev/null fallback supports non-PTY
+Network access is permitted as requested. The separate role broker now runs
+production native shell/Git commands as dedicated nonroot chroot identities;
+see [role-broker.md](role-broker.md) for the boundary and evidence. The regular-file /dev/null fallback supports non-PTY
 exec only and must not be represented as a real device or process isolation.
 
 The independent quality run inspected the task, actual grader and reference
@@ -29,10 +32,11 @@ recheck passed. Final full rerun: all 156 tests passed in 652 seconds.
 Mock tests are distinct from live
 DawnFM review and ACS trials.
 
-Remaining launch work: production role runtime/credentials wiring, strict
-review output, meaningful harder candidates, semantic novelty review against
-fixed TB-Science and TB4 versions, enforced budgets, curator gate and final
-launch/resource audit.
+Remaining launch work: independent strict quality acceptance, meaningful
+harder candidates, semantic novelty against fixed TB-Science/TB4 versions,
+immutable review binding and curator acceptance gate. Daily session/turn bounds
+are enforced; they are not a monetary billing ceiling. Final resource audit
+confirmed two empty label snapshots and404for8known trial Pods.
 
 Prototype commands (operator/root, workspace-specific paths): run
 `deploy/science/prepare_review_chroot.py`, then source the designated local

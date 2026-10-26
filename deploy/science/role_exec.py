@@ -1,0 +1,273 @@
+#!/usr/bin/env python3
+"""Root-owned local command broker; controller UID only, no host shell commands.
+
+The controller keeps provider/admin credentials. Every requested program executes
+inside one preprovisioned role root as that role's numeric UID, with a fresh env.
+The UNIX socket is never placed inside any role root. Networking is unrestricted.
+"""
+import argparse
+import fcntl
+import json
+import os
+from pathlib import Path
+import resource
+import selectors
+import signal
+import socket
+import socketserver
+import stat
+import struct
+import subprocess
+import sys
+import time
+
+MAX_REQUEST = 131072
+MAX_OUTPUT = 1048576
+
+
+def trusted(path, directory=False, owner=0):
+    path = Path(path)
+    info = path.lstat()
+    if stat.S_ISLNK(info.st_mode) or info.st_uid != owner or info.st_mode & 0o022:
+        raise ValueError('Broker configuration/root must be root-owned and not externally writable')
+    if directory != stat.S_ISDIR(info.st_mode):
+        raise ValueError('Unexpected configuration/root type')
+    return path.resolve(strict=True)
+
+
+def load_config(path):
+    path = trusted(path)
+    config = json.loads(path.read_text())
+    if set(config) != {'controller_uid', 'socket', 'roles'}:
+        raise ValueError('Unexpected broker configuration fields')
+    if not isinstance(config['controller_uid'], int) or config['controller_uid'] <= 0:
+        raise ValueError('Controller must be nonroot')
+    seen = set()
+    for role, value in config['roles'].items():
+        if set(value) != {'root', 'uid', 'gid'} or role not in {'author', 'evaluator', 'curator'}:
+            raise ValueError('Unexpected role configuration')
+        root = trusted(value['root'], directory=True, owner=Path(value['root']).stat().st_uid)
+        if root.stat().st_uid not in {0, config['controller_uid']}:
+            raise ValueError('Role root must be owned by root or trusted controller')
+        if not root.is_absolute() or value['uid'] < 20000 or value['gid'] < 20000:
+            raise ValueError('Unsafe role identity/root')
+        if value['uid'] in seen or value['uid'] == config['controller_uid']:
+            raise ValueError('Role identities must be distinct from each other and controller')
+        seen.add(value['uid'])
+        if (root / 'proc/1').exists() or (root / 'proc/self/root').exists():
+            raise ValueError('Host proc must not be exposed')
+        value['root'] = str(root)
+    roots = [Path(value['root']) for value in config['roles'].values()]
+    if any(a == b or a in b.parents or b in a.parents for i, a in enumerate(roots) for b in roots[i + 1:]):
+        raise ValueError('Role roots must not overlap')
+    sock = Path(config['socket'].removeprefix('@'))
+    if not sock.is_absolute() or any(sock == root or root in sock.parents for root in roots):
+        raise ValueError('Socket must be outside role roots')
+    trusted(sock.parent, directory=True)
+    return config
+
+
+def limits():
+    # Runs in the single-threaded forked handler's child before chroot/dropuid.
+    resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+    resource.setrlimit(resource.RLIMIT_NOFILE, (128, 128))
+    resource.setrlimit(resource.RLIMIT_NPROC, (64, 64))
+    # Git packfiles legitimately exceed 64 MiB. A per-file cap killed
+    # index-pack with SIGXFSZ and surfaced only as invalid index-pack output.
+    # Retain command lifetime/output limits without capping repository files.
+    resource.setrlimit(resource.RLIMIT_CPU, (120, 120))
+
+
+def role_processes(uid):
+    """Dedicated role UIDs are reserved to this broker, never shared workloads."""
+    found = []
+    for entry in Path('/proc').iterdir():
+        if not entry.name.isdigit():
+            continue
+        try:
+            if entry.stat().st_uid == uid:
+                # Zombies cannot execute/read files and are reaped by their parent.
+                status = (entry / 'stat').read_text().rsplit(')', 1)[1].split()[0]
+                if status != 'Z':
+                    found.append(int(entry.name))
+        except (FileNotFoundError, ProcessLookupError):
+            pass
+    return found
+
+
+def clean_role(uid):
+    # Also catch setsid/double-fork descendants. Never select a shared account.
+    deadline = time.monotonic() + 2
+    while True:
+        live = role_processes(uid)
+        if not live or time.monotonic() >= deadline:
+            return live
+        for pid in live:
+            try:
+                # Bind the signal to the process object, never a reused numeric
+                # PID. Recheck UID after opening the handle.
+                descriptor = os.pidfd_open(pid)
+                try:
+                    if Path('/proc', str(pid)).stat().st_uid == uid:
+                        signal.pidfd_send_signal(descriptor, signal.SIGKILL)
+                finally:
+                    os.close(descriptor)
+            except ProcessLookupError:
+                pass
+            except FileNotFoundError:
+                pass
+        time.sleep(0.01)
+
+
+def execute(config, request, connection):
+    if set(request) != {'role', 'cwd', 'argv', 'timeout'}:
+        raise ValueError('Unexpected request fields')
+    role = config['roles'][request['role']]
+    if role_processes(role['uid']):
+        raise ValueError('Dedicated role UID has unexpected live processes')
+    root = Path(role['root'])
+    # The engine holds its configuration roots to 0700. Only the trusted broker
+    # grants traversal within the chroot; roles cannot change this directory.
+    root.chmod(0o755)
+    workspace = root / 'workspace'
+    if workspace.stat().st_uid == config['controller_uid']:
+        workspace.chmod(0o2770)
+    cwd = Path(request['cwd'])
+    if not cwd.is_absolute() or '..' in cwd.parts:
+        raise ValueError('Invalid working directory')
+    # Resolve on the host first. Symlinks must not turn controller bookkeeping
+    # into a host path escape; actual command resolution occurs after chroot.
+    host_cwd = (root / str(cwd).lstrip('/')).resolve(strict=True)
+    if not host_cwd.is_relative_to(root) or not host_cwd.is_dir():
+        raise ValueError('Working directory escaped role root')
+    argv = request['argv']
+    if not isinstance(argv, list) or not argv or len(argv) > 256 or any(not isinstance(arg, str) or '\0' in arg for arg in argv):
+        raise ValueError('Invalid command arguments')
+    timeout = request['timeout']
+    if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or not 0 < timeout <= 1800:
+        raise ValueError('Invalid command timeout')
+    # No command string is interpreted on the host. chroot discards supplementary
+    # groups; no_new_privs prevents staged setuid/file-capability escalation.
+    command = ['/usr/bin/setpriv', '--no-new-privs', '/usr/sbin/chroot',
+               '--userspec=' + str(role['uid']) + ':' + str(role['gid']),
+               '--groups=' + str(role['gid']), str(root), '/usr/bin/env', '-i',
+               'PATH=/usr/local/bin:/usr/bin:/bin', 'HOME=/home/role',
+               'TMPDIR=/tmp', 'LANG=C', 'LC_ALL=C',
+               'GIT_ASKPASS=/usr/local/bin/role-askpass', 'GIT_TERMINAL_PROMPT=0',
+               '/bin/bash', '-c', 'cd -- "$1" || exit; shift; exec "$@"',
+               'role-exec', str(cwd), *argv]
+    process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE, env={'PATH': '/usr/bin:/bin'},
+                               close_fds=True, start_new_session=True, preexec_fn=limits)
+    selector = selectors.DefaultSelector()
+    selector.register(connection, selectors.EVENT_READ, 'connection')
+    selector.register(process.stdout, selectors.EVENT_READ, 'stdout')
+    selector.register(process.stderr, selectors.EVENT_READ, 'stderr')
+    chunks = {'stdout': bytearray(), 'stderr': bytearray()}
+    deadline = time.monotonic() + timeout
+    reason = None
+    try:
+        while process.poll() is None or any(key.data != 'connection' for key in selector.get_map().values()):
+            if time.monotonic() >= deadline:
+                reason = 'timeout'
+                break
+            for key, _ in selector.select(min(0.1, max(0, deadline - time.monotonic()))):
+                if key.data == 'connection':
+                    if not connection.recv(1, socket.MSG_PEEK):
+                        reason = 'controller_disconnected'
+                        break
+                    raise ValueError('Only one request per connection')
+                block = os.read(key.fd, 65536)
+                if not block:
+                    selector.unregister(key.fileobj)
+                else:
+                    chunks[key.data].extend(block)
+                    if sum(map(len, chunks.values())) > MAX_OUTPUT:
+                        reason = 'output_limit'
+                        break
+            if reason:
+                break
+    finally:
+        # Popen retains the leader's PID until wait/reap; descendants are cleaned
+        # through dedicated-UID pidfds, including setsid/double-fork children.
+        if process.poll() is None:
+            process.kill()
+        process.wait()
+        remaining = clean_role(role['uid'])
+        selector.close()
+        process.stdout.close()
+        process.stderr.close()
+    return {'returncode': process.returncode, 'stdout': bytes(chunks['stdout'][:MAX_OUTPUT]).decode(errors='replace'),
+            'stderr': bytes(chunks['stderr'][:MAX_OUTPUT]).decode(errors='replace'), 'termination': reason,
+            'cleanup_confirmed': not remaining}
+
+
+class Handler(socketserver.StreamRequestHandler):
+    def handle(self):
+        try:
+            _, uid, _ = struct.unpack('3i', self.request.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12))
+            if uid not in {0, self.server.config['controller_uid']}:
+                raise ValueError('Controller UID required')
+            self.request.settimeout(5)
+            line = self.rfile.readline(MAX_REQUEST + 1)
+            if len(line) > MAX_REQUEST or not line.endswith(b'\n'):
+                raise ValueError('Request too large or incomplete')
+            request = json.loads(line)
+            self.request.settimeout(None)
+            role = request['role']
+            if role not in self.server.config['roles']:
+                raise ValueError('Unknown role')
+            # A UID is exclusive while a command runs and while descendants are
+            # cleaned, including requests arriving on different connections.
+            lock = Path(self.server.config['socket'].removeprefix('@')).parent / (role + '.lock')
+            with lock.open('a') as stream:
+                fcntl.flock(stream, fcntl.LOCK_EX)
+                response = execute(self.server.config, request, self.request)
+        except (ValueError, KeyError, OSError, TypeError, OverflowError):
+            response = {'error': 'Role command refused'}
+        try:
+            self.wfile.write(json.dumps(response).encode() + b'\n')
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
+
+class Server(socketserver.ForkingMixIn, socketserver.UnixStreamServer):
+    max_children = 3
+    block_on_close = True
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('config')
+    args = parser.parse_args()
+    if os.geteuid() != 0:
+        raise SystemExit('Broker must be launched by root')
+    config = load_config(args.config)
+    abstract = config['socket'].startswith('@')
+    path = Path(config['socket'].removeprefix('@'))
+    if not abstract and path.exists():
+        raise SystemExit('Socket already exists; inspect live broker before restart')
+    # The workspace's FUSE storage cannot create socket inodes. Linux abstract
+    # sockets keep the same SO_PEERCRED boundary without any out-of-workspace file.
+    address = '\0' + str(path) if abstract else str(path)
+    server = Server(address, Handler)
+    server.config = config
+    if not abstract:
+        os.chown(path, config['controller_uid'], config['controller_uid'])
+        path.chmod(0o600)
+    def stop(*_):
+        raise KeyboardInterrupt
+    signal.signal(signal.SIGTERM, stop)
+    signal.signal(signal.SIGINT, stop)
+    try:
+        server.serve_forever(poll_interval=0.1)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+        if not abstract:
+            path.unlink(missing_ok=True)
+
+
+if __name__ == '__main__':
+    main()

@@ -215,8 +215,30 @@ pub fn prepare(
     } else {
         clone_url(base, full_name, login)
     };
-    let destination_text = destination.display().to_string();
+    // A killed clone can leave a valid .git directory with an incomplete
+    // checkout. Never let the next broker session mistake that for a ready
+    // workspace: publish the destination only after clone completes.
+    let staging = if std::env::var_os(crate::role_broker::CONFIG_ENV).is_some() {
+        let mut name = destination.file_name().unwrap_or_default().to_os_string();
+        name.push(".gewu-clone-pending");
+        Some(destination.with_file_name(name))
+    } else {
+        None
+    };
+    let clone_target = staging.as_deref().unwrap_or(destination);
+    if staging.is_some() && clone_target.exists() {
+        return Err(WorkspaceError::DestinationInTheWay {
+            path: clone_target.to_path_buf(),
+        });
+    }
+    let destination_text = clone_target.display().to_string();
     run_git(&["clone", &url, &destination_text], workspace, credential)?;
+    if staging.is_some() {
+        std::fs::rename(clone_target, destination).map_err(|source| WorkspaceError::Workspace {
+            path: destination.to_path_buf(),
+            source,
+        })?;
+    }
     set_identity(destination, identity)?;
     Ok((destination.to_path_buf(), Prepared::Cloned))
 }
@@ -775,6 +797,35 @@ fn run_git(
     cwd: &Path,
     credential: Option<&GitCredential<'_>>,
 ) -> Result<String, WorkspaceError> {
+    if std::env::var_os(crate::role_broker::CONFIG_ENV).is_some() {
+        let arguments = crate::role_broker::translate_args(cwd, args).map_err(|message| {
+            WorkspaceError::Git {
+                command: "isolated git".into(),
+                message,
+            }
+        })?;
+        let mut argv = vec![
+            "/usr/bin/git",
+            "-c",
+            "credential.helper=",
+            "-c",
+            "checkout.workers=8",
+        ];
+        argv.extend(arguments.iter().map(String::as_str));
+        let output = crate::role_broker::execute(cwd, &argv, 1800).map_err(|message| {
+            WorkspaceError::Git {
+                command: "isolated git".into(),
+                message,
+            }
+        })?;
+        if output.returncode != 0 {
+            return Err(WorkspaceError::Git {
+                command: "isolated git".into(),
+                message: crate::model::excerpt(&output.stderr, 500),
+            });
+        }
+        return Ok(output.stdout);
+    }
     let mut command = Command::new("git");
     // No credential helper: the token travels through the askpass pipe and is never
     // written into a git credential store.

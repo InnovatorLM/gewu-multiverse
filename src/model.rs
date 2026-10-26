@@ -162,6 +162,12 @@ pub fn tools() -> Vec<ToolSpec> {
 fn shell_description(method: crate::confinement::Method) -> &'static str {
     use crate::confinement::Method;
     match method {
+        Method::RoleBroker => {
+            "Run one shell command in /workspace inside this role's nonroot chroot. \
+             Host credentials, host proc and other role files are unavailable. \
+             Network access is permitted. Commands have a 120-second bound; \
+             background processes are cleaned when the command ends."
+        }
         Method::Landlock => {
             "Run one shell command with the agent's workspace as its working directory. \
              The run is confined with Landlock: it can read its workspace, this run's \
