@@ -64,6 +64,15 @@ def atomic_json(path, value, mode=0o600):
         temporary.unlink(missing_ok=True)
 
 
+def evaluation_catalog(registry):
+    purposes = {'solver': 'registered solver evidence; not acceptance',
+                'quality_diagnostic': 'quality diagnostic; not acceptance',
+                'semantic_diagnostic': 'full-corpus instruction comparison; not acceptance'}
+    return {'evaluations': [{'evaluation_id': key, 'snapshot_sha256': entry['snapshot_sha256'],
+                             'purpose': purposes[entry.get('dispatch', 'solver')]}
+                            for key, entry in sorted(registry.items()) if entry.get('enabled', True) is True]}
+
+
 def read_request(path, uid):
     descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     with os.fdopen(descriptor, 'rb') as stream:
@@ -147,15 +156,20 @@ def process(config, request_path, mock=False):
     if request['evaluation_id'] not in registry:
         raise ValueError('Evaluation ID has not been registered by operator')
     entry = registry[request['evaluation_id']]
+    if entry.get('enabled', True) is not True:
+        raise ValueError('Evaluation ID retired by operator')
     template = validated_template(entry, request)
     dispatch = entry.get('dispatch', 'solver')
-    if dispatch not in {'solver', 'quality_diagnostic'}:
+    if dispatch not in {'solver', 'quality_diagnostic', 'semantic_diagnostic'}:
         raise ValueError('Unknown registered dispatch')
     if dispatch == 'quality_diagnostic':
         from role_exec import trusted
         review_root = trusted(entry['review_root'], directory=True)
         if not review_root.is_relative_to(W / '.state/science-review-tools') or digest_tree(review_root / 'task') != entry['snapshot_sha256']:
             raise ValueError('Registered review root/task mismatch')
+    if dispatch == 'semantic_diagnostic':
+        from register_semantic_diagnostic import registered_corpus
+        corpus = registered_corpus(entry)
     for claim in state.glob('*/claim.json'):
         retained = claim.parent / 'result.json'
         if not retained.exists() or json.loads(retained.read_text()).get('cleanup_confirmed') is not True:
@@ -188,6 +202,8 @@ def process(config, request_path, mock=False):
         env.update(PYTHONDONTWRITEBYTECODE='1', PYTHONPATH=str(W / '.local/harbor-extensions') + ':' + str(W / 'acs-harbor-test/harbor/src'))
         if dispatch == 'quality_diagnostic':
             command = [str(W / 'gewu-multiverse/deploy/science/run-quality-diagnostic'), '--evaluation-id', request['evaluation_id'], '--root', str(review_root), '--job', str(job / 'quality')]
+        elif dispatch == 'semantic_diagnostic':
+            command = [str(W / 'gewu-multiverse/deploy/science/run-semantic-diagnostic'), '--evaluation-id', request['evaluation_id'], '--corpus', str(corpus), '--output', str(job / 'semantic')]
         else:
             command = [str(W / 'gewu-multiverse/deploy/science/run-acs-evaluation'), str(job / 'config.json'), str(job / 'report.json')]
         with (job / 'controller.log').open('w') as log:
@@ -221,6 +237,17 @@ def process(config, request_path, mock=False):
                 while role_processes(21012) and time.monotonic() < deadline:
                     time.sleep(.1)
                 answer.update(status='quality_diagnostic_failed', cleanup_confirmed=not role_processes(21012), quality_acceptance=False, scientific_acceptance=False, release_eligible=False, factual_verification_required=True)
+        elif dispatch == 'semantic_diagnostic':
+            report_path = job / 'semantic/report.json'
+            if report_path.exists():
+                report = json.loads(root_file(report_path).read_text())
+                from semantic_comparison import load_corpus, validate_report
+                records, manifest = load_corpus(corpus)
+                validate_report(report, records, manifest, entry['snapshot_sha256'], (Path(entry['snapshot']) / 'instruction.md').read_text())
+                answer.update(status='semantic_diagnostic_complete', comparison=report)
+            else:
+                answer.update(status='semantic_diagnostic_failed')
+            answer.update(cleanup_confirmed=True, quality_acceptance=False, scientific_acceptance=False, release_eligible=False, factual_verification_required=True, acs_launched=False, raw_trajectory_exported=False)
         elif not (job / 'report.json').exists():
             answer.update(status='failed', cleanup_confirmed=False, quality_acceptance=False)
         else:

@@ -36,3 +36,5 @@ H. 成功或放弃后写 lessons/<task-id>.md，记录可迁移经验、失败�
 
 - proposal.md、题目目录、authoring/provenance.json、iteration.md、Git commit 和简洁变更说明。
 - 外部评测只依据公开反馈改进。对未测项目、失败和不确定性如实报告；不得代替 evaluator 签署评测，不得代替 curator 入库。
+
+当前基础设施试验题尚未科学验收，不能视为成功出题样例。先读 [试验题复核反馈](pilot-review-feedback.md)；部署后的同一公开反馈位于 `/workspace/PILOT-REVIEW-FEEDBACK.md`。核验评审命令是否支持其结论，不得用模糊契约或隐藏规则制造低通过率。

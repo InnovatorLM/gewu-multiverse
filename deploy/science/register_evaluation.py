@@ -12,7 +12,7 @@ import shutil
 import subprocess
 import tarfile
 
-from evaluation_queue import W, atomic_json, digest_tree, root_file, validated_template
+from evaluation_queue import W, atomic_json, evaluation_catalog, digest_tree, root_file, validated_template
 
 
 def freeze(repo, commit, task_path, destination):
@@ -101,7 +101,7 @@ def main():
             shutil.rmtree(parent)
             raise
         catalog = Path(config['inbox']).parent / 'catalog.json'
-        atomic_json(catalog, {'evaluations': [{'evaluation_id': key, 'snapshot_sha256': value['snapshot_sha256'], 'purpose': 'registered solver evidence; not scientific acceptance'} for key, value in sorted(registry.items())]}, 0o644)
+        atomic_json(catalog, evaluation_catalog(registry), 0o644)
     print(json.dumps({'evaluation_id': args.evaluation_id, 'snapshot_sha256': sha, 'scientific_acceptance': False}))
 
 

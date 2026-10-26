@@ -14,7 +14,9 @@ import subprocess
 from evaluation_queue import W, atomic_json
 
 
-def corpus(repo, commit, dataset):
+def corpus(repo, commit, dataset, scope="active"):
+    if scope not in {"active", "all"}:
+        raise ValueError("Unknown corpus selection scope")
     repo = Path(repo).resolve(strict=True)
     if not repo.is_relative_to(W) or not re.fullmatch('[0-9a-f]{40}', commit):
         raise ValueError('Require workspace repository and full commit')
@@ -28,7 +30,7 @@ def corpus(repo, commit, dataset):
             continue
         metadata, raw_path = item.split(b'\t', 1)
         path = raw_path.decode('utf-8')
-        if not path.endswith('/instruction.md'):
+        if not path.endswith('/instruction.md') or (scope == 'active' and not path.startswith('tasks/')):
             continue
         mode, kind, oid = metadata.decode().split()
         if kind != 'blob' or mode not in {'100644', '100755'}:
@@ -45,6 +47,7 @@ def main():
     parser.add_argument('--tb4-commit', required=True)
     parser.add_argument('--science-commit', required=True)
     parser.add_argument('--output', required=True)
+    parser.add_argument('--scope', choices=['active','all'], default='active', help='Default: only tasks/; all includes fixtures, templates and history')
     args = parser.parse_args()
     output = Path(args.output)
     if not output.resolve().is_relative_to(W) or output.exists():
@@ -52,12 +55,12 @@ def main():
     records = []
     counts = {}
     for name, commit in [('terminal-bench-4.0', args.tb4_commit), ('terminal-bench-science-v0.1', args.science_commit)]:
-        rows = corpus(W / 'datasets' / name, commit, name)
+        rows = corpus(W / 'datasets' / name, commit, name, args.scope)
         records.extend(rows)
         counts[name] = len(rows)
     output.mkdir(mode=0o700)
     atomic_json(output / 'instructions.json', records)
-    atomic_json(output / 'manifest.json', {'sources': counts, 'instructions_sha256': hashlib.sha256((output / 'instructions.json').read_bytes()).hexdigest(), 'scientific_acceptance': False, 'semantic_review_performed': False, 'scope': 'all tracked */instruction.md at explicit source commits'})
+    atomic_json(output / 'manifest.json', {'sources': counts, 'instructions_sha256': hashlib.sha256((output / 'instructions.json').read_bytes()).hexdigest(), 'scientific_acceptance': False, 'semantic_review_performed': False, 'selection_scope': args.scope, 'scope': 'tracked tasks/**/instruction.md at explicit source commits' if args.scope == 'active' else 'all tracked instructions including fixtures/templates/history'})
     print(json.dumps({'counts': counts, 'semantic_review_performed': False}))
 
 

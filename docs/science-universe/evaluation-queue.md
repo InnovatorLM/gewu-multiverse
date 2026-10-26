@@ -1,5 +1,12 @@
 # Registered solver evaluation queue
 
+Current comparison scope: TB4 `tasks/` contains66instructions and TBScience
+`tasks/` contains72at the fixed source commits. The earlier381-file corpus also
+contains CI fixtures, templates and historical directories; its broad counts
+must not be represented as current benchmark task counts. The old all-file
+semantic dispatch ID is retired, and the active138-task corpus is separately
+hash-bound. Historical evidence below is retained with this correction.
+
 The isolated evaluator can submit a solver trial without obtaining host model,
 ACR or ACS credentials. The root operator worker accepts IDs and snapshot hashes,
 not shell commands, model names or configuration paths. It runs only a frozen
@@ -246,3 +253,76 @@ These are reviewer costs, not solver difficulty metrics. The live role summary
 omitted source-review usage; it is preserved in separate private evidence and
 the forwarding correction is covered by runner tests. Diagnostic score56.25
 and no_blocker_found remain model claims requiring factual verification.
+
+## Full fixed-corpus instruction comparison (operator)
+
+`semantic_comparison.py --evaluation-id <registered-id> --corpus
+<private-fixed-corpus> --output <fresh-private-dir>` compares the registered
+candidate instruction with every manifest reference. It verifies corpus and
+per-instruction hashes, both benchmark source sets, unique identities, and the
+registered candidate snapshot. Batches preserve full instruction text without
+truncation. Every reference must receive exactly one relation, inferred workload
+comparison, explanation and exact source/candidate quotation. Missing, duplicate,
+unknown references or fabricated quotations fail validation.
+
+Requests use designated DawnFM, thinking disabled, JSON-object mode. Failed
+responses remain private and up to two targeted corrections are allowed per batch. `--resume`
+requires the same candidate/corpus/prompt/model identity, revalidates completed
+batches, and reuses retained responses rather than silently repeating calls.
+The final report includes every source commit/path/blob/SHA and provider usage
+including failed responses. This operator route executes no tools, solver or
+ACS resources; the queue integration below has mock coverage. It is diagnostic only:
+full instruction coverage does not prove semantic judgment, implementation
+originality, task quality or empirical model difficulty. Acceptance remains false.
+
+
+Citation transport uses zero-based numbered source excerpts. The model selects
+an actual excerpt index; the controller restores its exact original text and
+validates it against the full instruction. The first direct-quotation pilot
+stopped after a later batch repeatedly omitted Markdown backticks. The indexed
+pilot preserves those failed responses and does not weaken exact-text checks.
+Out-of-range selections receive reference-specific valid-index feedback; none
+are silently corrected. Excerpt choices do not truncate the supplied full task
+instructions or prove that a model's semantic inference follows from its quote.
+
+The semantic queue route is registered with `register_semantic_diagnostic.py
+--source-evaluation-id <solver-id> --evaluation-id <new-id> --corpus <fixed-dir>`.
+It binds the root-owned corpus manifest hash and candidate snapshot. Its fixed
+wrapper uses the designated model account; no caller-supplied commands or
+provider settings are accepted. The worker rechecks complete comparison coverage,
+every source identity and exact citation before publishing the diagnostic report.
+It never launches ACS. Registered semantic diagnostics share daily dispatch
+allowance; results cannot grant quality/scientific acceptance or release.
+The route has mock coverage; a live evaluator-queue comparison has not yet run.
+The separate live operator sweep is recorded independently.
+
+
+Source-scope correction: `prepare_reference_corpus.py` now defaults to
+`--scope active`, selecting only tracked `tasks/**/instruction.md`. Explicit
+`--scope all` retains the broader repository-file inventory. Current-source
+metadata checks found a corresponding task.toml for all138selected instructions.
+The broad sweep finished all381records; exact-source projection to the138active
+records reused existing judgments without new model calls or independent-review
+claims. It reports13shared_method/125unrelated and no near_duplicate. The model
+infers candidate_easier for all138; that is an uncalibrated text-based diagnostic,
+not measured success rate or proof of scientific originality. Corpus hash,
+source commits/blobs and citations were revalidated after projection. The full
+sweep consumed339467input/27205output tokens, including retained failed attempts;
+that cost also covers excluded fixtures/history and cannot be allocated solely
+to current tasks. The earlier direct-quote pilot's costs remain separate.
+
+`project_semantic_comparison.py` verifies both source corpora, source report,
+all target source identities and exact citations. It preserves each original
+judgment/source reference ID and records zero additional model calls. Tests
+reject a target whose commit/blob/content differs from the parent evidence.
+`evaluation_catalog` preserves distinct dispatch purposes and excludes retired
+IDs; a stale request for a retired ID is rejected before job admission.
+
+Installed UI smoke uses the workspace-local test dependencies in
+`deploy/science/test-ui-requirements.txt`. It reconstructs the terminal screen
+with pyte, waits for both actual repository names, and verifies the Keys popup
+and return before quitting. Stripping ANSI sequences was insufficient: real
+incremental screen updates split words and produced false negatives even while
+the UI displayed both repositories. Replaying the retained failed capture with
+the terminal decoder confirmed this. Raw captures and screen snapshots remain
+private in workspace state; the smoke never enables roles or requests a model.

@@ -6,7 +6,7 @@ import json
 import os
 from pathlib import Path
 import re
-from evaluation_queue import W, atomic_json, digest_tree, root_file, validated_template
+from evaluation_queue import W, atomic_json, evaluation_catalog, digest_tree, root_file, validated_template
 from role_exec import trusted
 
 
@@ -34,7 +34,7 @@ def main():
         registry[args.evaluation_id]=entry
         atomic_json(registry_path,registry)
         catalog=Path(queue['inbox']).parent/'catalog.json'
-        atomic_json(catalog,{'evaluations':[{'evaluation_id':key,'snapshot_sha256':value['snapshot_sha256'],'purpose':'quality diagnostic; not acceptance' if value.get('dispatch')=='quality_diagnostic' else 'registered solver evidence; not acceptance'} for key,value in sorted(registry.items())]},0o644)
+        atomic_json(catalog,evaluation_catalog(registry),0o644)
     print(json.dumps({'evaluation_id':args.evaluation_id,'dispatch':'quality_diagnostic','scientific_acceptance':False}))
 
 

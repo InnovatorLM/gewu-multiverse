@@ -19,6 +19,9 @@ class CorpusTest(unittest.TestCase):
             path = repo / 'tasks/example/instruction.md'
             path.parent.mkdir(parents=True)
             path.write_text('fixed official content')
+            fixture = repo / 'scripts/tests/mock/instruction.md'
+            fixture.parent.mkdir(parents=True)
+            fixture.write_text('CI fixture, not a benchmark task')
             git('add', '.')
             git('commit', '-m', 'fixture')
             commit = git('rev-parse', 'HEAD')
@@ -27,6 +30,8 @@ class CorpusTest(unittest.TestCase):
             self.assertEqual(len(rows), 1)
             self.assertEqual(rows[0]['instruction'], 'fixed official content')
             self.assertEqual(rows[0]['commit'], commit)
+            self.assertEqual(len(corpus(repo, commit, 'fixture', scope='all')), 2)
+            self.assertTrue(all(row['path'].startswith('tasks/') for row in rows))
             path.unlink()
             path.symlink_to('/etc/passwd')
             git('add', '.')

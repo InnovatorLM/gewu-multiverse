@@ -48,6 +48,13 @@ for index, role in enumerate(['author', 'evaluator', 'curator']):
     shutil.copyfile(instruction, target)
     os.chown(target, 65534, 65534)
     target.chmod(0o644)
+    if role == 'author':
+        feedback = universe / 'governance/public/pilot-review-feedback.md'
+        if feedback.is_file():
+            target = root / 'workspace/PILOT-REVIEW-FEEDBACK.md'
+            shutil.copyfile(feedback, target)
+            os.chown(target, 0, 0)
+            target.chmod(0o644)
     target = root / 'home/role/git-credential.json'
     creds = json.loads((w / '.config/universe-roles' / (role + '.json')).read_text())
     target.write_text(json.dumps({'login': creds['login'], 'token': creds['token']}))

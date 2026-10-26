@@ -1,0 +1,3 @@
+# Workspace-local installed launcher smoke test only.
+pyte==0.8.2
+wcwidth==0.9.4
