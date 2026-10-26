@@ -37,3 +37,34 @@ are refused. Four tests pass, including explicit0.1vs1/10and float refusal.
 This change does not resolve the scientific contract findings or turn the
 proposal into an approved implementation. Literature retrieval was not
 independently checked by this reviewer.
+
+## Revised v2 scope review
+
+The same independent reviewer subsequently read eis-contract-v2.md and the
+updated rational research interface. Decision: **conditional approval for
+research-prototype generation, fitting and an independently written checker**.
+This is not approval of a Harbor candidate, release, scientific acceptance or
+empirical difficulty.
+
+The revised contract resolves the earlier conceptual blockers by specifying
+bounded-component feasibility; limiting witness/exclusion claims; refusing
+exact equal-tau reducible branches; normalizing permutations; requiring exact
+rational D with D=1not separated; and limiting measurement discrimination to
+the submitted pair. The reviewer checked the interval algebra and closed-error
+rectangle criterion. Existing4tests passed in the review environment. Additional
+randomized diagnostics were reported in-memory without retained scripts/results;
+they are not treated as reproducible launch evidence here.
+
+Conditions for the prototype: publish concrete boxes/error bounds/measurement
+options and physical costs; preserve the Debye equation used by the proof;
+demonstrate feasibility slack after exact serialization, both case types,
+alternative solutions and negative controls. Near-coincident witnesses may still
+make measurement selection trivial, and the small feasibility example is not
+sufficient benchmark difficulty. Scientific suitability, originality, numerical
+resource costs and actual designated-model performance remain unverified.
+
+A retained standard-library measurement_geometry.py additionally reproduces7203
+exact closed-rectangle controls in the controller environment. This supports
+the conditional pairwise scoring formula, not full-family identifiability or
+proposal completion. Next authorized step is the research prototype under the
+specified scope, followed by further independent review before Harbor release.

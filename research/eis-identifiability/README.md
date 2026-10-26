@@ -50,3 +50,12 @@ Fraction values. Binary floats, bools and null values are refused. For example,
 Four test methods now cover this boundary in addition to the486controls.
 Independent proposal review found no fatal interval-proof issue but withheld
 implementation approval over the incomplete scientific grading contract.
+
+`python measurement_geometry.py` independently checks the proposed conditional
+measurement criterion on7203pairs of closed error rectangles with unequal
+real/imag precision settings. A pair is disjoint iff
+max(|delta_real|/(2err_real),|delta_imag|/(2err_imag))>1. Equality means touching
+and does not separate. This is witness-pair geometry, not discrimination of
+all feasible models, a probabilistic confidence result or a complete design
+optimizer. The v2contract allows exact rational output rather than rounding
+this threshold classification.
