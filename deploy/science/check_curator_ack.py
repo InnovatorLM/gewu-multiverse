@@ -5,7 +5,6 @@ import hashlib
 import json
 import os
 import re
-import tomllib
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -13,6 +12,7 @@ import requests
 from configure_review_protection import matches
 from evaluation_queue import W, atomic_json, root_file
 from prepare_review_packet import validate
+from controller_credentials import load_controller_credentials
 
 API = 'http://127.0.0.1:3000/api/v1'
 REPO = '/repos/team/terminal-bench-science'
@@ -82,10 +82,9 @@ def main():
     raw = inventory.read_bytes()
     packet = json.loads(raw)
     validate(packet)
-    credentials = root_file(W / 'universes/my-terminal-bench-science/.config/gewu-multiverse/credentials.toml')
     session = requests.Session()
     session.trust_env = False
-    session.headers['Authorization'] = 'token ' + tomllib.loads(credentials.read_text())['forgejo_admin_token']
+    session.headers['Authorization'] = 'token ' + load_controller_credentials()['forgejo_admin_token']
 
     def get(path):
         response = session.get(API + path, timeout=30, allow_redirects=False)

@@ -118,6 +118,14 @@ the fixed local repository and grants no scientific approval. See
 [startup task body](proposal-startup-task.md). A live proposal session must still
 demonstrate delivery before authoring effectiveness is considered established.
 
+The local startup task is now issue1, assigned to science-author and read back
+using that role's token. Controller credentials are intentionally owned by the
+trusted controller UID65534, not root. A separate credential reader checks their
+owner,0600file and0700parent, refusing symlinks and nonoperator callers;
+evaluator root_file guards remain unchanged. The acknowledgment checker uses the
+same reader. Credential-guard tests and acknowledgment refusal tests passed;
+no real scientific approval has been recorded.
+
 Library fixtures select the native mock transport explicitly at compile time
 to prevent an installed Codex from being launched accidentally during unit
 tests. Black-box Codex integration tests still use their explicit fake CLI.

@@ -5,9 +5,9 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import tomllib
 import requests
 from evaluation_queue import W, atomic_json, root_file
+from controller_credentials import load_controller_credentials
 
 BASE = 'http://127.0.0.1:3000/api/v1'
 REPO = '/repos/team/terminal-bench-science'
@@ -22,7 +22,7 @@ def main():
     if os.geteuid() != 0 or args.output.exists() or not args.output.resolve().is_relative_to(W):
         raise ValueError('Operator and fresh workspace output required')
     body = (Path(__file__).resolve().parents[2] / 'docs/science-universe/proposal-startup-task.md').read_text()
-    credentials = tomllib.loads(root_file(W / 'universes/my-terminal-bench-science/.config/gewu-multiverse/credentials.toml').read_text())
+    credentials = load_controller_credentials()
     session = requests.Session()
     session.trust_env = False
     session.headers['Authorization'] = 'token ' + credentials['forgejo_admin_token']
