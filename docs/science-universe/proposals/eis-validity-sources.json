@@ -1,0 +1,36 @@
+{
+  "research_direction": "eis-validity",
+  "receipts": [
+    {
+      "name": "linkk",
+      "url": "https://impedancepy.readthedocs.io/en/latest/examples/validation_example.html",
+      "retrieved_utc": "2026-10-26T21:22:14.295919+00:00",
+      "status": 200,
+      "final_url": "https://impedancepy.readthedocs.io/en/latest/examples/validation_example.html",
+      "success": true,
+      "sha256": "e4c931c9364f074bfc2441cfb92bcc2947a2e67c974f6a119df7d0fd0906e653",
+      "bytes": 20500
+    },
+    {
+      "name": "validation_api",
+      "url": "https://impedancepy.readthedocs.io/en/latest/validation.html",
+      "retrieved_utc": "2026-10-26T21:22:15.093788+00:00",
+      "status": 200,
+      "final_url": "https://impedancepy.readthedocs.io/en/latest/validation.html",
+      "success": true,
+      "sha256": "2fd6355a750805d79844dcb96c506cb0e78776ed12418f94d944728da1e78ffb",
+      "bytes": 22710
+    },
+    {
+      "name": "primary_article_metadata",
+      "url": "https://api.crossref.org/works/10.1016%2Fj.electacta.2014.01.034",
+      "success": true,
+      "sha256": "0b013120381dc966577a5844965caf532c333605086ab596ffd690d89813a8c1",
+      "scope": "metadata only; full text not retrieved"
+    }
+  ],
+  "model_calls": 0,
+  "acs_launched": false,
+  "proposal_approved": false,
+  "scientific_acceptance": false
+}
