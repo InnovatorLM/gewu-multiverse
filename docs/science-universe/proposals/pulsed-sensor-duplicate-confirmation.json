@@ -1,0 +1,351 @@
+{
+  "independent_method": "Direct Arrow per-column equality after file-ID filtering, no reuse of signal hashes",
+  "source_sha256": "9fac0644a9eb9946a25a43f4e4649c51dd321717f1395dbcb5d58719b199af0a",
+  "groups_checked": 11,
+  "groups": [
+    {
+      "conditions": [
+        [
+          "PVC",
+          "PVC01",
+          "mix_1",
+          1,
+          "OCV"
+        ],
+        [
+          "PVC",
+          "PVC02",
+          "mix_1",
+          1,
+          "OCV"
+        ]
+      ],
+      "rows_per_file": [
+        101,
+        101
+      ],
+      "exact_arrow_column_equality": {
+        "time_s": true,
+        "potential_V": true,
+        "I_mA": true,
+        "control_mA": true,
+        "analog_in1_V": true,
+        "nominal_current_uA": true,
+        "step_index": true
+      }
+    },
+    {
+      "conditions": [
+        [
+          "PVC",
+          "PVC01",
+          "mix_1",
+          2,
+          "CP"
+        ],
+        [
+          "PVC",
+          "PVC02",
+          "mix_1",
+          2,
+          "CP"
+        ]
+      ],
+      "rows_per_file": [
+        10010,
+        10010
+      ],
+      "exact_arrow_column_equality": {
+        "time_s": true,
+        "potential_V": true,
+        "I_mA": true,
+        "control_mA": true,
+        "analog_in1_V": true,
+        "nominal_current_uA": true,
+        "step_index": true
+      }
+    },
+    {
+      "conditions": [
+        [
+          "PVC",
+          "PVC01",
+          "mix_1",
+          3,
+          "CP"
+        ],
+        [
+          "PVC",
+          "PVC02",
+          "mix_1",
+          3,
+          "CP"
+        ]
+      ],
+      "rows_per_file": [
+        10010,
+        10010
+      ],
+      "exact_arrow_column_equality": {
+        "time_s": true,
+        "potential_V": true,
+        "I_mA": true,
+        "control_mA": true,
+        "analog_in1_V": true,
+        "nominal_current_uA": true,
+        "step_index": true
+      }
+    },
+    {
+      "conditions": [
+        [
+          "PVC",
+          "PVC01",
+          "mix_1",
+          4,
+          "CP"
+        ],
+        [
+          "PVC",
+          "PVC02",
+          "mix_1",
+          4,
+          "CP"
+        ]
+      ],
+      "rows_per_file": [
+        10010,
+        10010
+      ],
+      "exact_arrow_column_equality": {
+        "time_s": true,
+        "potential_V": true,
+        "I_mA": true,
+        "control_mA": true,
+        "analog_in1_V": true,
+        "nominal_current_uA": true,
+        "step_index": true
+      }
+    },
+    {
+      "conditions": [
+        [
+          "PVC",
+          "PVC01",
+          "mix_1",
+          5,
+          "CP"
+        ],
+        [
+          "PVC",
+          "PVC02",
+          "mix_1",
+          5,
+          "CP"
+        ]
+      ],
+      "rows_per_file": [
+        10010,
+        10010
+      ],
+      "exact_arrow_column_equality": {
+        "time_s": true,
+        "potential_V": true,
+        "I_mA": true,
+        "control_mA": true,
+        "analog_in1_V": true,
+        "nominal_current_uA": true,
+        "step_index": true
+      }
+    },
+    {
+      "conditions": [
+        [
+          "PVC",
+          "PVC01",
+          "mix_1",
+          6,
+          "CP"
+        ],
+        [
+          "PVC",
+          "PVC02",
+          "mix_1",
+          6,
+          "CP"
+        ]
+      ],
+      "rows_per_file": [
+        10010,
+        10010
+      ],
+      "exact_arrow_column_equality": {
+        "time_s": true,
+        "potential_V": true,
+        "I_mA": true,
+        "control_mA": true,
+        "analog_in1_V": true,
+        "nominal_current_uA": true,
+        "step_index": true
+      }
+    },
+    {
+      "conditions": [
+        [
+          "PVC",
+          "PVC01",
+          "mix_1",
+          7,
+          "CP"
+        ],
+        [
+          "PVC",
+          "PVC02",
+          "mix_1",
+          7,
+          "CP"
+        ]
+      ],
+      "rows_per_file": [
+        10010,
+        10010
+      ],
+      "exact_arrow_column_equality": {
+        "time_s": true,
+        "potential_V": true,
+        "I_mA": true,
+        "control_mA": true,
+        "analog_in1_V": true,
+        "nominal_current_uA": true,
+        "step_index": true
+      }
+    },
+    {
+      "conditions": [
+        [
+          "PVC",
+          "PVC01",
+          "mix_1",
+          8,
+          "CP"
+        ],
+        [
+          "PVC",
+          "PVC02",
+          "mix_1",
+          8,
+          "CP"
+        ]
+      ],
+      "rows_per_file": [
+        10010,
+        10010
+      ],
+      "exact_arrow_column_equality": {
+        "time_s": true,
+        "potential_V": true,
+        "I_mA": true,
+        "control_mA": true,
+        "analog_in1_V": true,
+        "nominal_current_uA": true,
+        "step_index": true
+      }
+    },
+    {
+      "conditions": [
+        [
+          "PVC",
+          "PVC01",
+          "mix_1",
+          9,
+          "CP"
+        ],
+        [
+          "PVC",
+          "PVC02",
+          "mix_1",
+          9,
+          "CP"
+        ]
+      ],
+      "rows_per_file": [
+        10010,
+        10010
+      ],
+      "exact_arrow_column_equality": {
+        "time_s": true,
+        "potential_V": true,
+        "I_mA": true,
+        "control_mA": true,
+        "analog_in1_V": true,
+        "nominal_current_uA": true,
+        "step_index": true
+      }
+    },
+    {
+      "conditions": [
+        [
+          "PVC",
+          "PVC01",
+          "mix_1",
+          10,
+          "CP"
+        ],
+        [
+          "PVC",
+          "PVC02",
+          "mix_1",
+          10,
+          "CP"
+        ]
+      ],
+      "rows_per_file": [
+        5510,
+        5510
+      ],
+      "exact_arrow_column_equality": {
+        "time_s": true,
+        "potential_V": true,
+        "I_mA": true,
+        "control_mA": true,
+        "analog_in1_V": true,
+        "nominal_current_uA": true,
+        "step_index": true
+      }
+    },
+    {
+      "conditions": [
+        [
+          "PVC",
+          "PVC01",
+          "mix_1",
+          11,
+          "CP"
+        ],
+        [
+          "PVC",
+          "PVC02",
+          "mix_1",
+          11,
+          "CP"
+        ]
+      ],
+      "rows_per_file": [
+        1010,
+        1010
+      ],
+      "exact_arrow_column_equality": {
+        "time_s": true,
+        "potential_V": true,
+        "I_mA": true,
+        "control_mA": true,
+        "analog_in1_V": true,
+        "nominal_current_uA": true,
+        "step_index": true
+      }
+    }
+  ],
+  "scope": "Equality of listed numeric/protocol columns in stored order only. Does not establish duplicate export cause, misconduct, manufacturing identity or independence of other files.",
+  "scientific_acceptance": false,
+  "model_calls": 0
+}

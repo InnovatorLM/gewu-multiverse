@@ -35,3 +35,22 @@ and actual current versus nominal protocol. If necessary calibration assets or
 independent replication do not exist, stop generalization/mechanism-task design
 rather than manufacture a difficulty claim. A large real dataset alone does not
 satisfy the universe's scientific task-value requirement.
+
+## Actual-file follow-up
+
+The checksummed file confirms53electrode×mixture conditions and583fileIDs.
+All5353missing-current rows belong to OCV; CPcurrent/nominal fields are present.
+Eleven different-file groups have identical selected signal sequences. A second
+method directly compared all173402rows in those files with Arrow column equality:
+time, potential, current, control, analog input, nominal current and step index
+all match within each group. The affected conditions are PVC01/PVC02mix1.
+This supports a concrete cross-electrode leakage concern, but does not identify
+why the records match or justify allegations about data collection. It does not
+prove that the remaining fileIDs are independent biological/physical replicates.
+
+Do not randomly assign these matched files to different training/test folds.
+Any future exploratory comparison must first group identical measured payloads
+and the larger experimental acquisition units; removing identifiers alone does
+not fix copied signal leakage. Deduplication would still leave only six mixture
+recipes and cannot create continuous-concentration or manufacturing-batch evidence.
+The earlier rejection of a generic concentration/generalization task remains.

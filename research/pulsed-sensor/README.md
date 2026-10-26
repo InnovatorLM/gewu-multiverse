@@ -27,3 +27,9 @@ identity of(time,potential,current) sequences, not all columns and not evidence
 of misconduct or a proven acquisition cause. It must be accounted for before
 claiming electrode-held-out independence. Public report retains the affected
 anonymized fileIDs/conditions for reproducibility. No training or task approved.
+
+`confirm_duplicates.py` supplies a second direct Arrow equality check of the
+11hash-matched groups. All listed numeric/protocol columns match, across173402
+rows in22fileIDs. This is a signal identity result, not a causal explanation.
+Matched payloads must not cross validation folds; independent acquisition groups
+and the six-recipe scope still require scientific/provenance review.
