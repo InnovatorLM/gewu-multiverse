@@ -52,7 +52,26 @@ and subsequent fetch checks passed without model calls. Post-start ACL inspectio
 confirmed no shared-agent-team members, evaluator read-only task access and
 author/curator inability to read the private evaluation repository.
 Do not mark production isolation complete from the single-run tests alone.
-Roles remain stopped until the launch gates pass.
+Proposal roles require their own startup preflight; full scientific admission
+gates apply before accepting a task.
+
+Actual author startup exposed a preparation gap not covered by the earlier
+single-repository SessionSpawner smoke: the admin controller lists
+`team/workspace`, but production role tokens cannot read it (HTTP404). Passing
+the admin list directly to the role made preparation fail before any model plan.
+RealSpawner now checks each requested repository through the role's own Forgejo
+token before cloning and generating context. Inaccessible repositories are
+omitted; unknown access/API failures abort rather than using admin credentials.
+The role's permission is unchanged. The real preparation helper now requests
+both repositories and asserts that only the readable science repository appears
+in forgejo.json. All three roles passed that check with zero model calls.
+
+The initial temporary UI automation also had a faulty startup-failure stop
+condition and repeated preparation attempts; it was stopped and corrected.
+Those attempts produced empty run directories, no plans and no model calls.
+They are retained as failed preparation history, not successful sessions.
+Author proposal startup and first-task admission have separate gates; missing
+scientific acceptance does not itself prevent proposal work.
 
 `deploy/science/start-universe` is installed as the universe's start script. It starts a broker owned by root, verifies that socket's
 peer PID is the process it started, then runs the controller as UID65534. It

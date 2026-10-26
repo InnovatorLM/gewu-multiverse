@@ -48,14 +48,31 @@ fn main() -> Result<(), String> {
         email: format!("{login}@example.invalid"),
         login,
         forgejo_url: "http://127.0.0.1:3000".into(),
-        repositories: vec![SessionRepository {
-            full_name: "team/terminal-bench-science".into(),
-            directory: "terminal-bench-science".into(),
-        }],
+        repositories: vec![
+            SessionRepository {
+                full_name: "team/terminal-bench-science".into(),
+                directory: "terminal-bench-science".into(),
+            },
+            SessionRepository {
+                // The operator sees this repository; production role tokens do not.
+                full_name: "team/workspace".into(),
+                directory: "workspace".into(),
+            },
+        ],
         confinement: Method::RoleBroker,
         hide: vec![],
     };
     let prepared = RealSpawner::new(&args[3]).prepare(&request)?;
+    let context: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(prepared.run_dir.join("forgejo.json"))
+            .map_err(|e| e.to_string())?,
+    )
+    .map_err(|e| e.to_string())?;
+    assert_eq!(context["repositories"].as_array().map(Vec::len), Some(1));
+    assert_eq!(
+        context["repositories"][0]["full_name"],
+        "team/terminal-bench-science"
+    );
     println!(
         "role={role} preparation=passed workspace={} run={}",
         prepared.workspace.display(),

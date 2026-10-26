@@ -1,7 +1,7 @@
 //! How one session is prepared and started.
 //!
 //! The engine decides *when* a session runs; this module does the two slow things
-//! around it. `prepare` clones or fetches every repository of `team` as the agent and
+//! around it. `prepare` clones or fetches repositories readable by the agent and
 //! writes the run's plan and non-secret Forgejo context. `spawn` starts the existing
 //! `--run-agent` run in its own process group and returns a handle the engine polls.
 //!
@@ -16,6 +16,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use crate::run::{RunForgejo, RunForgejoRepository, RunPlan, write_forgejo_context};
 use crate::workspace::{self, GitCredential, GitIdentity, Prepared};
@@ -136,6 +137,21 @@ impl RealSpawner {
     }
 }
 
+// The controller's administrative repository list is not a role access list.
+// Resolve every candidate using the role token before Git or context generation.
+fn readable_repositories(
+    requested: &[SessionRepository],
+    mut readable: impl FnMut(&SessionRepository) -> Result<bool, String>,
+) -> Result<Vec<SessionRepository>, String> {
+    let mut result = Vec::new();
+    for repository in requested {
+        if readable(repository)? {
+            result.push(repository.clone());
+        }
+    }
+    Ok(result)
+}
+
 impl SessionSpawner for RealSpawner {
     fn prepare(&self, request: &SessionRequest) -> Result<PreparedSession, String> {
         ensure_run_dir(&request.run_dir)?;
@@ -157,7 +173,34 @@ impl SessionSpawner for RealSpawner {
             agent: &request.agent,
             login: &request.login,
         };
-        for repository in &request.repositories {
+        let repositories = if request.repositories.is_empty() {
+            Vec::new()
+        } else {
+            let token =
+                crate::credentials::forgejo_agent_token(&request.credentials, &request.agent)
+                    .map_err(|_| "the role's repository credential cannot be read".to_owned())?;
+            let client = crate::forgejo::ForgejoClient::new(
+                &request.forgejo_url,
+                token,
+                Duration::from_secs(15),
+            )
+            .map_err(|_| "the role repository client cannot be prepared".to_owned())?;
+            readable_repositories(&request.repositories, |repository| {
+                let (owner, name) = repository
+                    .full_name
+                    .split_once('/')
+                    .ok_or("invalid session repository name")?;
+                match client.repository(owner, name) {
+                    Ok(Some(actual)) => Ok(actual.full_name == repository.full_name
+                        && (actual.permissions.pull
+                            || actual.permissions.push
+                            || actual.permissions.admin)),
+                    Ok(None) | Err(crate::forgejo::ForgejoError::Forbidden { .. }) => Ok(false),
+                    Err(_) => Err("the role's repository access could not be verified".to_owned()),
+                }
+            })?
+        };
+        for repository in &repositories {
             let destination = request.workspace.join(&repository.directory);
             match workspace::prepare(
                 &request.forgejo_url,
@@ -189,8 +232,7 @@ impl SessionSpawner for RealSpawner {
         let context = RunForgejo {
             url: request.forgejo_url.clone(),
             login: request.login.clone(),
-            repositories: request
-                .repositories
+            repositories: repositories
                 .iter()
                 .map(|repository| RunForgejoRepository {
                     full_name: repository.full_name.clone(),
@@ -608,4 +650,34 @@ pub fn exit_code(status: ExitStatus) -> Option<i32> {
     status
         .code()
         .or_else(|| status.signal().map(|signal| 128 + signal))
+}
+
+#[cfg(test)]
+mod repository_access_tests {
+    use super::*;
+
+    #[test]
+    fn administrative_only_repository_is_excluded_from_role_context() {
+        let requested = vec![
+            SessionRepository {
+                full_name: "team/science".into(),
+                directory: "science".into(),
+            },
+            SessionRepository {
+                full_name: "team/private".into(),
+                directory: "private".into(),
+            },
+        ];
+        let allowed = readable_repositories(&requested, |r| Ok(r.directory == "science")).unwrap();
+        assert_eq!(allowed, requested[..1]);
+    }
+
+    #[test]
+    fn unknown_access_aborts_instead_of_becoming_empty_or_admin_access() {
+        let requested = vec![SessionRepository {
+            full_name: "team/science".into(),
+            directory: "science".into(),
+        }];
+        assert!(readable_repositories(&requested, |_| Err("API unavailable".into())).is_err());
+    }
 }
