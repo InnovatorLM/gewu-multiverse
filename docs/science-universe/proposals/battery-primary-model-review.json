@@ -36,6 +36,30 @@
       "url": null,
       "bytes": 335,
       "sha256": "10886931683972d72f6205a7ba3538dacf22924e773e8c7dd6efd1e9b84e659d"
+    },
+    {
+      "file": "chen-crossref.json",
+      "url": "https://api.crossref.org/works/10.1149/1945-7111/ab9050",
+      "bytes": 22435,
+      "sha256": "1bf78d40f2e92f4187877eba70b83c7ea14e638f5261a9731be218ca60502bcb"
+    },
+    {
+      "file": "chen-openalex-discovery.json",
+      "url": "https://api.openalex.org/works/https://doi.org/10.1149/1945-7111/ab9050",
+      "bytes": 27135,
+      "sha256": "31b12c9e70e3eddd250163dcf0bc7c2ef91837178d76393d5101664279b9d12a"
+    },
+    {
+      "file": "chen-retrieval.json",
+      "url": null,
+      "bytes": 453,
+      "sha256": "e5d3147a8a6fed7f4dae678f0adcbde37722c036f94dab8af54257a0508fcc4b"
+    },
+    {
+      "file": "chen-publisher-retrieval.json",
+      "url": null,
+      "bytes": 117,
+      "sha256": "5bef70eb44fab435f008b13d361b9c36976571c977e136c474f432f0bb05fba5"
     }
   ],
   "derived_text": {
@@ -54,5 +78,13 @@
     "url": "http://creativecommons.org/licenses/by/4.0/",
     "source": "arXiv original abstract page Rights to this article link",
     "scope": "this article, not PyBaMM dependencies or unrelated assets"
+  },
+  "chen_2020_review": {
+    "doi": "10.1149/1945-7111/ab9050",
+    "scope": "Crossref registered abstract and bibliographic metadata only; full text not obtained",
+    "registered_abstract_validation": "room-temperature discharge and relaxation voltage profiles",
+    "fast_charge_local_potential_validation_established": false,
+    "publisher_license_metadata": "CC-BY-NC-ND-4.0; not yet checked against original article",
+    "paper_assets_redistributed": false
   }
 }
