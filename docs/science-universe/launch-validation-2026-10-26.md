@@ -32,3 +32,13 @@ Remaining launch work: production role runtime/credentials wiring, strict
 review output, meaningful harder candidates, semantic novelty review against
 fixed TB-Science and TB4 versions, protected Git push denial test, enforced
 budgets, curator gate and final full regression/resource audit.
+
+Prototype commands (operator/root, workspace-specific paths): run
+`deploy/science/prepare_review_chroot.py`, then source the designated local
+DawnFM env without tracing and run `deploy/science/run_chroot_quality.py`.
+Preparation stages Python standard-library tools without site-packages.
+The setup may not run concurrently with an active review using the same root.
+`--normalize-existing` reformats the retained diagnostic only and records that
+it is not a fresh review or acceptance. DawnFM rejects `--output-schema` with
+`This text.format type is unavailable now`; that optional path was tested and
+failed, without changing account/provider. Strict JSON parsing remains required.

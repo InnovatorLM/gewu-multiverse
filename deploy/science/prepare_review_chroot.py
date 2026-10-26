@@ -12,7 +12,7 @@ proc_self = root / 'proc/self'
 proc_self.mkdir(parents=True, exist_ok=True)
 if not (proc_self / 'exe').exists():
     (proc_self / 'exe').symlink_to('/usr/local/bin/codex')
-for binary in ['/bin/bash', '/bin/ls', '/bin/cat', '/usr/bin/find', '/usr/bin/head', '/usr/bin/wc', '/usr/bin/sed', '/usr/bin/grep', '/usr/bin/env', '/usr/bin/id', '/usr/bin/timeout']:
+for binary in ['/bin/bash', '/bin/ls', '/bin/cat', '/usr/bin/find', '/usr/bin/head', '/usr/bin/wc', '/usr/bin/sed', '/usr/bin/grep', '/usr/bin/env', '/usr/bin/id', '/usr/bin/timeout', '/usr/bin/diff', '/usr/bin/awk', '/usr/local/bin/python3.10']:
     source = Path(binary)
     if not source.exists():
         continue
@@ -25,6 +25,13 @@ for binary in ['/bin/bash', '/bin/ls', '/bin/cat', '/usr/bin/find', '/usr/bin/he
             dest = root / token.lstrip('/')
             dest.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(token, dest)
+# Standard library only: no host site-packages, credentials or startup hooks.
+stdlib = Path('/usr/local/lib/python3.10')
+shutil.copytree(stdlib, root / 'usr/local/lib/python3.10', dirs_exist_ok=True,
+                ignore=shutil.ignore_patterns('site-packages', '__pycache__', 'test', 'tests'))
+python = root / 'usr/local/bin/python3'
+if not python.exists():
+    python.symlink_to('python3.10')
 for name in ['/etc/resolv.conf', '/etc/hosts', '/etc/nsswitch.conf', '/etc/ssl/certs/ca-certificates.crt']:
     target = root / name.lstrip('/')
     target.parent.mkdir(parents=True, exist_ok=True)
