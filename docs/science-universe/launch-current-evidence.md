@@ -6,6 +6,12 @@ source/receipt hashes, links retained image smokes, checks dedicated UID process
 counts and durable daily dispatch claims. It makes no API/model/ACS calls and
 never authorizes release. Retained smoke evidence is not a fresh cluster query.
 
+The audit now separates author proposal startup from first-task admission.
+Its legacy `launch_ready` field applies to admission only. A qualified first task
+is not a prerequisite for author proposal work; current role allowance, processes,
+resources, credentials and explicit proposal scope still require a fresh preflight.
+The solver queue's daily dispatch allowance is independent of role-session budget.
+
 The current EIS draft is frozen atb2ec8f4 with source-bound Shanghai ACR images.
 Three diagnostic routes remain disabled. Actual Beijing image smokes passed and
 were cleaned up; standalone reference/grader and nonroot boundary checks passed.

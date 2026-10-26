@@ -1,10 +1,16 @@
 """An actual stale catalog must not be replaced by inferred registry state."""
 import unittest
 from evaluation_queue import evaluation_catalog
-from launch_evidence_audit import catalog_status
+from launch_evidence_audit import catalog_status, phase_requirements
 
 
 class CatalogAuditTests(unittest.TestCase):
+    def test_first_task_admission_is_not_author_startup(self):
+        phases=phase_requirements()
+        self.assertIs(phases['author_proposal']['qualified_first_task_required'],False)
+        self.assertEqual(phases['author_proposal']['readiness'],'requires_current_preflight')
+        self.assertIs(phases['first_task_admission']['qualified_first_task_required'],True)
+
     def test_stale_disabled_entry_is_reported_as_visible(self):
         registry={'candidate':{'enabled':False,'snapshot_sha256':'a'*64}}
         self.assertTrue(catalog_status(registry,evaluation_catalog(registry))['published_matches_current_registry'])

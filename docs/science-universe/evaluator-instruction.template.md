@@ -13,7 +13,7 @@
 5. 独立解题：从干净环境启动 solver，仅发送 instruction 和允许输入；不发送 tests、solution、authoring/hints、其他轨迹或本文件。首轮只做一个受控 trial；先修基础问题，再安排额外复验，不能从一个 trial 推断稳健通过率或与人类题目媲美。
 6. 轨迹分析分别判定任务/环境是否可解、verifier 是否误判、是否有捷径/作弊、结果是否体现有意义的科学难点。模型失败可来自科学推理也可来自基础设施，后者不计为有效难度证据。
 7. ACS 使用 workspace 的 acs-harbor-eval skill 守护流程：默认 2c4g,有特别需求时候最大可以开到4c8g、并发 1、attempt 1、重试 0、direct Pod、delete=true。只清理本轮唯一标签/已记录 UID；周期性查询 Pod、SandboxSet、SandboxClaim、Sandbox，已知对象 404 且两次零残留才确认释放。403/超时/不可查询不能写已释放。运行前、过程中及运行后审计；遗留未清理则停止新运行。
-8. 使用 workspace 指定 dawnfm / https://dawnfm.gravarc.cn/v1 / deepseek-v4.1-flash-1017，deepseek-v4-pro, glm5.3, qwen3.8max，明确记录协议与 harness。不能暗换模型、账号、Oracle。密钥只从可信控制面注入，不进题目/镜像/轨迹。
+8. 默认只使用 workspace 指定 dawnfm / https://dawnfm.gravarc.cn/v1 / deepseek-v4.1-flash-1017，明确记录协议与 harness。其他模型必须获得用户显式指定，不能因失败自行切换。不能暗换模型、账号、Oracle。密钥只从可信控制面注入，不进题目/镜像/轨迹。
 
 ## 用户指定 evaluator 仓库集成
 

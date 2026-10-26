@@ -21,6 +21,24 @@ def catalog_status(registry, published):
             'visible_evaluation_ids':set(identifiers)}
 
 
+def phase_requirements():
+    return {
+        'author_proposal': {
+            'readiness': 'requires_current_preflight',
+            'qualified_first_task_required': False,
+            'required_checks': [
+                'Current dedicated-role processes and persisted role-session allowance.',
+                'Current ACS resource inventory and previous run cleanup.',
+                'Broker/controller, designated provider and credential boundaries.',
+                'Explicit proposal-only initial scope; no unreviewed implementation or difficulty trial.'
+            ],
+            'note': 'Solver dispatch allowance is separate from author role-session allowance.'
+        },
+        'first_task_admission': {'readiness': 'not_proven_complete',
+                                 'qualified_first_task_required': True}
+    }
+
+
 def audit():
     queue=json.loads(root_file(W/'.config/science-evaluation/queue.json').read_text())
     registry=json.loads(root_file(queue['registry']).read_text())
@@ -65,10 +83,12 @@ def audit():
         'Actual task/trajectory direct and WinRate evaluation views required by the original plan.',
         'Designated-model difficulty trials with infra errors separated and token/tool metrics.',
         'Concrete sanitized acceptance receipt, evaluator approval and first-pilot user approval before curator admission.',
-        'Final role-launch/configuration, resource and process audit after all above gates pass.'
+        'Final admission configuration, resource and process audit before first task admission.'
     ]
     return {'checked_at_utc':datetime.now(timezone.utc).isoformat(),'read_only':True,'current_evidence':evidence,
             'requirements_not_proven_complete':remaining,'launch_ready':False,'scientific_acceptance':False,
+            'launch_ready_scope':'Legacy field denotes first-task admission, not author proposal startup.',
+            'phases':phase_requirements(),
             'scope':'Local source/receipt/retained-run linkage and current process/budget inspection. No new API, ACS, model or approval call.'}
 
 

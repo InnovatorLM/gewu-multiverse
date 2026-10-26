@@ -623,3 +623,24 @@ controller-side paths should not be published indiscriminately. It is preparatio
 for a later sanitized signed/acknowledged receipt, not that receipt or a curator
 merge permission. A real inventory was generated for the disabled EIS regression
 fixture, with zero models/ACS; changed-source and false-approval tests pass.
+
+## Authenticated inventory acknowledgments
+
+`check_curator_ack.py --pull <number> --expected-head <full-target-commit>
+--inventory <private-inventory.json> --output <fresh-private-path>` performs only
+GET requests to the fixed local team/terminal-bench-science repository. It
+revalidates the inventory and reads branch protection, current PR, all review
+pages and the evaluator/owner server user IDs. Both latest decisive official,
+non-dismissed approvals must cover the exact target head and include the exact
+line `science-review-inventory-sha256:<SHA256-of-inventory-file>`. This binds the
+target PR to the inventory's independently checked source identity; source and
+target commits are recorded separately. Self-review, rejected/stale/unbound
+reviews, changed server state and protection mismatch fail closed.
+
+No review is posted and no merge is performed. The private result is a point-in-time
+authenticated acknowledgment check, not a scientific acceptance receipt or a
+merge authorization. An owner account's approval does not independently prove
+the user's final first-pilot approval. Recheck before any later admission;
+scientific gates and the curator registry workflow remain required. Offline
+tests cover positive binding and refusal paths; no real candidate acknowledgment
+has yet been demonstrated.
