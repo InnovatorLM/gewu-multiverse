@@ -1,0 +1,49 @@
+{
+  "article_doi": "10.1149/1945-7111/ad19eb",
+  "repository_item_url": "https://repository.bilkent.edu.tr/items/1b3f5de9-e58a-4aad-8c9f-0282303f3c15",
+  "repository_item_api": "https://repository.bilkent.edu.tr/server/api/core/items/1b3f5de9-e58a-4aad-8c9f-0282303f3c15",
+  "repository_declared_license": "CC BY 4.0 DEED (Attribution 4.0 International)",
+  "repository_declared_license_uri": "https://creativecommons.org/licenses/by/4.0/",
+  "direct_repository_license_verified": true,
+  "bundle_list_complete_for_returned_item": true,
+  "files": [
+    {
+      "bundle": "ORIGINAL",
+      "name": "Utility_of_lissajous_plots_for_electrochemical_impedance_spectroscopy_measurements_detection_of_non-linearity_and_non-stationarity.pdf",
+      "uuid": "37085292-e3c5-4aa9-b25e-aa85bd981770",
+      "bytes": 2302339
+    },
+    {
+      "bundle": "LICENSE",
+      "name": "license.txt",
+      "uuid": "db8185c8-908c-4038-abbd-2635d0d09a85",
+      "bytes": 1748
+    },
+    {
+      "bundle": "TEXT",
+      "name": "Utility_of_lissajous_plots_for_electrochemical_impedance_spectroscopy_measurements_detection_of_non-linearity_and_non-stationarity.pdf.txt",
+      "uuid": "f0728335-6e93-469c-96a4-0f5ea24c37dd",
+      "bytes": 48373
+    },
+    {
+      "bundle": "THUMBNAIL",
+      "name": "Utility_of_lissajous_plots_for_electrochemical_impedance_spectroscopy_measurements_detection_of_non-linearity_and_non-stationarity.pdf.jpg",
+      "uuid": "97466796-7733-4847-a830-7e1a0494d388",
+      "bytes": 6715
+    }
+  ],
+  "raw_measurement_dataset_found_in_this_item": false,
+  "scope": "Repository declares article CC BY4.0. No inference of license for separately hosted data or absence of data elsewhere.",
+  "receipt_sha256": {
+    "lissajous-repository.html": "3c8e4981ccfc046bbb8a32e21080e1bb35a10c651ac2a75621481dcfdfdf7a3d",
+    "repository-item.json": "ae683fed3a5bb4fca661347fd91833ff304be64c64452c89c6da6fb58f8a1eff",
+    "repository-bundles.json": "0ebeb782b41f27941819120a5eb745c40681179eec120b7f314ed9b419adedfe",
+    "bundle-ORIGINAL.json": "bbec15a0d381275639f3aff7e9d11f4800a31c1f97aafcf95be4406f1b74f01d",
+    "bundle-LICENSE.json": "36f9bfc35319d99057bd0ee2b8cd9d941c8c88731eeca08a7b2e1fa322c94801",
+    "bundle-TEXT.json": "ca4182c22c53c5208168969299a62a8ecd66b2c51739e5e4e399eea259638259",
+    "bundle-THUMBNAIL.json": "e341e3566d66b7191ffd3b14e19a67e99d01e3fa3c1107cdb3f96122f6079890"
+  },
+  "model_calls": 0,
+  "acs_launched": false,
+  "scientific_acceptance": false
+}

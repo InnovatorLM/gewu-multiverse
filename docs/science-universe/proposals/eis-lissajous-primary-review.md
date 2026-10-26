@@ -52,3 +52,18 @@ reference, verifier, model run or ACS execution is authorized by this note.
 The original2014Lin-KK paper remains metadata-only in this investigation:
 OpenAlex supplied only a closed publisher location. This2024primary source does
 not silently replace that missing full-text review for claims specific to Lin-KK.
+
+
+## Direct repository rights and asset follow-up
+
+The repository landing page and its own REST item metadata now independently
+confirm the article's declaredCCBY4.0license, including dc.rights and
+https://creativecommons.org/licenses/by/4.0/. This resolves the earlier
+third-party-index-only license evidence gap for this article. Attribution and
+scope still matter; this does not license some separately hosted dataset.
+The complete returned bundle and bitstream lists were inspected (pagination
+totals checked): ORIGINALcontains only the paperPDF, with LICENSE/TEXT/THUMBNAIL
+supporting files. No raw experimental trace file was found in this item.
+This is not proof no data exists elsewhere. See
+[eis-repository-rights-and-assets.json](eis-repository-rights-and-assets.json).
+The data prerequisite for a scientific task remains unmet.
