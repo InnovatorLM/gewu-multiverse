@@ -154,8 +154,13 @@ def process(config, request_path, mock=False):
     state = Path(config['state'])
     job = state / request['job_id']
     if job.exists():
+        claim = json.loads(root_file(job / 'claim.json').read_text())
+        if any(claim.get(key) != request[key] for key in REQUEST_KEYS):
+            raise ValueError('Job ID already belongs to a different immutable request')
         retained = job / 'result.json'
         answer = json.loads(retained.read_text()) if retained.exists() else {**request, 'status': 'interrupted', 'cleanup_confirmed': False, 'quality_acceptance': False}
+        if any(answer.get(key) != request[key] for key in REQUEST_KEYS):
+            raise ValueError('Retained job result identity differs from immutable request')
         atomic_json(Path(config['results']) / (request['job_id'] + '.json'), answer, 0o644)
         return answer
     registry = json.loads(root_file(config['registry']).read_text())

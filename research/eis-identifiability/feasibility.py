@@ -9,18 +9,24 @@ from fractions import Fraction as F
 import json
 
 
+def rational(value):
+    if type(value) not in (int, str, F):
+        raise ValueError('Use integers, explicit decimal/rational strings or Fractions; binary floats are refused')
+    return F(value)
+
+
 def response(w, rs, branches):
-    w,rs=F(w),F(rs)
+    w,rs=rational(w),rational(rs)
     real=rs;imag=F(0)
     for resistance,tau in branches:
-        r,t=F(resistance),F(tau);d=1+(w*t)**2
+        r,t=rational(resistance),rational(tau);d=1+(w*t)**2
         real+=r/d;imag-=r*w*t/d
     return real,imag
 
 
 def exclusion(omega,imaginary,absolute_error):
     if len(omega)!=3 or len(imaginary)!=3:raise ValueError('Three frequencies required')
-    w=list(map(F,omega));y=list(map(F,imaginary));e=F(absolute_error)
+    w=list(map(rational,omega));y=list(map(rational,imaginary));e=rational(absolute_error)
     if e<0 or not 0<w[0]<w[1]<w[2]:raise ValueError('Require ordered positive angular frequencies and nonnegative error')
     q=[((-value-e)/frequency,(-value+e)/frequency) for value,frequency in zip(y,w)]
     # Independent interval bounds are conservative: correlations are discarded,

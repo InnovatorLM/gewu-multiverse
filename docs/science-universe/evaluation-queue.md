@@ -577,3 +577,13 @@ judge call. Tests use a synthetic normal trial and native input validator, with
 mocked upstream retention validation. They verify no secret sentinel from either
 embedded config appears in prepared metadata, reject foreign worker jobs and
 wrong executed task paths. This is not live science retention evidence.
+
+Repeated job IDs are idempotent only for the exact original three-field request.
+Before returning any retained result, the worker now compares both its durable
+claim and result with job_id/evaluation_id/snapshot_sha256. Reusing an ID with a
+foreign candidate or changed snapshot, or a mismatched retained result, is
+refused before overwriting the public aggregate. An interrupted matching claim
+without a result remains interrupted with cleanup unconfirmed. Offline tests
+cover valid replay, cross-candidate/hash replay, changed result identity and the
+interrupted state. This prevents evidence misattribution; it does not rerun or
+upgrade previous work.

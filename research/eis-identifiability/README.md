@@ -43,3 +43,10 @@ This advances the fair-verification design. It does not establish realistic
 scientific difficulty or approve task implementation. Independent review,
 physical model justification, a complete public contract, reproducible data,
 scientific comparisons and designated-model trials remain open.
+
+The explicit research interface accepts integers, decimal/rational strings and
+Fraction values. Binary floats, bools and null values are refused. For example,
+"0.1" means exactly1/10; a float0.1is not silently interpreted as that decimal.
+Four test methods now cover this boundary in addition to the486controls.
+Independent proposal review found no fatal interval-proof issue but withheld
+implementation approval over the incomplete scientific grading contract.

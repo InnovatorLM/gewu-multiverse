@@ -2,10 +2,17 @@
 from fractions import Fraction as F
 from itertools import product
 import unittest
-from feasibility import response,exclusion,study
+from feasibility import response,exclusion,study,rational
 
 
 class FeasibilityTests(unittest.TestCase):
+    def test_exact_decimal_interface_refuses_binary_floats(self):
+        self.assertEqual(rational('0.1'),F(1,10))
+        self.assertEqual(rational('1/10'),F(1,10))
+        for value in [0.1,True,None]:
+            with self.subTest(value=value),self.assertRaises(ValueError):rational(value)
+        with self.assertRaises(ValueError):exclusion([10.0,100,1000],[0,0,0],'0.01')
+
     def test_ambiguous_and_resolvable_cases(self):
         result=study()
         self.assertTrue(result['ambiguous_case']['single_and_two_branch_witnesses_within_error'])
