@@ -1,0 +1,68 @@
+{
+  "kind": "proposal feasibility only",
+  "angular_frequency_rad_s": [
+    "10",
+    "100",
+    "1000"
+  ],
+  "absolute_component_error_ohm": "1/100",
+  "ambiguous_case": {
+    "single_and_two_branch_witnesses_within_error": true,
+    "max_component_difference_ohm": "120019200360/1000160012800480009",
+    "exclusion_check": {
+      "single_rc_excluded": false,
+      "state": "inconclusive_overlap",
+      "tau_squared_bounds": [
+        "181636102850629815995899/1818387284659095104400101000",
+        "182044184464791224076101/1817979203044933696319899000"
+      ],
+      "predicted_q3_bounds": [
+        "7342841790555326899688058651286095827800366892454201/371480689492780801162965397827874879243424300123110000",
+        "565418542192954447083630263945058401135401321559523/28505679296680955993600050550507449203887340009470000"
+      ],
+      "observed_q3_bounds": [
+        "20192609059899/1020302010100000",
+        "20213015100101/1020302010100000"
+      ],
+      "scope": "positive single Debye branch plus real series resistance; bounded imaginary-component errors only"
+    }
+  },
+  "resolvable_case": {
+    "single_rc_excluded": true,
+    "state": "exact_interval_contradiction",
+    "tau_squared_bounds": [
+      "490931809/114642191000",
+      "5402270101/1259043899000"
+    ],
+    "predicted_q3_bounds": [
+      "1392427032082372797291/688302689226197593010000",
+      "1393711740459785882709/686943376108477593010000"
+    ],
+    "observed_q3_bounds": [
+      "41193999/1000100000",
+      "41214001/1000100000"
+    ],
+    "scope": "positive single Debye branch plus real series resistance; bounded imaginary-component errors only"
+  },
+  "single_rc_control": {
+    "single_rc_excluded": false,
+    "state": "inconclusive_overlap",
+    "tau_squared_bounds": [
+      "89899/900101000",
+      "8191/81809000"
+    ],
+    "predicted_q3_bounds": [
+      "8607985602489/435459862790000",
+      "1620999991809/81718192010000"
+    ],
+    "observed_q3_bounds": [
+      "199899/10100000",
+      "200101/10100000"
+    ],
+    "scope": "positive single Debye branch plus real series resistance; bounded imaginary-component errors only"
+  },
+  "scientific_acceptance": false,
+  "difficulty_measured": false,
+  "model_calls": 0,
+  "implementation_sha256": "088536331a1d7fa6c1d9b4a50ca93f8fb5835142f697d02e9699318eff48746c"
+}

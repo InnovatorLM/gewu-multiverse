@@ -116,3 +116,10 @@ Follow-up [literature and contract review](eis-literature-review.md) records a
 verified primary preprint, the distinction between structural identifiability
 and finite-band practical ambiguity, and required corrections to uncertainty
 and experimental-design claims. This does not approve implementation.
+
+
+A subsequent [exact-rational feasibility study](../../../research/eis-identifiability/README.md)
+constructs both an explicit practically ambiguous pair and a case with a
+three-frequency exclusion certificate against every positive single-Debye
+branch. Its bounded absolute-error setting differs from the earlier relative
+noise illustration. It does not approve implementation or measure difficulty.
