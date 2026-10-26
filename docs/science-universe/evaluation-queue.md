@@ -113,3 +113,19 @@ not in this repository. Source-pinning checks: `test_reference_corpus.py`.
 
 The initial corpus contains223TB4 and158TBScience instructions. This prepares
 comparison input; it does not perform a semantic review or assert novelty.
+
+
+DawnFM compatibility note: for this static Chat review the request explicitly
+uses `thinking: {"type":"disabled"}` and JSON-object response format. A small
+live probe verified normal JSON output with no reasoning content. Earlier
+reasoning-enabled reviews exhausted10000/24000tokens without an answer, and a
+separate normal-stop response contained invalid JSON; all were refused. The
+thinking-disabled review is a distinct method and must be reported as such,
+not as equivalent to a reasoning-enabled or tool-capable review.
+
+A fresh complete static review subsequently passed direct JSON and rubric
+validation (thinking disabled):47.5/100, confirmed_blocker,12929input/2399output
+tokens. A preceding valid-JSON response omitted the mandatory limitations field
+and was rejected. The successful review is still model-produced evidence:
+its factual claims need checking, and it does not establish dynamic correctness,
+novelty, difficulty or acceptance.
