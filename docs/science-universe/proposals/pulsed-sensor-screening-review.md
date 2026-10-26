@@ -54,3 +54,21 @@ and the larger experimental acquisition units; removing identifiers alone does
 not fix copied signal leakage. Deduplication would still leave only six mixture
 recipes and cannot create continuous-concentration or manufacturing-batch evidence.
 The earlier rejection of a generic concentration/generalization task remains.
+
+## Repository asset identity clarification
+
+A repository search found three separate records linked to the exact same
+preprint DOI: individual-ion measurements20057672, synthetic mixed-ion features
+20058467 and measured mixed-ion traces20058832. Direct records declare CCBY4.0.
+The first two list approximately375MB/734MBParquet files; they have not been
+downloaded or inspected. Synthetic metadata explicitly describes fitting
+single-ion traces, concentration-parameter interpolation and a noninteracting-ion
+approximation; this must not be promoted to experimentally established truth.
+The distinct records explain the apparent abstract/repository difference without
+establishing the full paper's training/calibration/validation mapping.
+
+The primary PDF request returnedHTTP403;OpenAlex provided no alternativePDF.
+No access restriction was bypassed. The full-text/calibration-independence gate
+remains unresolved. A possible model-discrepancy study now has a concrete
+calibration-asset lead, but needs actual data/protocol checks and independent
+proposal review before implementation. See pulsed-sensor-asset-map.json.

@@ -1,0 +1,67 @@
+{
+  "associated_preprint_doi": "10.26434/chemrxiv.15004253/v1",
+  "primary_pdf_access": {
+    "url": "https://chemrxiv.org/doi/pdf/10.26434/chemrxiv.15004253/v1",
+    "http_status": 403,
+    "final_url": "https://chemrxiv.org/doi/pdf/10.26434/chemrxiv.15004253/v1",
+    "content_type": "text/html; charset=UTF-8",
+    "success": false
+  },
+  "asset_records": [
+    {
+      "doi": "10.5281/zenodo.20057672",
+      "record_url": "https://zenodo.org/api/records/20057672",
+      "title": "Pulsed Current Anion Sensor Data for Multiple Nonspecific Ion Selective Electrodes - Individual Ion Responses",
+      "license": {
+        "id": "cc-by-4.0"
+      },
+      "relations": [
+        {
+          "identifier": "10.26434/chemrxiv.15004253/v1",
+          "relation": "isDescribedBy",
+          "resource_type": "publication-preprint",
+          "scheme": "doi"
+        }
+      ],
+      "record_sha256": "b0e9220b138c897a1eed7f09b84fecb9dcccf4b7636feb437ccb436de3703278",
+      "files": [
+        {
+          "key": "echem_long_format_public_with_runflags.parquet",
+          "size": 374840317,
+          "checksum": "md5:738f2c709244d7b065bce881366e5f00"
+        }
+      ]
+    },
+    {
+      "doi": "10.5281/zenodo.20058467",
+      "record_url": "https://zenodo.org/api/records/20058467",
+      "title": "Synthetic Pulsed Current Anion Sensor Data for Multiple Nonspecific Ion Selective Electrodes - Simulated Mixed Ion Responses",
+      "license": {
+        "id": "cc-by-4.0"
+      },
+      "relations": [
+        {
+          "identifier": "10.26434/chemrxiv.15004253/v1",
+          "relation": "isDescribedBy",
+          "resource_type": "publication-preprint",
+          "scheme": "doi"
+        }
+      ],
+      "record_sha256": "a00422e238fc5016ad4508b1d4b0e2ae897dd2c2c2c68c48a2ff8ee33e62c693",
+      "files": [
+        {
+          "key": "multielectrode_sensors_synthetic_data_public.parquet",
+          "size": 734056537,
+          "checksum": "md5:c8a4e0223bbc053de1c07ceb40050999"
+        }
+      ]
+    }
+  ],
+  "measured_mixed_asset": "10.5281/zenodo.20058832",
+  "data_identity_conclusion": "Repository explicitly separates individual-ion measurements, synthetic mixed-ion features, and measured mixed-ion responses. This explains distinct asset descriptions; full paper mapping and calibration independence remain unverified.",
+  "additional_data_downloaded": false,
+  "new_task_approved": false,
+  "model_calls": 0,
+  "acs_launched": false,
+  "scientific_acceptance": false
+}
