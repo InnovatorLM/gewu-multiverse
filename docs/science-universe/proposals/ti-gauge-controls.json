@@ -1,0 +1,36 @@
+{
+  "scope": "Algebraic gauge and degenerate basis equivalence on retained finite Hessian; not independent potential or final verifier",
+  "results": [
+    {
+      "q": [
+        0.5,
+        0.5,
+        0.0
+      ],
+      "gauge_spectrum_max_error": 8.326672684688674e-17,
+      "cartesian_complex_displacement_max_errors": [
+        2.007400405262231e-15,
+        2.041120196288908e-15,
+        2.041120196288908e-15
+      ],
+      "degenerate_block_size": 2,
+      "rotated_subspace_residual": 1.2798466415548964e-14
+    },
+    {
+      "q": [
+        0.16666666666666666,
+        0.3333333333333333,
+        0.16666666666666666
+      ],
+      "gauge_spectrum_max_error": 6.071532165918825e-17,
+      "cartesian_complex_displacement_max_errors": [
+        9.533630016738412e-16,
+        9.883479487474064e-16,
+        9.682678848994767e-16
+      ],
+      "degenerate_block_size": 1,
+      "rotated_subspace_residual": null
+    }
+  ],
+  "scientific_acceptance": false
+}

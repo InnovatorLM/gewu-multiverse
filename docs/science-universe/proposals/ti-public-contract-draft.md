@@ -41,3 +41,7 @@ Resolve raw/derived-data licensing, expose the exact immutable input metadata, r
 ## Prospective spectrum calibration v1
 
 All216six-branch spectra were compared across the two actual finite-displacement amplitudes. Maximum absolute eigenvalue difference is9.65e−6eV/(Å²amu). A prospective absolute margin5e−5 admits that measured alternative and rejects opposite force sign, missing mass weighting, a mismatched atom permutation and the zero kernel. This margin was proposed before target-model trials. It remains provisional: it does not cover every legitimate fit or substitute for gauge/mode controls and independent approval. A consistent atom permutation is allowed; the negative control deliberately permutes forces WITHOUT updating metadata.
+
+## Gauge and degenerate-basis controls
+
+At both the minimum-grid point and a general commensurate q, the basis-cell and basis-position gauges reproduce the same spectrum and Cartesian complex displacements after the corresponding unitary transformation. Tested phase choices0,0.37and1.2give displacement discrepancies below2.1e−15Å in normalized coordinates. Rotation of an observed two-dimensional degenerate eigenspace preserves the eigen residual at about1.3e−14. These are algebraic checks on the retained Hessian, not independent force calculations or final acceptance. The tested degenerate block is not asserted to be the lowest eigenspace; complete verifier controls remain pending.
