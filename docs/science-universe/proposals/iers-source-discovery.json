@@ -1,0 +1,45 @@
+{
+  "metadata_url": "https://pypi.org/pypi/astropy-iers-data/json",
+  "version": "0.2026.10.19.0.52.1",
+  "wheel_url": "https://files.pythonhosted.org/packages/13/00/b3f595b34b339e4c3a9f8f622ee7e2a6f3b85a9af9b69789aecf3ef18752/astropy_iers_data-0.2026.10.19.0.52.1-py3-none-any.whl",
+  "filename": "astropy_iers_data-0.2026.10.19.0.52.1-py3-none-any.whl",
+  "bytes": 2005913,
+  "sha256": "14665720aa481c7b97dfd104d7218b38ed7e2ba30a70ff53a5c26a0e14d4025c",
+  "TLS_verified": true,
+  "installed": false,
+  "data_reuse_terms_adjudicated": false,
+  "scientific_acceptance": false,
+  "package_license_verified": "BSD-3-Clause via wheel LICENSE.rst and METADATA",
+  "underlying_IERS_reuse_terms_separately_adjudicated": false,
+  "raw_members": {
+    "eopc04.1962-now": {
+      "bytes": 5175699,
+      "sha256": "6fc2c9d9a7cd7e9a1f597866545bb75baab292f5d51ca9358d5c64c0ce2fa64f"
+    },
+    "finals2000A.all": {
+      "bytes": 3769212,
+      "sha256": "0baf00f67a39ab362a3e4f07d2a1f084842178523f56bcf5a861e7ac084d411a"
+    },
+    "Leap_Second.dat": {
+      "bytes": 1352,
+      "sha256": "6cb6f5d4b819f2e568e25db4b0b26d89dedf031fdffb18bc94d40f4e94e268d7"
+    },
+    "ReadMe.eopc04": {
+      "bytes": 3275,
+      "sha256": "42d7890543fae69df024219d1d36f242b4fcd847f6f8a756c7d37c5dfd100243"
+    },
+    "ReadMe.finals2000A": {
+      "bytes": 3429,
+      "sha256": "7c6182cc0fd0cbece39711f648d15e48b49168925602e360a5709c5ccc8d5a12"
+    },
+    "LICENSE.rst": {
+      "bytes": 1491,
+      "sha256": "05d8ec3643773431cb5447b10711f119d79955470cdfbb8ca2e670a4432a153c"
+    },
+    "METADATA": {
+      "bytes": 3390,
+      "sha256": "fbb1841155bfdf027a582424bea636a6b160925cce205271f94b7c318af62a24"
+    }
+  },
+  "data_not_recomputed_or_installed": true
+}
