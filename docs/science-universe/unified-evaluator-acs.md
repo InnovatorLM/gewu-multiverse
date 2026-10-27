@@ -270,3 +270,26 @@ two returned127 and one returned1. Token usage was1131123 input including
 findings remain diagnostic judgments. Production roles were not enabled.
 A separate curator-only procedural review has now been assigned as local issue9
 against the frozen v2 evidence; its start is not an approval.
+
+## Curator review failure and runtime remediation
+
+The curator's first issue9 review ended after its declared24-turn limit without
+`review.json` or `feedback.md`. The outer UI controller exited0, but the actual
+model run was failed, exit1. No curator approval was granted. The role spent
+multiple turns obtaining a TOML reader and inspecting the full upstream task
+metadata rather than delivering the assigned procedural evidence review.
+
+`install_role_toml.py` supplies the pure Python `tomli==2.2.1` wheel with SHA256
+`cb55c73c5f4408779d0cf3eef9f762b9c9f147a77de7b258bef0a5628adc85cc` to the
+workspace-local Python3.10 role roots and provisioning template. It requires
+stopped role processes. All three actual role UIDs passed parsing checks without
+model calls; this supplies TOML syntax parsing only, not Harbor schema validation.
+The full wheel is retained in the workspace cache, and installation retains its
+package metadata/license. Runtime changes do not retroactively alter old evidence.
+
+The curator instruction now distinguishes procedural evidence review from task
+admission and requires an early saved draft with unknown fields rather than
+postponing all output. The source and deployed instruction hashes match. A new
+read-only supplement binds this change, the failed attempt, runtime proof and
+completed queue evidence; a single curator retry is using its existing allowance.
+This remains an unfinished independent review, with no evaluator or user approval.
