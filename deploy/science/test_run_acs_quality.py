@@ -103,6 +103,32 @@ class ControllerCleanupTests(unittest.TestCase):
         self.assertEqual(result['errors'][0]['status'], 403)
 
 
+class ControllerOutcomeTests(unittest.TestCase):
+    def report(self):
+        return {'controller_exit_code': 0, 'result': {
+            'exit_code': 0, 'task_unchanged': True, 'valid_review_exists': True,
+            'secret_findings_before_redaction': []}}
+
+    def test_transport_zero_cannot_hide_failed_worker(self):
+        report = self.report()
+        report['result']['exit_code'] = 1
+        with self.assertRaises(RuntimeError):
+            controller.require_completed_review(report)
+
+    def test_incomplete_or_changed_result_refused(self):
+        for key, value in [('cancelled', True), ('error_type', 'Timeout'),
+                           ('task_unchanged', False), ('valid_review_exists', False),
+                           ('secret_findings_before_redaction', ['private-log'])]:
+            with self.subTest(key=key):
+                report = self.report()
+                report['result'][key] = value
+                with self.assertRaises(RuntimeError):
+                    controller.require_completed_review(report)
+
+    def test_completed_result_passes_transport_gate_only(self):
+        self.assertTrue(controller.require_completed_review(self.report()))
+
+
 if __name__ == '__main__':
     import sys
     sys.path.insert(0, str(Path(__file__).parent))

@@ -72,6 +72,18 @@ def cleanup_owned(api, custom, run, expected_uid=None):
  return {'known_pod_404':gone,'two_snapshots':checks,'errors':errors,
          'confirmed':gone and not errors and all(set(s)==kinds and all(not v for v in s.values()) for s in checks)}
 
+def require_completed_review(report):
+ """Transport success and cleanup alone cannot establish review completion."""
+ result=report.get('result',{})
+ if (report.get('error_type') or report.get('cancelled')
+     or report.get('controller_exit_code')!=0 or result.get('exit_code')!=0
+     or result.get('error_type') or result.get('cancelled')
+     or result.get('task_unchanged') is not True
+     or result.get('valid_review_exists') is not True
+     or result.get('secret_findings_before_redaction')!=[]):
+  raise RuntimeError('ACS quality review incomplete; inspect retained private report')
+ return True
+
 def main():
  parser=argparse.ArgumentParser(description='Operator-only ACS quality controller; role supplies only registered IDs through its dispatcher.')
  parser.add_argument('--settings',required=True,type=pathlib.Path)
@@ -162,6 +174,7 @@ def main():
   p=out/('acs-quality-live-'+run+'.json');p.write_text(json.dumps(r,indent=2)+'\n');p.chmod(0o600)
   print(json.dumps(r),flush=True)
   if not r['cleanup']['confirmed']:raise RuntimeError('ACS resource cleanup unconfirmed; do not start another run')
+ require_completed_review(r)
 
 if __name__=='__main__':
  main()
