@@ -92,6 +92,9 @@ class ScienceGuardedACK(UniverseACK):
         # Only frozen, reviewed upstream artifact profiles are accepted.
         # Tests must be baked into the immutable verifier image.
         roots = getattr(self, '_artifact_roots', (PurePosixPath('/workspace/stacking_submission'),))
+        # Harbor always transfers its conventional artifact directory as well
+        # as the task's declared outputs, including when that directory is empty.
+        roots = (*roots, PurePosixPath('/logs/artifacts'))
         if not any(destination == root or root in destination.parents for root in roots):
             raise ValueError('Upload outside reviewed verifier artifact roots')
         source = Path(source)

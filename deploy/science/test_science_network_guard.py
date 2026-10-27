@@ -2,6 +2,7 @@
 import asyncio
 import base64
 import json
+import logging
 from pathlib import Path
 import subprocess
 import sys
@@ -14,8 +15,27 @@ sys.path.insert(0, str(EXT))
 from science_guarded_ack import ScienceGuardedACK
 from universe_ack import UniverseACK
 from harbor.models.task.config import NetworkMode, NetworkPolicy
+from harbor.trial.artifact_handler import ArtifactHandler
 
 class GuardTests(unittest.TestCase):
+    def test_real_harbor_artifact_handler_transfers_convention_and_task(self):
+        obj=object.__new__(ScienceGuardedACK);obj._guarded_verifier=True
+        uploaded=[]
+        async def mkdir(*args,**kwargs):pass
+        async def upload_dir(source_dir,target_dir):
+            obj._check_upload(source_dir,target_dir);uploaded.append(target_dir)
+        obj.empty_dirs=mkdir;obj.ensure_dirs=mkdir;obj.upload_dir=upload_dir
+        workspace=Path(__file__).resolve().parents[3]
+        with tempfile.TemporaryDirectory(dir=workspace/'.tmp') as temp:
+            root=Path(temp)
+            (root/'logs/artifacts').mkdir(parents=True)
+            (root/'workspace/stacking_submission').mkdir(parents=True)
+            (root/'workspace/stacking_submission/solve_stacking.py').write_text('pass\n')
+            handler=ArtifactHandler(artifacts=['/workspace/stacking_submission/'],logger=logging.getLogger(__name__))
+            asyncio.run(handler.upload_artifacts(obj,root,
+                source_artifacts_dir='/logs/artifacts',target_artifacts_dir='/logs/artifacts'))
+        self.assertEqual(set(uploaded),{'/logs/artifacts','/workspace/stacking_submission/'})
+
     def test_expansion_profiles_keep_artifact_boundaries(self):
         def initialize(obj, **kwargs):
             obj._network_policy=kwargs['network_policy']
