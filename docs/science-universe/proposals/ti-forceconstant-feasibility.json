@@ -1,0 +1,39 @@
+{
+  "scope": "Ti1 0K harmonic instability; minimum ONLY on declared6x6x6 conventional reciprocal grid",
+  "atoms": 432,
+  "a_A": 3.251,
+  "mass_amu": 47.867,
+  "q_grid_minimum": [
+    0.5,
+    0.5,
+    0.0
+  ],
+  "lambda_eV_A2_amu": -0.01373688715092992,
+  "expected_energy_curvature_eV_A2_atom": -0.6575435772535624,
+  "max_antihermitian_eV_A2": 5.724227269721417e-06,
+  "max_ASR_residual_eV_A2": 3.3354430328813578e-12,
+  "finite_difference_max_K_change_eV_A2": 0.0002375082412502394,
+  "energy_validation": [
+    {
+      "rms_amplitude_A": 0.001,
+      "delta_plus_eV": -0.00014202594593371032,
+      "delta_minus_eV": -0.00014202594593371032,
+      "curvature_per_atom_eV_A2": -0.6575275274708812,
+      "force_projected_curvature_per_atom_eV_A2": -0.6574081005696576
+    },
+    {
+      "rms_amplitude_A": 0.003,
+      "delta_plus_eV": -0.0012765418910021253,
+      "delta_minus_eV": -0.0012765418910021253,
+      "curvature_per_atom_eV_A2": -0.6566573513385419,
+      "force_projected_curvature_per_atom_eV_A2": -0.6556869366812978
+    }
+  ],
+  "reference_energy_eV": -2296.5992361534686,
+  "scientific_acceptance": false,
+  "reference_script_sha256": "3ef04c97e6996e2a0720b31613bc6d9223d6d635dc46db7e1d8961affe1bda49",
+  "forceconstant_artifact_sha256": "5cfac3013370d4e1ecc2505ef7a2aa55aea2828c229632fb1b22d6242b603ef6",
+  "raw_potential_redistribution_license_resolved": false,
+  "independent_code_review_complete": false,
+  "full_Harbor_lifecycle_complete": false
+}

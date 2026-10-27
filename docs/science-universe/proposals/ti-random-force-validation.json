@@ -1,0 +1,22 @@
+{
+  "scope": "Independent random real-space translation convolution compared with actual central force derivatives; same ASE potential, not independent EAM implementation",
+  "seed": 16421,
+  "results": [
+    {
+      "amplitude_rms_A": 0.0001,
+      "relative_L2_force_derivative_error": 1.3893871710931561e-05,
+      "max_error_eV_A2": 0.00018327769810255745
+    },
+    {
+      "amplitude_rms_A": 0.0003,
+      "relative_L2_force_derivative_error": 1.1172408764122124e-05,
+      "max_error_eV_A2": 0.00011348107726494305
+    },
+    {
+      "amplitude_rms_A": 0.001,
+      "relative_L2_force_derivative_error": 3.730611133171755e-05,
+      "max_error_eV_A2": 0.0009865442454124462
+    }
+  ],
+  "scientific_acceptance": false
+}
