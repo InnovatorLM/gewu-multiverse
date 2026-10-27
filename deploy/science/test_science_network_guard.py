@@ -1,0 +1,60 @@
+"""Local process/adapter checks. No LLM, Kubernetes, or cloud calls."""
+import asyncio
+import json
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+import unittest
+from unittest.mock import patch
+
+EXT = Path(__file__).parent / 'harbor-extensions'
+sys.path.insert(0, str(EXT))
+from science_guarded_ack import ScienceGuardedACK
+from universe_ack import UniverseACK
+from harbor.models.task.config import NetworkMode, NetworkPolicy
+
+class GuardTests(unittest.TestCase):
+    def test_socket_and_uring_denied_across_child_exec(self):
+        code = '''import socket,ctypes,errno,json,subprocess,sys
+r={}
+for name,family in [('ipv4',socket.AF_INET),('ipv6',socket.AF_INET6),('unix',socket.AF_UNIX)]:
+ try:socket.socket(family);r[name]=False
+ except OSError as e:r[name]=e.errno==errno.EPERM
+c=ctypes.CDLL(None,use_errno=True)
+for name,n in [('uring',425),('x32',0x40000029)]:
+ r[name]=c.syscall(n,0,0,0,0,0,0)==-1 and ctypes.get_errno()==errno.EPERM
+p=subprocess.run([sys.executable,'-c','import socket;socket.socket()'],capture_output=True)
+r['child']=p.returncode!=0 and b'PermissionError' in p.stderr
+r['file_io']=bool(open('/etc/os-release').read())
+print(json.dumps(r))'''
+        result = subprocess.run([sys.executable,str(EXT/'no_network_exec.py'),sys.executable,'-c',code],capture_output=True,text=True)
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertTrue(all(json.loads(result.stdout).values()))
+
+    def test_artifact_destinations_and_symlinks(self):
+        obj=object.__new__(ScienceGuardedACK);obj._guarded_verifier=True
+        workspace=Path(__file__).resolve().parents[3]
+        with tempfile.TemporaryDirectory(dir=workspace/'.tmp') as temp:
+            source=Path(temp);(source/'solver.py').write_text('pass\n')
+            obj._check_upload(source,'/workspace/stacking_submission')
+            for target in ['/root/.bashrc','/tests','/workspace/stacking_submission/../../etc','relative']:
+                with self.subTest(target=target),self.assertRaises(ValueError):obj._check_upload(source,target)
+            (source/'link').symlink_to('/etc/passwd')
+            with self.assertRaises(ValueError):obj._check_upload(source,'/workspace/stacking_submission')
+
+    def test_public_commands_unchanged_and_verifier_wrapped(self):
+        async def capture(self,command,**kwargs):return command
+        obj=object.__new__(ScienceGuardedACK);obj._guarded_verifier=True
+        async def run():
+            with patch.object(UniverseACK,'exec',capture):
+                obj._network_policy=NetworkPolicy(network_mode=NetworkMode.PUBLIC)
+                self.assertEqual(await obj.exec('echo public'),'echo public')
+                obj._network_policy=NetworkPolicy(network_mode=NetworkMode.NO_NETWORK)
+                command=await obj.exec('printf verifier-ok')
+            result=subprocess.run(['/bin/sh','-c',command],capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
+            self.assertEqual(result.stdout,'verifier-ok')
+        asyncio.run(run())
+
+if __name__=='__main__':unittest.main()
