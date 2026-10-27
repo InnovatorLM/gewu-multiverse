@@ -60,6 +60,8 @@ def validate(run_id):
             or type(audit.get('secret_encodings_checked')) is not int
             or audit['secret_encodings_checked'] <= 0):
         raise ValueError('Missing or failed exact-secret audit')
+    if audit.get('guard_report_sha256') != hashlib.sha256(raw_report).hexdigest():
+        raise ValueError('Secret audit is stale for the run report')
     manifest_path = STATE / ('quality-live-input-manifest-' + run_id + '.json')
     manifest_raw = read_private(manifest_path)
     manifest = json.loads(manifest_raw)

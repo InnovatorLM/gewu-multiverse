@@ -57,6 +57,8 @@ class ReceiptTests(unittest.TestCase):
     def save(self):
         self.write(self.root / ('acs-quality-live-' + self.run_id + '.json'), self.report)
         self.write(self.root / ('quality-live-input-manifest-' + self.run_id + '.json'), self.manifest)
+        report_path = self.root / ('acs-quality-live-' + self.run_id + '.json')
+        self.audit['guard_report_sha256'] = hashlib.sha256(report_path.read_bytes()).hexdigest()
         self.write(self.run / 'exact-secret-audit.json', self.audit)
 
     def tearDown(self):
@@ -88,6 +90,19 @@ class ReceiptTests(unittest.TestCase):
     def test_stale_secret_audit_rejected(self):
         self.review['summary'] = 'Changed after scanning.'; self.write(self.review_path, self.review)
         with self.assertRaisesRegex(ValueError, 'stale'):
+            receipt.validate(self.run_id)
+
+    def test_modified_run_report_requires_new_scan(self):
+        path = self.root / ('acs-quality-live-' + self.run_id + '.json')
+        self.report['result']['elapsed_seconds'] = 123
+        self.write(path, self.report)
+        with self.assertRaisesRegex(ValueError, 'stale for the run report'):
+            receipt.validate(self.run_id)
+
+    def test_audit_from_another_run_rejected(self):
+        self.audit['run_id'] = 'qa-live-fffffffffe'
+        self.save()
+        with self.assertRaisesRegex(ValueError, 'failed exact-secret audit'):
             receipt.validate(self.run_id)
 
     def test_partial_source_inventory_rejected(self):
