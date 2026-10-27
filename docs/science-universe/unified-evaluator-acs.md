@@ -128,3 +128,23 @@ The earlier frozen procedural review manifest predates this instruction change.
 Preserve it as historical evidence; an independent final review must bind a new
 manifest including the current instruction audit rather than reuse the old role
 hashes as proof of the current deployment.
+
+## Reusable Pod worker (integration in progress)
+
+`deploy/science/acs_quality_worker.py` replaces the hard-coded task selection in
+the experimental Pod-side script with `--root` and `--task-name`. It accepts
+only a fresh `qa-live-<id>` directory below workspace state, rejects task links
+and missing standard Harbor inputs, fixes the designated DawnFM model/endpoint,
+and receives the credential through stdin. It retains the original project's
+quality-review entrypoint and 1800-second budget. It records input immutability,
+redacts actual key matches before output retention, and terminates its owned
+process group on interruption/timeout. Credential redaction is not a substitute
+for the controller's full known-secret scan.
+
+Six local contract tests cover input mutation, traversal, links, missing files,
+fixed invocation and refusal to reuse old state. They do not validate the new
+worker on ACS, model behavior or Pod deletion. The operator controller still
+needs source-bound packaging, live worker validation, queue integration,
+cancellation and independent four-resource cleanup before this worker can be
+advertised as an autonomous ACS backend. No queue entry or production setting
+was changed by adding it.
