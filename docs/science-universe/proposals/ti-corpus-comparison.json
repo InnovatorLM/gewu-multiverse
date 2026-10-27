@@ -1,0 +1,16 @@
+{
+  "manifest_sha256": "85f47cbeee36dacbb3bcdd53144ca81f6b4e4981c72d0b1def544dc6f31c790a",
+  "tb4_rows": 66,
+  "science_rows": 72,
+  "screen_files": [
+    "screen.json",
+    "screen-66-101.json",
+    "screen-102-128.json",
+    "screen-129-137.json"
+  ],
+  "deep_comparison_sha256": "4640fd1911f46ae0f097c145c8f89e5b7455f01c64358db67825152caf0818b6",
+  "semantic_review_scope": "All 138 frozen instruction texts; no assets/solutions/verifiers",
+  "scientific_acceptance": false,
+  "license_resolved": false,
+  "difficulty_trial": false
+}
