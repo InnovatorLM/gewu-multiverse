@@ -44,19 +44,19 @@ and all four resource categories were confirmed released.
 
 The follow-up `qa-live-a5cfc4896e` completed in 777.95 seconds using the
 pipeline's default 1800-second budget and the scratch fallback. The original
-validator accepted its report: 63.75/100, no confirmed blocker, difficulty4/5
-with confounding noted. All27 completed shell calls succeeded. These are model
+validator accepted its report: 63.75/100, no confirmed blocker, difficulty 4/5
+with confounding noted. All 27 completed shell calls succeeded. These are model
 judgments, not independently verified scientific conclusions. The model also
 reports a scratch reference-solution check; the original task was unchanged.
-Token usage was739342input,649216cached input and81674output (including74911
+Token usage was 739342 input, 649216 cached input and 81674 output (including 74911
 reasoning output); these nested counts must not be added as independent totals.
 After the completed turn and valid JSON, the existing pipeline terminated a
-lingering CLI process (`exit_after_completion_forced=true`, agent return-9);
-the review driver exited0. This is recorded, not concealed as an ordinary native
+lingering CLI process (`exit_after_completion_forced=true`, agent return -9);
+the review driver exited 0. This is recorded, not concealed as an ordinary native
 CLI exit.
 
 Exact known-secret scanning passed and confirmed cleanup passed. The retained
-receipt reader accepted the actual report. An actual evaluator UID21002 read
+receipt reader accepted the actual report. An actual evaluator UID 21002 read
 the sanitized receipt, could not write it, and had neither the provider key nor
 host kubeconfig. This was a zero-model read test, not autonomous queue dispatch
 or an independent evaluator approval. The receipt is staged read-only at
