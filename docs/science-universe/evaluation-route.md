@@ -41,3 +41,8 @@ solver image/input; verifier staging is separate. Do not describe the current
 nonroot chroots as kernel/container namespace isolation. First-pilot acceptance
 requires a complete concrete review package and the user's final approval,
 followed by the protected evaluator+owner approvals and curator merge.
+
+The current ACS quality-runtime proof, helper layout, scratch-variable fallback
+and latest native-harness limitations are documented in
+[Unified evaluator and ACS integration](unified-evaluator-acs.md). This route
+remains diagnostic until the complete evaluator dispatch is verified.
