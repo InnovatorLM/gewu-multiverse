@@ -1,0 +1,38 @@
+{
+  "status": "STOP_CURRENT_CANDIDATE",
+  "dataset": {
+    "title": "Oxford Battery Degradation Dataset 1",
+    "url": "https://ora.ox.ac.uk/objects/uuid:03ba4b01-cfed-46d3-9b1a-7d4a7bdf6fac",
+    "bytes": 266164290,
+    "sha256": "a8f0b928f4ea77d7ba98b97194b78cc77336f2338fee8b57573d043f0cf26781",
+    "license": "ODbL1.0 + DBCL as stated in official readme"
+  },
+  "checkpoints": 519,
+  "traces": 2076,
+  "payload_audit_problems": [],
+  "exact_v_q_T_duplicate_groups": [
+    [
+      "Cell1/cyc7000/C1ch",
+      "Cell1/cyc7100/C1ch"
+    ],
+    [
+      "Cell1/cyc7000/C1dc",
+      "Cell1/cyc7100/C1dc"
+    ],
+    [
+      "Cell1/cyc7000/OCVch",
+      "Cell1/cyc7100/OCVch"
+    ],
+    [
+      "Cell1/cyc7000/OCVdc",
+      "Cell1/cyc7100/OCVdc"
+    ]
+  ],
+  "duplicate_scope": "Exact binary values of v,q,T; excludes timestamps; no approximate duplicates or biological independence claim.",
+  "baseline_mean_fold_rmse_mAh": 17.064854110734323,
+  "baseline_scope": "leave-one-cell-out; train points cycle>=1000; features initial C1dc capacity and cycle; target C1dc capacity magnitude",
+  "scientific_acceptance": false,
+  "harbor_implemented": false,
+  "difficulty_trial_performed": false,
+  "blocker": "No sourced recalibration error/utility/scheduling contract; residuals do not establish scientific difficulty; eight physical cells only."
+}
