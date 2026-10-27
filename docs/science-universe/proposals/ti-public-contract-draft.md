@@ -26,6 +26,8 @@ Trusted verification independently rebuilds D from the submitted kernel and chec
 
 An energy check evaluates the supplied real pattern at both signs of small RMS amplitudes using the fixed model and compares symmetric energy curvature against its reconstructed harmonic Rayleigh quotient. It must measure a decrease beyond numerical uncertainty, not trust solver-reported energies. Independent force predictions on fixed, publicly specified displacements validate the kernel beyond one selected mode. The model calculator is not a control-plane API: it receives only finite positions in the fixed cell, no filesystem paths or executable expressions, and returns only energy/forces. It has no reference spectrum, credentials or private review data. Whether such calculator may be packaged depends on the unresolved potential licence.
 
+Direct full1296x1296finite-supercell Hessian diagonalization has also reproduced the minimum eigenvalue without Bloch reconstruction. It is an allowed alternative. Frequency labels/process requirements must not exclude it; computational feasibility of this short route is a concrete difficulty risk, not grounds to ban the method.
+
 ## Numerical tolerances: not frozen yet
 
 Two amplitudes currently give the same minimum-grid index and minimum-eigenvalue difference about5.64e−6eV/(Å²amu). The independent energy-versus-kernel curvature difference at0.001ÅRMS is about1.61e−5eV/Å²/atom. Random-force derivative relative errors are around1.1e−5to3.7e−5. These are measured feasibility observations, NOT rigorous error bounds or finalized grader tolerances.

@@ -1,0 +1,10 @@
+{
+  "scope": "Alternative direct full finite-supercell Hessian diagonalization; same forceconstants, independent of Bloch Fourier reconstruction",
+  "dimension": 1296,
+  "minimum_lambda_eV_A2_amu": -0.013736887150930223,
+  "negative_eigenvalues_below_minus_1e_6": 134,
+  "near_zero_abs_below_1e_9": 3,
+  "max_reciprocity_eV_A2": 4.751321003304554e-07,
+  "scientific_acceptance": false,
+  "shortcut_risk": "Finite full-Hessian diagonalization is practical; Bloch construction cannot be mandatory process. Difficulty remains unmeasured."
+}
