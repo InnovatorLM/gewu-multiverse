@@ -1,0 +1,47 @@
+{
+  "scope": "Offline same-kernel mode equivalence/control calibration; not final verifier",
+  "reference_rayleigh_eV_A2": -0.6575435772535609,
+  "controls": {
+    "reference": {
+      "valid_nonzero": true,
+      "mean_squared_displacement": 1.0000000000000002,
+      "rayleigh_eV_A2": -0.6575435772535609,
+      "residual_eV_A2": 2.6798330565219347e-12,
+      "passes_provisional_mode_margin": true
+    },
+    "sign_flipped": {
+      "valid_nonzero": true,
+      "mean_squared_displacement": 1.0000000000000002,
+      "rayleigh_eV_A2": -0.6575435772535609,
+      "residual_eV_A2": 2.6798330565219347e-12,
+      "passes_provisional_mode_margin": true
+    },
+    "periodically_translated": {
+      "valid_nonzero": true,
+      "mean_squared_displacement": 1.0000000000000002,
+      "rayleigh_eV_A2": -0.6575435772535609,
+      "residual_eV_A2": 2.6798330565219347e-12,
+      "passes_provisional_mode_margin": true
+    },
+    "uniform_translation_wrong_mode": {
+      "valid_nonzero": true,
+      "mean_squared_displacement": 1.0,
+      "rayleigh_eV_A2": -1.2469300926161081e-12,
+      "residual_eV_A2": 0.6575435772523139,
+      "passes_provisional_mode_margin": false
+    },
+    "random_wrong_mode": {
+      "valid_nonzero": true,
+      "mean_squared_displacement": 1.0000000000000002,
+      "rayleigh_eV_A2": 5.409568898553627,
+      "residual_eV_A2": 7.4144595286643415,
+      "passes_provisional_mode_margin": false
+    },
+    "zero_wrong_mode": {
+      "valid_nonzero": false
+    }
+  },
+  "degenerate_subspace_controls_complete": false,
+  "complex_gauge_conversion_controls_complete": false,
+  "scientific_acceptance": false
+}
