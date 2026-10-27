@@ -176,3 +176,39 @@ the experimental controller, not this newly extracted controller. Do not claim
 that the new controller or autonomous queue is live-validated from this run.
 The operator controller still requires live cancellation/cleanup testing and
 registration into the protected role dispatch before autonomous use.
+
+## Reusable worker completion and protected ACS dispatch
+
+The reusable worker's real run `qa-live-fc9e283eb1` has now completed: 1158.72
+seconds, 28 completed shell calls (27 successful), an unchanged 20-file task
+inventory, and an original-validator-accepted report. The model score was
+81.25/100. The earlier run scored 63.75/100 on the same task; these differing
+judgments reinforce that scores are diagnostic and cannot grant acceptance.
+Input usage was 1232748 tokens, including 1106432 cached tokens; output usage
+was 90953, including 78474 reasoning tokens. The pipeline again stopped its
+lingering Codex process after a completed turn and valid report. Known-secret
+scans passed, Pod404 and two empty four-resource snapshots were confirmed.
+This real worker run used the experimental controller, not the extracted one.
+
+The extracted controller was separately cancelled after its actual ACS Pod was
+observed (`qa-live-3e0c1595b3`), before any worker/model invocation. It retained
+its cancelled report, exited nonzero, and confirmed Pod404 and two empty
+four-resource snapshots. This is a zero-model live cancellation test.
+
+The protected quality queue now supports an explicit operator-registered
+`quality_backend=acs`, with a hash-bound settings file and an exact match to the
+registered snapshot path and digest. `register_quality_diagnostic.py` accepts
+`--acs-settings` instead of `--review-root` for this backend. The queue calls
+`run-acs-quality`, which selects the designated account and executes the
+source-bound controller. The controller invokes `finalize_acs_quality.py` to
+scan extracted outputs, the guard report and original upload members against
+actual known credentials before calling the receipt reader and original
+validator. Only the validated diagnostic is placed in the requested summary.
+An absent ACS summary is unconfirmed cleanup, regardless of local UID process
+counts. Existing queue claims and daily limits are preserved.
+
+The new queue route passed credential-free mock dispatch/refusal tests. The
+finalizer also validated the actual completed reusable-worker evidence. No
+production registration or role dispatch was enabled by these code changes;
+a full live queue-to-controller review remains unverified. Independent role
+approvals and user startup approval remain pending.

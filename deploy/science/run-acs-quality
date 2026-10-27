@@ -1,0 +1,13 @@
+#!/bin/bash
+# Operator-only: fixed credentials, model and workspace-local state.
+set -euo pipefail
+set +x
+W=/mnt/data/zhanglinfeng/workspace
+export HOME="$W/.state/harbor-home"
+export XDG_CONFIG_HOME="$W/.config" XDG_STATE_HOME="$W/.state" XDG_CACHE_HOME="$W/.cache"
+export TMPDIR="$W/.tmp" PYTHONDONTWRITEBYTECODE=1
+export NO_PROXY="172.16.41.195,localhost,127.0.0.1${NO_PROXY:+,$NO_PROXY}"
+export no_proxy="$NO_PROXY"
+umask 077
+source "$W/.config/llm/dawnfm.env"
+exec "$W/acs-harbor-test/.venv/bin/python" "$W/gewu-multiverse/deploy/science/run_acs_quality.py" "$@"

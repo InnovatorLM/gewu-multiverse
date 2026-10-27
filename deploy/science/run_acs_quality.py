@@ -88,7 +88,12 @@ def main():
  parser=argparse.ArgumentParser(description='Operator-only ACS quality controller; role supplies only registered IDs through its dispatcher.')
  parser.add_argument('--settings',required=True,type=pathlib.Path)
  parser.add_argument('--validate-only',action='store_true')
+ parser.add_argument('--summary-output',type=pathlib.Path)
  args=parser.parse_args()
+ if args.summary_output is not None:
+  from role_exec import trusted
+  parent=trusted(args.summary_output.parent,directory=True)
+  if not parent.is_relative_to(W) or args.summary_output.is_symlink() or args.summary_output.exists():raise ValueError('Require fresh operator summary destination')
  settings,task=load_settings(args.settings)
  if args.validate_only:
   print(json.dumps({'settings_valid':True,'model_calls':0,'cloud_resources_created':0}));return
@@ -173,8 +178,15 @@ def main():
   r['cleanup']=cleanup_owned(api,custom,run,r.get('pod_uid'))
   p=out/('acs-quality-live-'+run+'.json');p.write_text(json.dumps(r,indent=2)+'\n');p.chmod(0o600)
   print(json.dumps(r),flush=True)
+  if args.summary_output is not None:
+   from evaluation_queue import atomic_json
+   atomic_json(args.summary_output,{'run_id':run,'status':'quality_diagnostic_failed','cleanup_confirmed':r['cleanup']['confirmed'],'quality_acceptance':False,'scientific_acceptance':False,'release_eligible':False,'factual_verification_required':True,'acs_launched':created,'raw_trajectory_exported':False})
   if not r['cleanup']['confirmed']:raise RuntimeError('ACS resource cleanup unconfirmed; do not start another run')
  require_completed_review(r)
+ from finalize_acs_quality import finalize
+ diagnostic=finalize(run)
+ diagnostic.update(factual_verification_required=True,acs_launched=True)
+ if args.summary_output is not None:atomic_json(args.summary_output,diagnostic)
 
 if __name__=='__main__':
  main()

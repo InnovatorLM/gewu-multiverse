@@ -174,10 +174,23 @@ def process(config, request_path, mock=False):
     if dispatch not in {'solver', 'quality_diagnostic', 'semantic_diagnostic'}:
         raise ValueError('Unknown registered dispatch')
     if dispatch == 'quality_diagnostic':
-        from role_exec import trusted
-        review_root = trusted(entry['review_root'], directory=True)
-        if not review_root.is_relative_to(W / '.state/science-review-tools') or digest_tree(review_root / 'task') != entry['snapshot_sha256']:
-            raise ValueError('Registered review root/task mismatch')
+        quality_backend = entry.get('quality_backend', 'chroot')
+        if quality_backend == 'acs':
+            from run_acs_quality import load_settings
+            quality_settings = root_file(entry['acs_quality_settings'])
+            if hashlib.sha256(quality_settings.read_bytes()).hexdigest() != entry['acs_quality_settings_sha256']:
+                raise ValueError('Registered ACS quality settings changed')
+            settings, quality_task = load_settings(quality_settings)
+            if (settings['task_sha256'] != entry['snapshot_sha256'] or quality_task.resolve() != Path(entry['snapshot']).resolve()
+                    or settings['runtime_image'] != template['environment']['kwargs']['runtime_image']):
+                raise ValueError('ACS quality task differs from registered snapshot')
+        elif quality_backend == 'chroot':
+            from role_exec import trusted
+            review_root = trusted(entry['review_root'], directory=True)
+            if not review_root.is_relative_to(W / '.state/science-review-tools') or digest_tree(review_root / 'task') != entry['snapshot_sha256']:
+                raise ValueError('Registered review root/task mismatch')
+        else:
+            raise ValueError('Unknown quality backend')
     if dispatch == 'semantic_diagnostic':
         from register_semantic_diagnostic import registered_corpus
         corpus = registered_corpus(entry)
@@ -225,7 +238,10 @@ def process(config, request_path, mock=False):
         env = os.environ.copy()
         env.update(PYTHONDONTWRITEBYTECODE='1', PYTHONPATH=str(W / '.local/harbor-extensions') + ':' + str(W / 'acs-harbor-test/harbor/src'))
         if dispatch == 'quality_diagnostic':
-            command = [str(W / 'gewu-multiverse/deploy/science/run-quality-diagnostic'), '--evaluation-id', request['evaluation_id'], '--root', str(review_root), '--job', str(job / 'quality')]
+            if quality_backend == 'acs':
+                command = [str(W / 'gewu-multiverse/deploy/science/run-acs-quality'), '--settings', str(quality_settings), '--summary-output', str(job / 'quality-summary.json')]
+            else:
+                command = [str(W / 'gewu-multiverse/deploy/science/run-quality-diagnostic'), '--evaluation-id', request['evaluation_id'], '--root', str(review_root), '--job', str(job / 'quality')]
         elif dispatch == 'semantic_diagnostic':
             command = [str(W / 'gewu-multiverse/deploy/science/run-semantic-diagnostic'), '--evaluation-id', request['evaluation_id'], '--corpus', str(corpus), '--output', str(job / 'semantic')]
         else:
@@ -244,14 +260,14 @@ def process(config, request_path, mock=False):
                 if stop_requested:
                     stop(None, None)
                 try:
-                    child.wait(timeout=1800)
+                    child.wait(timeout=2400 if dispatch == 'quality_diagnostic' and quality_backend == 'acs' else 1800)
                 except subprocess.TimeoutExpired:
                     os.killpg(child.pid, signal.SIGTERM)
                     child.wait(timeout=180)
             finally:
                 signal.signal(signal.SIGTERM, previous)
         if dispatch == 'quality_diagnostic':
-            summary = job / 'quality/summary.json'
+            summary = job / ('quality-summary.json' if quality_backend == 'acs' else 'quality/summary.json')
             if summary.exists():
                 answer.update(json.loads(root_file(summary).read_text()))
             else:
@@ -260,7 +276,7 @@ def process(config, request_path, mock=False):
                 deadline = time.monotonic() + 10
                 while role_processes(21012) and time.monotonic() < deadline:
                     time.sleep(.1)
-                answer.update(status='quality_diagnostic_failed', cleanup_confirmed=not role_processes(21012), quality_acceptance=False, scientific_acceptance=False, release_eligible=False, factual_verification_required=True)
+                answer.update(status='quality_diagnostic_failed', cleanup_confirmed=quality_backend != 'acs' and not role_processes(21012), quality_acceptance=False, scientific_acceptance=False, release_eligible=False, factual_verification_required=True)
         elif dispatch == 'semantic_diagnostic':
             report_path = job / 'semantic/report.json'
             if report_path.exists():
