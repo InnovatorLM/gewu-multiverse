@@ -31,9 +31,50 @@
   ],
   "reference_energy_eV": -2296.5992361534686,
   "scientific_acceptance": false,
-  "reference_script_sha256": "3ef04c97e6996e2a0720b31613bc6d9223d6d635dc46db7e1d8961affe1bda49",
-  "forceconstant_artifact_sha256": "5cfac3013370d4e1ecc2505ef7a2aa55aea2828c229632fb1b22d6242b603ef6",
-  "raw_potential_redistribution_license_resolved": false,
-  "independent_code_review_complete": false,
-  "full_Harbor_lifecycle_complete": false
+  "both_amplitude_checks": [
+    {
+      "minimum_lambda": -0.013736887150929881,
+      "one_minimum_grid_index": [
+        3,
+        3,
+        0
+      ],
+      "gamma_eigenvalues": [
+        -4.838656172935294e-14,
+        -3.72014122990187e-14,
+        -2.2492237418887358e-14,
+        0.19259009317085615,
+        0.19259009317086495,
+        0.19259009317087036
+      ],
+      "q_minus_q_max_eigenvalue_difference": 3.885780586188048e-16,
+      "reciprocity_max_eV_A2": 4.751321003304554e-07,
+      "uniform_input_row_sum_max_eV_A2": 3.3359981443936704e-12,
+      "max_D_frobenius_eV_A2": 22.88759710678171
+    },
+    {
+      "minimum_lambda": -0.013731248139643104,
+      "one_minimum_grid_index": [
+        3,
+        3,
+        0
+      ],
+      "gamma_eigenvalues": [
+        2.104407669801103e-15,
+        5.175471821790163e-15,
+        1.3455889378333724e-14,
+        0.1925949497444548,
+        0.192594949744463,
+        0.19259494974447422
+      ],
+      "q_minus_q_max_eigenvalue_difference": 4.440892098500626e-16,
+      "reciprocity_max_eV_A2": 1.9099206730044394e-06,
+      "uniform_input_row_sum_max_eV_A2": 7.416289804496046e-13,
+      "max_D_frobenius_eV_A2": 22.88845247228977
+    }
+  ],
+  "minimum_lambda_amplitude_change": 5.63901128677706e-06,
+  "mode_scope": "Aliased finite periodic Hessian on commensurate grid only; conventional two-atom cell has folded6branches.",
+  "independent_code_review": "fc-review.md: feasible for proposal review, not scientific acceptance",
+  "redistribution_license_resolved": false
 }
