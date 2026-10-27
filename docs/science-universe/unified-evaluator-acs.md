@@ -110,3 +110,21 @@ actual retained evidence against the configured credentials; an empty manually
 written list is not scanning evidence. This reader is not yet wired into the
 autonomous evaluator queue. Its seven mock regression cases are separate from the completed live review
 and actual evaluator read test described above.
+
+
+## Deployed evaluator instructions
+
+The deployed private evaluator instruction now explains the read-only
+`/evaluation/diagnostics/` handoff separately from queue results. It requires
+an assigned issue, matching task/version evidence, explicit uncertainty for
+unverified model findings, and sanitized author feedback. It forbids forwarding
+whole diagnostic reports containing reference-solution or hidden-test analysis.
+The source and deployed instruction hashes were checked equal while the role
+was stopped. This is configuration deployment, not a new model session,
+autonomous ACS dispatch, or independent approval. The private instruction is
+not copied into this public repository.
+
+The earlier frozen procedural review manifest predates this instruction change.
+Preserve it as historical evidence; an independent final review must bind a new
+manifest including the current instruction audit rather than reuse the old role
+hashes as proof of the current deployment.
