@@ -2746,6 +2746,12 @@ fn model_loop(
             ));
             if left <= 3 {
                 text.push_str("Finalization window: prioritize saving the requested artifacts or an honest handoff with exact file paths, verified facts, unresolved blockers and next steps. Avoid starting new long network investigations. Do not claim incomplete work is finished.\n");
+                text.push_str("The response-count limit applies even if wall-clock time remains. Do not spend the remaining responses gathering optional evidence. Save the current requested deliverables with explicit unknowns now; a partial handoff is preferable to losing all findings.\n");
+            }
+            if left == 1 {
+                text.push_str("Penultimate response: finish any necessary file writes in one bounded command now. Reserve the next response for your final handoff; do not start another investigation.\n");
+            } else if left == 0 {
+                text.push_str("Last response: give the final handoff without tool calls. State exactly which artifacts were actually saved and what is incomplete. There is no next model response to read another tool result.\n");
             }
             system.content = Some(text);
         }
@@ -4875,6 +4881,9 @@ mod tests {
         assert!(second.contains("turn 2 of 2; 0 model responses remain"));
         assert!(!second.contains("turn 1 of 2"));
         assert!(second.contains("Finalization window"));
+        assert!(first.contains("Penultimate response"));
+        assert!(second.contains("Last response: give the final handoff without tool calls"));
+        assert!(!second.contains("Penultimate response"));
     }
 
     #[test]
