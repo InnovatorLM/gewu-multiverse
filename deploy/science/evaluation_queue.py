@@ -169,8 +169,14 @@ def process(config, request_path, mock=False):
     entry = registry[request['evaluation_id']]
     if entry.get('enabled', True) is not True:
         raise ValueError('Evaluation ID retired by operator')
-    template = validated_template(entry, request)
     dispatch = entry.get('dispatch', 'solver')
+    standalone_acs = dispatch == 'quality_diagnostic' and entry.get('quality_backend') == 'acs' and entry.get('registration_kind') == 'source_bound_quality_v1'
+    if standalone_acs:
+        from register_acs_quality import validate_registration
+        validate_registration(entry, request)
+        template = {}
+    else:
+        template = validated_template(entry, request)
     if dispatch not in {'solver', 'quality_diagnostic', 'semantic_diagnostic'}:
         raise ValueError('Unknown registered dispatch')
     if dispatch == 'quality_diagnostic':
@@ -182,7 +188,7 @@ def process(config, request_path, mock=False):
                 raise ValueError('Registered ACS quality settings changed')
             settings, quality_task = load_settings(quality_settings)
             if (settings['task_sha256'] != entry['snapshot_sha256'] or quality_task.resolve() != Path(entry['snapshot']).resolve()
-                    or settings['runtime_image'] != template['environment']['kwargs']['runtime_image']):
+                    or settings['runtime_image'] != (entry['runtime_image'] if standalone_acs else template['environment']['kwargs']['runtime_image'])):
                 raise ValueError('ACS quality task differs from registered snapshot')
         elif quality_backend == 'chroot':
             from role_exec import trusted
@@ -222,7 +228,7 @@ def process(config, request_path, mock=False):
                 for item in value:
                     relabel(item)
         relabel(template)
-        options = template['agents'][0].setdefault('kwargs', {})
+        options = {} if standalone_acs else template['agents'][0].setdefault('kwargs', {})
         retain_private = options.pop('retain_private_trajectory', False)
         if dispatch == 'solver' and retain_private:
             private_root = W / '.state/science-private-trajectories'

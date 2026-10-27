@@ -212,3 +212,23 @@ finalizer also validated the actual completed reusable-worker evidence. No
 production registration or role dispatch was enabled by these code changes;
 a full live queue-to-controller review remains unverified. Independent role
 approvals and user startup approval remain pending.
+
+## Public-source quality registration
+
+`register_acs_quality.py` provides a separate quality-only registration for
+public tasks whose previously published images predate the solver builder's
+provenance labels. It does not forge or waive those solver labels. It archives
+an explicit local Git commit as the checkout's owner and compares every task
+file with the supplied review task. It records the complete source-file hashes,
+commit, task path, settings hash, task digest and runtime digest. Dispatch
+rechecks the source receipt and current task/settings. The entry is usable only
+for `quality_diagnostic` with the ACS backend and grants no solver eligibility.
+
+The public `stacking-disorder-diffraction` task was registered as
+`public-stacking-acs-quality-v1`, with all 20 task files matching upstream commit
+`1892516e4321ebffb307de3b638506582ef28916`. An actual evaluator UID21002 submitted
+one registered request; the live protected queue claimed it as a non-mock job.
+Its full ACS review is in progress and has not yet passed final validation or
+cleanup. No role model session or production launch was started, and no daily
+limit was reset or increased. The existing queue claim counts against its
+configured allowance.

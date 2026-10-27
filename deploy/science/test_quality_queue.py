@@ -57,7 +57,8 @@ class QualityQueueTests(unittest.TestCase):
                 entry = json.loads((W / '.config/science-evaluation/registry.json').read_text())['calibration-v1']
                 settings = base / 'settings.json'
                 settings.write_text('{}')
-                entry.update(dispatch='quality_diagnostic', quality_backend='acs',
+                entry.update(registration_kind='source_bound_quality_v1', dispatch='quality_diagnostic', quality_backend='acs',
+                             runtime_image=json.loads(Path(entry['template']).read_text())['environment']['kwargs']['runtime_image'],
                              acs_quality_settings=str(settings),
                              acs_quality_settings_sha256=hashlib.sha256(settings.read_bytes()).hexdigest())
                 registry = base / 'registry.json'
@@ -89,7 +90,7 @@ class QualityQueueTests(unittest.TestCase):
                 template = json.loads(Path(entry['template']).read_text())
                 loaded = ({'task_sha256': entry['snapshot_sha256'],
                            'runtime_image': template['environment']['kwargs']['runtime_image']}, Path(entry['snapshot']))
-                with patch('run_acs_quality.load_settings', return_value=loaded), patch('evaluation_queue.subprocess.Popen', FakeChild):
+                with patch('register_acs_quality.validate_registration', return_value=loaded), patch('evaluation_queue.validated_template', side_effect=AssertionError('Standalone quality is not a solver registration')), patch('run_acs_quality.load_settings', return_value=loaded), patch('evaluation_queue.subprocess.Popen', FakeChild):
                     result = process(config, request)
                 self.assertEqual(len(captured), 1)
                 self.assertEqual(result['cleanup_confirmed'], report_present)
