@@ -249,3 +249,24 @@ multi-harness launch contract. Earlier broad wording that all upstream execution
 requires Landlock should be read as applying specifically to these native
 programs. No check was bypassed or alternate mechanism represented as native
 harness deployment.
+
+## Completed protected queue review
+
+The actual UID21002 request `c28fe1a35f6343f0ad6646a7c94b26cf` completed through
+the protected queue and extracted controller as `qa-live-8df67646b1`.
+The controller used the fixed DawnFM model and source-bound settings, retained
+a valid original-pipeline report, scanned known credentials, and confirmed
+Pod404 plus two empty snapshots of all four resource kinds. All20 task files
+were unchanged. The evaluator's actual UID read the resulting queue receipt
+and could not write it; host kubeconfig remained absent. This is a real
+request/queue/ACS/model/validated-result/role-read integration, not a mock.
+The request was submitted by an operator-controlled process running as the
+role UID; an autonomous evaluator model session has not yet demonstrated tool
+use or independently approved the evidence.
+
+The report scored81.25/100. There were38 completed shell calls,35 successful;
+two returned127 and one returned1. Token usage was1131123 input including
+1017344 cached, and81825 output including67664 reasoning. The score and
+findings remain diagnostic judgments. Production roles were not enabled.
+A separate curator-only procedural review has now been assigned as local issue9
+against the frozen v2 evidence; its start is not an approval.
