@@ -232,3 +232,20 @@ Its full ACS review is in progress and has not yet passed final validation or
 cleanup. No role model session or production launch was started, and no daily
 limit was reset or increased. The existing queue claim counts against its
 configured allowance.
+
+## Upstream recheck at 22763e3
+
+A fresh remote HEAD check found upstream
+`22763e3e6ecd8a4f1d7391c454f577f3e99eb199`, also version0.1.39. It includes
+stop/finish settlement and recovery fixes after the earlier reviewed commit.
+An isolated offline build passed; production was not replaced.
+
+The distinction between shell and native-program isolation matters: the built-in
+shell supports explicitly requested `GEWU_CONFINEMENT=bwrap` or `unshare`, while
+`src/agent_run/native.rs` still rejects native Pi/Codex/DSH/OpenCode launches
+unless `shell.method` is Landlock. `--confined-program` also applies a Landlock
+ruleset. Thus namespace-capable ACS does not by itself satisfy the native
+multi-harness launch contract. Earlier broad wording that all upstream execution
+requires Landlock should be read as applying specifically to these native
+programs. No check was bypassed or alternate mechanism represented as native
+harness deployment.
