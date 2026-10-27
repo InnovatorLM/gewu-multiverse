@@ -53,16 +53,17 @@ trials=[]
 for result in run.glob('*/result.json'):
  d=json.loads(result.read_text());folder=result.parent
  required=['trial.log','agent/mini-swe-agent.trajectory.json','verifier/reward.txt','verifier/test-stdout.txt','verifier/ctrf.json']
- trajectory=folder/'agent/mini-swe-agent.trajectory.json';roles={};metrics={};model_binding=False
+ trajectory=folder/'agent/mini-swe-agent.trajectory.json';roles={};metrics={};model_binding=False;agent_exit_status=None
  if trajectory.exists():
   trace=json.loads(trajectory.read_text());messages=trace.get('messages',[]) if isinstance(trace,dict) else []
+  agent_exit_status=trace.get('info',{}).get('exit_status')
   roles=dict(collections.Counter(m.get('role','unknown') for m in messages))
   metrics={'api_calls':trace.get('info',{}).get('model_stats',{}).get('api_calls'),'tool_calls_requested':sum(len(m.get('tool_calls') or []) for m in messages),'tool_result_messages':sum(m.get('role')=='tool' for m in messages)}
   model_config=trace.get('info',{}).get('config',{}).get('model',{})
   model_binding=model_config.get('model_name')==expected_model and model_config.get('model_kwargs',{}).get('api_base')==expected_base
  ctrf=folder/'verifier/ctrf.json';test_summary=None
  if ctrf.exists():test_summary=json.loads(ctrf.read_text()).get('results',{}).get('summary')
- trials.append({'trial':folder.name,'finished_at':d.get('finished_at'),'exception_type':(d.get('exception_info') or {}).get('exception_type'),'rewards':(d.get('verifier_result') or {}).get('rewards'),'missing_evidence':[name for name in required if not (folder/name).is_file()],'trajectory_role_counts':roles,'model_and_tool_metrics':metrics,'trajectory_model_binding_verified':model_binding,'test_summary':test_summary})
+ trials.append({'trial':folder.name,'finished_at':d.get('finished_at'),'exception_type':(d.get('exception_info') or {}).get('exception_type'),'agent_exit_status':agent_exit_status,'solver_budget_exhausted':agent_exit_status=='LimitsExceeded','rewards':(d.get('verifier_result') or {}).get('rewards'),'missing_evidence':[name for name in required if not (folder/name).is_file()],'trajectory_role_counts':roles,'model_and_tool_metrics':metrics,'trajectory_model_binding_verified':model_binding,'test_summary':test_summary})
 stats=job.get('stats',{});r={'run_id':run.name,'finished_at':job['finished_at'],'n_completed_trials':stats.get('n_completed_trials'),'n_errored_trials':stats.get('n_errored_trials'),'token_usage':{key:stats.get(key) for key in ('n_input_tokens','n_output_tokens','n_cache_tokens')},'trials':trials,'exact_secret_scan':{'files_scanned':file_count,'secret_encodings_checked':len(needles),'findings':findings},'private_file_permissions_enforced':True,'cleanup_confirmed':guard.get('cleanup',{}).get('confirmed') is True,'execution_scope':'bounded procedural validation; not full-budget difficulty calibration','scientific_acceptance':False}
 r['provider_binding_verified']=provider_binding
 r['procedural_chain_passed']=bool(trials) and stats.get('n_completed_trials')==1 and stats.get('n_errored_trials')==0 and r['cleanup_confirmed'] and not findings and provider_binding and all(not t['exception_type'] and not t['missing_evidence'] and t['rewards'] is not None and t['trajectory_model_binding_verified'] and (t['model_and_tool_metrics'].get('api_calls') or 0)>0 and (t['test_summary'] or {}).get('tests',0)>0 for t in trials)
