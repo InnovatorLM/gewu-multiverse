@@ -15,6 +15,27 @@ from universe_ack import UniverseACK
 from harbor.models.task.config import NetworkMode, NetworkPolicy
 
 class GuardTests(unittest.TestCase):
+    def test_original_verifier_permissions_and_trusted_seed(self):
+        captured = {}
+        def initialize(obj, **kwargs):
+            captured.update(kwargs)
+            obj._network_policy = kwargs['network_policy']
+        image = 'example.invalid/verifier@sha256:' + 'a' * 64
+        with patch.object(UniverseACK, '__init__', initialize):
+            ScienceGuardedACK(
+                environment_dir=Path('/original/tests'), verifier_image=image,
+                network_policy=NetworkPolicy(network_mode=NetworkMode.NO_NETWORK),
+            )
+        spec = captured['pod_overrides']['spec']
+        main = spec['containers'][0]
+        self.assertTrue(main['securityContext']['readOnlyRootFilesystem'])
+        self.assertNotIn('capabilities', main['securityContext'])
+        seed = spec['initContainers'][0]
+        self.assertEqual(seed['image'], image)
+        self.assertEqual(seed['volumeMounts'], [{'name':'guard-tests','mountPath':'/seed'}])
+        self.assertNotIn('guard-workspace', str(seed))
+        self.assertIn({'name':'guard-tests','mountPath':'/tests'}, main['volumeMounts'])
+
     def test_socket_and_uring_denied_across_child_exec(self):
         code = '''import socket,ctypes,errno,json,subprocess,sys
 r={}

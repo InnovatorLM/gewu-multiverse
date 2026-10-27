@@ -26,17 +26,36 @@ class ScienceGuardedACK(UniverseACK):
                 'privileged': False,
                 'readOnlyRootFilesystem': True,
                 'allowPrivilegeEscalation': False,
-                'capabilities': {'drop': ['ALL'], 'add': []},
+                # Preserve ACS default capabilities: the original verifier
+                # needs chown/setuid. ACS rejects explicitly adding these.
             }
             if spec.get('volumes') or main.get('volumeMounts'):
                 raise ValueError('Unreviewed verifier mounts refused')
             spec['automountServiceAccountToken'] = False
             spec['volumes'] = [{'name': name, 'emptyDir': {}}
-                               for name in ('guard-tmp','guard-logs','guard-workspace')]
+                               for name in ('guard-tmp','guard-logs','guard-workspace','guard-tests')]
             main['volumeMounts'] = [
                 {'name': name, 'mountPath': path}
                 for name,path in [('guard-tmp','/tmp'),('guard-logs','/logs'),
-                                  ('guard-workspace','/workspace')]]
+                                  ('guard-workspace','/workspace'),('guard-tests','/tests')]]
+            # Preserve the original tests byte-for-byte while permitting its
+            # root-owned /tests chmod. Only the trusted pinned image seeds it;
+            # submitted artifacts are never present in this init container.
+            spec['initContainers'] = [{
+                'name': 'seed-original-tests',
+                'image': kwargs['verifier_image'],
+                'command': ['/bin/sh', '-ec', 'cp -a /tests/. /seed/; chmod 700 /seed'],
+                'securityContext': {
+                    'runAsUser': 0, 'privileged': False,
+                    'readOnlyRootFilesystem': True,
+                    'allowPrivilegeEscalation': False,
+                },
+                'resources': {
+                    'requests': {'cpu': '2', 'memory': '4Gi'},
+                    'limits': {'cpu': '2', 'memory': '4Gi'},
+                },
+                'volumeMounts': [{'name': 'guard-tests', 'mountPath': '/seed'}],
+            }]
             kwargs['pod_overrides'] = overrides
         super().__init__(environment_dir=environment_dir, **kwargs)
         if self.network_policy.network_mode == NetworkMode.NO_NETWORK:
