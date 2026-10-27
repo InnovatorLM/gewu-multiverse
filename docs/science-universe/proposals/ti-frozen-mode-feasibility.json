@@ -1,0 +1,22 @@
+{
+  "status": "OFFLINE_FROZEN_DIRECTION_FEASIBILITY_PASSED_NOT_TASK_ACCEPTED",
+  "atoms": 432,
+  "supercell": [
+    6,
+    6,
+    6
+  ],
+  "ase_version": "3.29.0",
+  "potential_source": "Mendelev/Underwood/Ackland2016 NIST author supplied Ti1/Ti2/Ti3",
+  "curvature_file_sha256": "459e562d6d9dcea7c3f2612867553cad96ce78030001b1a9f794354563451cee",
+  "script_sha256": "93daf0f82ac7399199a80951e76a7a1589416eba2633d03065763718843627e3",
+  "all_three_have_negative_T110_half": true,
+  "reference_max_force_eV_A": 1.6656814816329302e-14,
+  "full_force_constant_reconstruction": false,
+  "eigenmode_verified": false,
+  "global_BZ_minimum_claimed": false,
+  "redistribution_license_resolved": false,
+  "llm_calls": 0,
+  "acs_runs": 0,
+  "scientific_acceptance": false
+}
