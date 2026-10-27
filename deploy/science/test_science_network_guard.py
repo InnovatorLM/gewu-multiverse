@@ -1,5 +1,6 @@
 """Local process/adapter checks. No LLM, Kubernetes, or cloud calls."""
 import asyncio
+import base64
 import json
 from pathlib import Path
 import subprocess
@@ -15,6 +16,24 @@ from universe_ack import UniverseACK
 from harbor.models.task.config import NetworkMode, NetworkPolicy
 
 class GuardTests(unittest.TestCase):
+    def test_verifier_evidence_includes_stdout_and_metrics(self):
+        obj=object.__new__(UniverseACK)
+        files={'reward.txt':b'0\n','test-stdout.txt':b'FAILED scientific assertion\n',
+               'ctrf.json':b'{"results":{}}','nested/binary':bytes(range(256))}
+        async def capture(**kwargs):
+            from types import SimpleNamespace
+            return SimpleNamespace(return_code=0,stdout=json.dumps({
+                k:base64.b64encode(v).decode() for k,v in files.items()}))
+        obj.exec=capture
+        workspace=Path(__file__).resolve().parents[3]
+        with tempfile.TemporaryDirectory(dir=workspace/'.tmp') as temp:
+            asyncio.run(obj.download_dir('/logs/verifier',temp))
+            for name,data in files.items():
+                self.assertEqual((Path(temp)/name).read_bytes(),data)
+            files['../escape']=b'bad'
+            with self.assertRaises(ValueError):
+                asyncio.run(obj.download_dir('/logs/verifier',temp))
+
     def test_original_verifier_permissions_and_trusted_seed(self):
         captured = {}
         def initialize(obj, **kwargs):
