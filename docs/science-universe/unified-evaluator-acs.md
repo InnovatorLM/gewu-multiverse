@@ -159,3 +159,20 @@ empty snapshots of all four resource categories were confirmed. This proves
 the tested worker lifecycle on ACS; the mock report is not a schema-validated
 quality judgment or a live LLM review. Queue integration and a real review of
 the reusable worker remain incomplete.
+
+## Operator controller (preflight verified, live integration pending)
+
+`deploy/science/run_acs_quality.py --settings <operator-json> --validate-only`
+checks the immutable task tree, complete private pipeline tree, worker/Codex/
+Bubblewrap hashes, project image digest, and matching successful boundary smoke.
+It accepts no caller-provided shell command. The four refusal tests and the
+actual local pinned configuration preflight passed without model calls or cloud
+creation. The controller writes an inventory of the packed files before cloud
+execution. Runtime secrets are not part of that input archive.
+
+The reusable worker's first actual designated-model review is tracked separately
+as `qa-live-fc9e283eb1`; at the time of this update it is still running through
+the experimental controller, not this newly extracted controller. Do not claim
+that the new controller or autonomous queue is live-validated from this run.
+The operator controller still requires live cancellation/cleanup testing and
+registration into the protected role dispatch before autonomous use.
