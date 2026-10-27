@@ -1,0 +1,29 @@
+{
+  "scope": "Offline prospective tolerance calibration, not production verifier or formal error bound",
+  "spectrum_units": "eV/(angstrom^2 amu)",
+  "grid_points": 216,
+  "branches": 6,
+  "two_amplitude_spectrum_max_abs_difference": 9.652437340385012e-06,
+  "proposed_spectrum_absolute_margin": 5e-05,
+  "correct_alternative_passes": true,
+  "negative_controls": {
+    "opposite_force_sign": {
+      "max_abs_spectrum_error": 0.3904076876206847,
+      "passes_proposed_margin": false
+    },
+    "missing_mass_weighting": {
+      "max_abs_spectrum_error": 11.22893537593243,
+      "passes_proposed_margin": false
+    },
+    "wrong_atom_mapping": {
+      "max_abs_spectrum_error": 0.34416966092028795,
+      "passes_proposed_margin": false
+    },
+    "zero_kernel": {
+      "max_abs_spectrum_error": 0.23959151163787806,
+      "passes_proposed_margin": false
+    }
+  },
+  "limitation": "One measured amplitude alternative only; not all equivalent scientific solutions. Gauge/mode controls, exact output schema, numerical backend portability and independent approval remain pending.",
+  "scientific_acceptance": false
+}
