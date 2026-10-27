@@ -1,15 +1,18 @@
+"""Explicit actual-image regression; fake model, no live LLM/API calls."""
 import subprocess,json,pathlib,argparse
 from mini_swe_headless import configure_headless_mini_swe
-w=pathlib.Path('/mnt/data/zhanglinfeng/workspace')
-p=argparse.ArgumentParser(description='Actual mini-SWE runtime regression with fake model; no LLM API.')
-p.add_argument('--image',required=True);p.add_argument('--out',type=pathlib.Path,required=True);args=p.parse_args()
-args.out.resolve().relative_to(w)
-image=args.image
-if '@sha256:' not in image:raise ValueError('Use an immutable published runtime digest')
-job={'agents':[{'name':'mini-swe-agent-preinstall','kwargs':{'config':{'agent':{'step_limit':1}}}}]}
-configure_headless_mini_swe(job)
-assert job['agents'][0]['kwargs']['config']['agent']=={'agent_class':'default','step_limit':1}
-code="""import builtins,json
+
+def main():
+    w=pathlib.Path('/mnt/data/zhanglinfeng/workspace')
+    p=argparse.ArgumentParser(description='Actual mini-SWE runtime regression with fake model; no LLM API.')
+    p.add_argument('--image',required=True);p.add_argument('--out',type=pathlib.Path,required=True);args=p.parse_args()
+    args.out.resolve().relative_to(w)
+    image=args.image
+    if '@sha256:' not in image:raise ValueError('Use an immutable published runtime digest')
+    job={'agents':[{'name':'mini-swe-agent-preinstall','kwargs':{'config':{'agent':{'step_limit':1}}}}]}
+    configure_headless_mini_swe(job)
+    assert job['agents'][0]['kwargs']['config']['agent']=={'agent_class':'default','step_limit':1}
+    code="""import builtins,json
 from minisweagent.agents import get_agent
 class Model:
  def format_message(self,**kw):return kw
@@ -32,5 +35,8 @@ assert report['interactive']['exception']=='EOFError'
 assert report['default']=={'exception':None,'exit_status':'LimitsExceeded','calls':1}
 print('RESULT_JSON='+json.dumps(report))
 """
-r=subprocess.run(['docker','run','--rm','--network','none',image,'python3','-I','-c',code],capture_output=True,text=True,timeout=30);line=next((x[len('RESULT_JSON='):] for x in r.stdout.splitlines() if x.startswith('RESULT_JSON=')),None);assert r.returncode==0 and line, r.stderr
-p=args.out;p.write_text(json.dumps({'scope':'Actual published mini-swe-agent 2.2.8 runtime; fake model, no live LLM, not a benchmark question.','image':image,'results':json.loads(line),'passed':True},indent=2)+'\n');p.chmod(0o600);print(p.read_text())
+    r=subprocess.run(['docker','run','--rm','--network','none',image,'python3','-I','-c',code],capture_output=True,text=True,timeout=30);line=next((x[len('RESULT_JSON='):] for x in r.stdout.splitlines() if x.startswith('RESULT_JSON=')),None);assert r.returncode==0 and line, r.stderr
+    p=args.out;p.write_text(json.dumps({'scope':'Actual published mini-swe-agent 2.2.8 runtime; fake model, no live LLM, not a benchmark question.','image':image,'results':json.loads(line),'passed':True},indent=2)+'\n');p.chmod(0o600);print(p.read_text())
+
+if __name__ == "__main__":
+    main()
