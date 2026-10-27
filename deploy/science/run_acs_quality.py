@@ -36,6 +36,42 @@ def load_settings(path):
  if receipt.get('binary_sha256')!=settings['codex_sha256'] or receipt.get('image')!=settings['runtime_image']:raise ValueError('Boundary smoke runtime differs')
  return settings,task
 
+def cleanup_owned(api, custom, run, expected_uid=None):
+ """Reconcile one exact run; preserve unknown status instead of losing report."""
+ errors=[];gone=False;checks=[]
+ try:
+  pod=api.read_namespaced_pod(run,'default',_request_timeout=15)
+  labels=pod.metadata.labels or {}
+  if labels.get('evaluation-run')!=run or (expected_uid is not None and pod.metadata.uid!=expected_uid):
+   raise ValueError('Cleanup ownership mismatch')
+  api.delete_namespaced_pod(run,'default',grace_period_seconds=0,_request_timeout=20)
+ except ApiException as exc:
+  if exc.status==404:gone=True
+  else:errors.append({'phase':'delete','error_type':'ApiException','status':exc.status})
+ except Exception as exc:errors.append({'phase':'delete','error_type':type(exc).__name__})
+ if not errors and not gone:
+  for _ in range(45):
+   try:api.read_namespaced_pod(run,'default',_request_timeout=15)
+   except ApiException as exc:
+    if exc.status==404:gone=True;break
+    errors.append({'phase':'known-pod','error_type':'ApiException','status':exc.status});break
+   except Exception as exc:
+    errors.append({'phase':'known-pod','error_type':type(exc).__name__});break
+   time.sleep(1)
+ for i in range(2):
+  snapshot={}
+  try:
+   snapshot['pods']=[p.metadata.name for p in api.list_namespaced_pod('default',label_selector='evaluation-run='+run,_request_timeout=20).items]
+   for kind in ['sandboxsets','sandboxclaims','sandboxes']:
+    snapshot[kind]=[x['metadata']['name'] for x in custom.list_namespaced_custom_object('agents.kruise.io','v1alpha1','default',kind,label_selector='evaluation-run='+run,_request_timeout=20)['items']]
+  except ApiException as exc:errors.append({'phase':'snapshot','error_type':'ApiException','status':exc.status})
+  except Exception as exc:errors.append({'phase':'snapshot','error_type':type(exc).__name__})
+  checks.append(snapshot)
+  if i==0:time.sleep(2)
+ kinds={'pods','sandboxsets','sandboxclaims','sandboxes'}
+ return {'known_pod_404':gone,'two_snapshots':checks,'errors':errors,
+         'confirmed':gone and not errors and all(set(s)==kinds and all(not v for v in s.values()) for s in checks)}
+
 def main():
  parser=argparse.ArgumentParser(description='Operator-only ACS quality controller; role supplies only registered IDs through its dispatcher.')
  parser.add_argument('--settings',required=True,type=pathlib.Path)
@@ -119,22 +155,13 @@ def main():
 
  except Exception as exc:r['error_type']=type(exc).__name__;r['error_message']=str(exc)[:300] if not isinstance(exc,ApiException) else str(exc.status)
  finally:
-  if created:api.delete_namespaced_pod(run,'default',grace_period_seconds=0,_request_timeout=20)
-  gone=not created
-  for _ in range(45):
-   if gone:break
-   try:api.read_namespaced_pod(run,'default',_request_timeout=15)
-   except ApiException as exc:
-    if exc.status!=404:raise
-    gone=True;break
-   time.sleep(1)
-  checks=[]
-  for i in range(2):
-   s={'pods':[p.metadata.name for p in api.list_namespaced_pod('default',label_selector='evaluation-run='+run,_request_timeout=20).items]}
-   for kind in ['sandboxsets','sandboxclaims','sandboxes']:s[kind]=[x['metadata']['name'] for x in custom.list_namespaced_custom_object('agents.kruise.io','v1alpha1','default',kind,label_selector='evaluation-run='+run,_request_timeout=20)['items']]
-   checks.append(s)
-   if i==0:time.sleep(2)
-  r['cleanup']={'known_pod_404':gone,'two_snapshots':checks,'confirmed':gone and all(not v for s in checks for v in s.values())};p=out/('acs-quality-live-'+run+'.json');p.write_text(json.dumps(r,indent=2)+'\n');p.chmod(0o600);print(json.dumps(r),flush=True);assert r['cleanup']['confirmed']
+  # A second signal must not interrupt the bounded release/reconciliation pass.
+  signal.signal(signal.SIGTERM,signal.SIG_IGN)
+  signal.signal(signal.SIGINT,signal.SIG_IGN)
+  r['cleanup']=cleanup_owned(api,custom,run,r.get('pod_uid'))
+  p=out/('acs-quality-live-'+run+'.json');p.write_text(json.dumps(r,indent=2)+'\n');p.chmod(0o600)
+  print(json.dumps(r),flush=True)
+  if not r['cleanup']['confirmed']:raise RuntimeError('ACS resource cleanup unconfirmed; do not start another run')
 
 if __name__=='__main__':
  main()
