@@ -16,6 +16,27 @@ from universe_ack import UniverseACK
 from harbor.models.task.config import NetworkMode, NetworkPolicy
 
 class GuardTests(unittest.TestCase):
+    def test_expansion_profiles_keep_artifact_boundaries(self):
+        def initialize(obj, **kwargs):
+            obj._network_policy=kwargs['network_policy']
+            obj.pod_overrides=kwargs['pod_overrides']
+        image='example.invalid/verifier@sha256:'+'b'*64
+        workspace=Path(__file__).resolve().parents[3]
+        with tempfile.TemporaryDirectory(dir=workspace/'.tmp') as temp:
+            source=Path(temp)/'artifact';source.write_text('fixture')
+            for profile,roots in ScienceGuardedACK.REVIEWED_ARTIFACTS.items():
+                with self.subTest(profile=profile),patch.object(UniverseACK,'__init__',initialize):
+                    obj=ScienceGuardedACK(environment_dir=Path('/original/tests'),
+                        verifier_image=image,artifact_profile=profile,
+                        network_policy=NetworkPolicy(network_mode=NetworkMode.NO_NETWORK))
+                    for root in roots:obj._check_upload(source,root)
+                    for forbidden in ['/tests/test_state.py','/etc/profile','/app/other.json']:
+                        with self.assertRaises(ValueError):obj._check_upload(source,forbidden)
+                    paths=[m['mountPath'] for m in obj.pod_overrides['spec']['containers'][0]['volumeMounts']]
+                    self.assertEqual('/app' in paths,any(p.startswith('/app/') for p in roots))
+        with self.assertRaises(ValueError):
+            ScienceGuardedACK(environment_dir=Path('/tests'),artifact_profile='unknown')
+
     def test_verifier_evidence_includes_stdout_and_metrics(self):
         obj=object.__new__(UniverseACK)
         files={'reward.txt':b'0\n','test-stdout.txt':b'FAILED scientific assertion\n',

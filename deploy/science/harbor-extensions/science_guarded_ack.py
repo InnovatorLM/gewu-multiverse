@@ -12,7 +12,18 @@ from harbor.models.task.config import NetworkMode
 from universe_ack import UniverseACK
 
 class ScienceGuardedACK(UniverseACK):
-    def __init__(self, *, environment_dir, **kwargs):
+    REVIEWED_ARTIFACTS = {
+        'stacking-disorder-diffraction': ('/workspace/stacking_submission',),
+        'nanoindentation-property-extraction': ('/workspace/output/results.csv',),
+        'eeg-erp-recovery': ('/app/results/erp_features.csv',
+                             '/app/results/erp_waveforms.csv', '/app/results/qc_report.json'),
+        'certified-sparse-regression': ('/app/results.json',),
+    }
+
+    def __init__(self, *, environment_dir, artifact_profile='stacking-disorder-diffraction', **kwargs):
+        if artifact_profile not in self.REVIEWED_ARTIFACTS:
+            raise ValueError('Unreviewed Science artifact profile')
+        self._artifact_roots = tuple(PurePosixPath(p) for p in self.REVIEWED_ARTIFACTS[artifact_profile])
         self._guarded_verifier = Path(environment_dir).name == 'tests'
         policy = kwargs.get('network_policy')
         if self._guarded_verifier and policy and policy.network_mode == NetworkMode.NO_NETWORK:
@@ -56,6 +67,14 @@ class ScienceGuardedACK(UniverseACK):
                 },
                 'volumeMounts': [{'name': 'guard-tests', 'mountPath': '/seed'}],
             }]
+            if any(PurePosixPath('/app') in p.parents for p in self._artifact_roots):
+                # Reviewed additional verifiers store only artifact directories
+                # under /app. Seed the original directory before overlaying it.
+                spec['volumes'].append({'name': 'guard-app', 'emptyDir': {}})
+                main['volumeMounts'].append({'name': 'guard-app', 'mountPath': '/app'})
+                seed = spec['initContainers'][0]
+                seed['volumeMounts'].append({'name': 'guard-app', 'mountPath': '/seed-app'})
+                seed['command'][2] += '; cp -a /app/. /seed-app/'
             kwargs['pod_overrides'] = overrides
         super().__init__(environment_dir=environment_dir, **kwargs)
         if self.network_policy.network_mode == NetworkMode.NO_NETWORK:
@@ -70,10 +89,9 @@ class ScienceGuardedACK(UniverseACK):
         destination = PurePosixPath(target)
         if not destination.is_absolute() or '..' in destination.parts:
             raise ValueError('Absolute normalized verifier upload path required')
-        # This experimental adapter is deliberately scoped to the frozen
-        # stacking-disorder task, not arbitrary artifact destinations.
+        # Only frozen, reviewed upstream artifact profiles are accepted.
         # Tests must be baked into the immutable verifier image.
-        roots = (PurePosixPath('/workspace/stacking_submission'),)
+        roots = getattr(self, '_artifact_roots', (PurePosixPath('/workspace/stacking_submission'),))
         if not any(destination == root or root in destination.parents for root in roots):
             raise ValueError('Upload outside reviewed verifier artifact roots')
         source = Path(source)
