@@ -148,3 +148,14 @@ needs source-bound packaging, live worker validation, queue integration,
 cancellation and independent four-resource cleanup before this worker can be
 advertised as an autonomous ACS backend. No queue entry or production setting
 was changed by adding it.
+
+The reusable worker's lifecycle was subsequently tested in a real Beijing ACS
+Pod (`qa-live-6c0f2a2947`), with its exact source hash verified. The supplied
+public task's 20-file inventory remained unchanged. An explicitly substituted
+mock quality module exercised normal completion and SIGTERM cancellation,
+including a descendant that ignored SIGTERM. The descendant was no longer
+running after worker cleanup. Actual model calls were zero. Pod404 and two
+empty snapshots of all four resource categories were confirmed. This proves
+the tested worker lifecycle on ACS; the mock report is not a schema-validated
+quality judgment or a live LLM review. Queue integration and a real review of
+the reusable worker remain incomplete.
