@@ -174,7 +174,7 @@ pub fn execute(cwd: &Path, argv: &[&str], timeout: u64) -> Result<Output, String
         .set_read_timeout(Some(Duration::from_secs(timeout.min(1800) + 5)))
         .map_err(|_| "broker timeout cannot be set")?;
     stream
-        .set_write_timeout(Some(Duration::from_secs(5)))
+        .set_write_timeout(Some(Duration::from_secs(120)))
         .map_err(|_| "broker timeout cannot be set")?;
     let request = serde_json::json!({"role": role, "cwd": inside, "argv": argv, "timeout": timeout.clamp(1,1800)});
     let mut bytes = serde_json::to_vec(&request).map_err(|_| "broker request cannot be encoded")?;

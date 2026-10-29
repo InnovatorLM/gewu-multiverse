@@ -24,6 +24,7 @@ import time
 
 MAX_REQUEST = 16 * 1024 * 1024
 MAX_OUTPUT = 1048576
+BROKER_LOG = "/mnt/data/zhanglinfeng/workspace/.state/science-role-broker/production-broker.log"
 
 
 def trusted(path, directory=False, owner=0):
@@ -254,9 +255,14 @@ class Handler(socketserver.StreamRequestHandler):
             _, uid, _ = struct.unpack('3i', self.request.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12))
             if uid not in {0, self.server.config['controller_uid']}:
                 raise ValueError('Controller UID required')
-            self.request.settimeout(5)
+            self.request.settimeout(120)
             line = self.rfile.readline(MAX_REQUEST + 1)
             if len(line) > MAX_REQUEST or not line.endswith(b'\n'):
+                try:
+                    with open(BROKER_LOG, 'a') as log:
+                        log.write(f'broker refusal bytes={len(line)} max={MAX_REQUEST} newline={line.endswith(bytes([10]))}\n')
+                except OSError:
+                    pass
                 raise ValueError('Request too large or incomplete')
             request = json.loads(line)
             self.request.settimeout(None)
