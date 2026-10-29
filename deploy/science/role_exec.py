@@ -277,7 +277,11 @@ class Handler(socketserver.StreamRequestHandler):
 
 
 class Server(socketserver.ForkingMixIn, socketserver.UnixStreamServer):
-    max_children = 3
+    # Each active role owns one broker child while its Codex session is alive.
+    # Three slots starved the 14-role universe: queued role requests timed out
+    # before their run could write a transcript. Keep a bounded but sufficient
+    # pool for the configured author/evaluator/curator set.
+    max_children = 32
     block_on_close = True
 
 
