@@ -8,6 +8,17 @@ import subprocess
 w = Path('/mnt/data/zhanglinfeng/workspace')
 universe = w / 'universes/my-terminal-bench-science'
 source = w / '.state/role-chroot-proof'
+# Python package installation is role-local: vendor pip into the immutable
+# runtime source, while each role receives its own user site and cache.
+host_pip = Path('/usr/local/lib/python3.10/site-packages/pip')
+host_pip_info = Path('/usr/local/lib/python3.10/site-packages/pip-23.0.1.dist-info')
+if host_pip.is_dir():
+    shutil.copytree(host_pip, source / 'usr/local/lib/python3.10/site-packages/pip', dirs_exist_ok=True)
+if host_pip_info.is_dir():
+    shutil.copytree(host_pip_info, source / 'usr/local/lib/python3.10/site-packages/pip-23.0.1.dist-info', dirs_exist_ok=True)
+pip_launcher = source / 'usr/local/bin/pip'
+pip_launcher.write_text('#!/bin/sh\nexec /usr/local/bin/python3 -m pip \"$@\"\n')
+pip_launcher.chmod(0o755)
 control = w / '.state/science-role-broker'
 control.mkdir(exist_ok=True)
 control.chmod(0o755)
