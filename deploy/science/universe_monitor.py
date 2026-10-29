@@ -131,7 +131,8 @@ def events_for(role,run_id,offset=0,limit=100):
         f.seek(offset)
         for _ in range(min(max(limit,1),200)):
             line=f.readline()
-            if not line or not line.endswith(bytes([10])): break
+            if not line: break
+            if not line.endswith(bytes([10])) and kind not in ('final','log','stderr'): break
             next_offset=f.tell()
             try: events.append({'event':'log','text':redact(line.decode(errors='replace'))} if kind in ('log','stderr','final') else redact(json.loads(line)))
             except ValueError: events.append({'event':'raw_output','text':redact(line.decode(errors='replace'))})
