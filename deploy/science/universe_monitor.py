@@ -28,7 +28,7 @@ def snapshot():
                 try:
                     e=json.loads(line); events.append({'event':e.get('event') or e.get('type'),'ts':e.get('ts'),'text':safe(str(e.get('text',''))), 'tool':safe(str(e.get('command','')) )})
                 except Exception: pass
-        out.append({'role':role_dir.name,'run':run.name,'updated':max(p.stat().st_mtime for p in run.iterdir() if p.is_file()),'model':MODEL,'log':safe(text),'events':events[-12:]})
+        out.append({'role':role_dir.name,'run':run.name,'updated':max((p.stat().st_mtime for p in run.iterdir() if p.is_file()),default=run.stat().st_mtime),'model':MODEL,'log':safe(text),'events':events[-12:]})
     return {'now':time.time(),'roles':out,'brief':read_brief()}
 
 def read_brief():
