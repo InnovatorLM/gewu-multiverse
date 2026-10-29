@@ -9,6 +9,7 @@ export XDG_CONFIG_HOME="$U/.config" XDG_STATE_HOME="$U/.state"
 export XDG_DATA_HOME="$U/.local/share" XDG_CACHE_HOME="$U/.cache"
 export HOME="$U/.local/home" GIT_CONFIG_GLOBAL="$U/.config/gitconfig"
 export GEWU_HARNESS=native
+export GEWU_SESSION_TIMEOUT_SECS=14400
 export GEWU_RESPONSE_TOKENS=8192
 export GEWU_CHAT_THINKING=disabled
 export GEWU_FORGEJO_TIMEOUT_SECS=120

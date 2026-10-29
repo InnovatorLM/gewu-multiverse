@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 from review_dispatcher import fingerprint
 class WakeTests(unittest.TestCase):
     def test_self_comments_do_not_wake(self):
@@ -26,7 +27,8 @@ class FakeApi:
         return issue
 
 class DispatchTests(unittest.TestCase):
-    def test_exclusive_wait_resume_and_revision(self):
+    @patch("author_submission_gate.approved", return_value=True)
+    def test_exclusive_wait_resume_and_revision(self, approved):
         import tempfile,json,os
         from pathlib import Path
         import review_dispatcher as m
@@ -50,4 +52,18 @@ class DispatchTests(unittest.TestCase):
                 m.reconcile(api,cfg,ledger);self.assertEqual(len(api.issues),2);self.assertEqual(row['generation'],1)
                 api.pulls[0]['head']['sha']='def';m.reconcile(api,cfg,ledger)
                 self.assertNotIn('30:def',ledger) # No simultaneous revision ownership.
+            finally:m.STATE=original
+
+    @patch("author_submission_gate.approved", return_value=False)
+    def test_unverified_author_never_dispatched(self, approved):
+        import tempfile
+        from pathlib import Path
+        import review_dispatcher as m
+        with tempfile.TemporaryDirectory(dir=m.W/'.tmp') as d:
+            original=m.STATE;m.STATE=Path(d)
+            try:
+                api=FakeApi();ledger={}
+                m.reconcile(api,{'roles':{}},ledger)
+                self.assertEqual(api.issues,[])
+                self.assertEqual(ledger,{})
             finally:m.STATE=original

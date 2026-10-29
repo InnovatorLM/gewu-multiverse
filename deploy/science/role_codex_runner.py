@@ -124,7 +124,7 @@ def run(request):
         'All generated files belong under /workspace or the provided temporary runtime.' + chr(10)
     )
     timeout = request['timeout']
-    if type(timeout) is not int or not 1 <= timeout <= 1740:
+    if type(timeout) is not int or not 1 <= timeout <= 14400:
         raise ValueError('Invalid timeout')
     token = os.environ['GEWU_ROLE_GATEWAY_TOKEN']
     if not re.fullmatch(r'[a-f0-9]{64}', token):

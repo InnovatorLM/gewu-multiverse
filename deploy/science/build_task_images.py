@@ -65,7 +65,10 @@ def validate_build_receipt(receipt,snapshot,commit,task_path,template):
         raise ValueError('Require published source receipt, not scientific acceptance')
     if receipt.get('environment_context_sha256')!=digest_tree(snapshot/'environment') or receipt.get('tests_context_sha256')!=digest_tree(snapshot/'tests'):
         raise ValueError('Build contexts differ from frozen task')
-    if receipt.get('harness_versions')!=HARNESS:
+    if receipt.get('harness','mini-swe-agent')=='codex':
+        versions=receipt.get('harness_versions',{})
+        if set(versions)!={'codex','rg'} or any(not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+',v) for v in versions.values()):raise ValueError('Codex harness version receipt mismatch')
+    elif receipt.get('harness_versions')!=HARNESS:
         raise ValueError('Harness version receipt mismatch')
     images=receipt['images'];expected_prefix=REGISTRY+'/'+Path(task_path).name
     for role,context_hash in [('official',receipt['environment_context_sha256']),('runtime',receipt['runtime_adapter_context_sha256']),('verifier',receipt['verifier_effective_context_sha256'])]:
@@ -115,6 +118,9 @@ def publish_image(docker,tag,image_id):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     for flag in ['repo','commit','task-path','output','python-base']:parser.add_argument('--'+flag,required=True)
+    parser.add_argument('--harness',choices=['codex','mini-swe-agent'],default='codex')
+    parser.add_argument('--codex-binary')
+    parser.add_argument('--rg-binary')
     parser.add_argument('--publish',action='store_true',help='Push project Shanghai ACR images and verify manifest/config linkage')
     args=parser.parse_args();output=Path(args.output)
     if os.geteuid()!=0 or not output.resolve().is_relative_to(W) or output.exists() or not PINNED.fullmatch(args.python_base):raise ValueError('Require operator, fresh workspace output and pinned base image')
@@ -144,11 +150,30 @@ def main():
             atomic_json(output/'images-in-progress.json',images)
             return images[role]['published_digest'] or image['Id']
         official=build('official',snapshot/'environment',REGISTRY+'/'+task_name+':official',env_hash)
-        runtime=output/'runtime';runtime.mkdir()
-        requirements=' '.join("'"+name+'=='+version+"'" for name,version in HARNESS.items())
-        (runtime/'Dockerfile').write_text('FROM '+official+'\nENV PIP_NO_CACHE_DIR=1 LITELLM_LOCAL_MODEL_COST_MAP=True\nRUN python3 -m pip install --timeout 30 --retries 1 '+requirements+'\nRUN python3 -c "from minisweagent.models.litellm_model import LitellmModel"\n')
+        runtime=output/'runtime'
+        codex_metadata=None
+        if args.harness=='codex':
+            if not args.codex_binary or not args.rg_binary:raise ValueError('Codex requires explicit workspace native binaries')
+            from codex_runtime_context import prepare
+            codex_metadata=prepare(runtime,official,args.codex_binary,args.rg_binary)
+        else:runtime.mkdir()
+        harness_base=os.environ.get('UE_HARNESS_BASE_IMAGE')
+        if harness_base and not PINNED.fullmatch(harness_base):
+            raise ValueError('UE_HARNESS_BASE_IMAGE must be digest-pinned')
+        if harness_base:
+            dockerfile=('FROM '+harness_base+' AS harness\nFROM '+official+'\n'
+                        'COPY --from=harness /usr/local/bin/ /opt/harness-bin/\n'
+                        'COPY --from=harness /usr/local/lib/python3.11/site-packages/ /opt/harness-site/\n'
+                        'COPY --from=harness /usr/local/bin/mini-swe-agent /usr/local/bin/mini-swe-agent\n'
+                        'RUN cp -a /opt/harness-site/. /usr/local/lib/python3.12/site-packages/ 2>/dev/null || cp -a /opt/harness-site/. /usr/local/lib/python3.11/site-packages/\n'
+                        'ENV PATH=/usr/local/bin:$PATH LITELLM_LOCAL_MODEL_COST_MAP=True\n'
+                        'RUN python3 -c "from minisweagent.models.litellm_model import LitellmModel"\n')
+        else:
+            requirements=' '.join("'"+name+'=='+version+"'" for name,version in HARNESS.items())
+            dockerfile='FROM '+official+'\nENV PIP_NO_CACHE_DIR=1 LITELLM_LOCAL_MODEL_COST_MAP=True\nRUN python3 -m pip install --timeout 30 --retries 1 '+requirements+'\nRUN python3 -c "from minisweagent.models.litellm_model import LitellmModel"\n'
+        if args.harness!='codex':(runtime/'Dockerfile').write_text(dockerfile)
         runtime_hash=validate_context(runtime)
-        build('runtime',runtime,REGISTRY+'/'+task_name+':minisweagent-2.2.8',runtime_hash)
+        build('runtime',runtime,REGISTRY+'/'+task_name+':'+(codex_metadata['runtime_tag'] if codex_metadata else 'minisweagent-2.2.8'),runtime_hash)
         if (snapshot/'tests/Dockerfile').exists():
             verifier_context=snapshot/'tests'
         else:
@@ -156,7 +181,7 @@ def main():
         verifier_hash=validate_context(verifier_context)
         build('verifier',verifier_context,REGISTRY+'/'+task_name+'-verifier:official',verifier_hash)
         if digest_tree(snapshot)!=task_hash or digest_tree(snapshot/'environment')!=env_hash or digest_tree(snapshot/'tests')!=tests_hash:raise ValueError('Frozen source changed during image build')
-        atomic_json(output/'receipt.json',{**identity,'images':images,'runtime_adapter_context_sha256':runtime_hash,'verifier_effective_context_sha256':verifier_hash,'harness_versions':HARNESS,'published':args.publish,'registry_config_linkage_verified':args.publish,'standard_tests_uploaded_by_harbor':not (snapshot/'tests/Dockerfile').exists(),'scientific_acceptance':False})
+        atomic_json(output/'receipt.json',{**identity,'images':images,'runtime_adapter_context_sha256':runtime_hash,'verifier_effective_context_sha256':verifier_hash,'harness_versions':(codex_metadata['harness_versions'] if codex_metadata else HARNESS),'harness':args.harness,'native_binaries':(codex_metadata['native_binaries'] if codex_metadata else {}),'published':args.publish,'registry_config_linkage_verified':args.publish,'standard_tests_uploaded_by_harbor':not (snapshot/'tests/Dockerfile').exists(),'scientific_acceptance':False})
         print(json.dumps({'source_commit':args.commit,'task_name':task_name,'published':args.publish,'receipt_complete':True,'scientific_acceptance':False}))
 
 

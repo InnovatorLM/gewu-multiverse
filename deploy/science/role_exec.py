@@ -80,7 +80,7 @@ def limits():
     # Git packfiles legitimately exceed 64 MiB. A per-file cap killed
     # index-pack with SIGXFSZ and surfaced only as invalid index-pack output.
     # Retain command lifetime/output limits without capping repository files.
-    resource.setrlimit(resource.RLIMIT_CPU, (120, 120))
+    resource.setrlimit(resource.RLIMIT_CPU, (14400, 14400))
 
 
 def role_processes(uid):
@@ -149,7 +149,7 @@ def execute_command(config, request, connection, gateway_env=()):
     if not isinstance(argv, list) or not argv or len(argv) > 256 or any(not isinstance(arg, str) or '\0' in arg for arg in argv):
         raise ValueError('Invalid command arguments')
     timeout = request['timeout']
-    if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or not 0 < timeout <= 1800:
+    if isinstance(timeout, bool) or not isinstance(timeout, (int, float)) or not 0 < timeout <= 14400:
         raise ValueError('Invalid command timeout')
     # No command string is interpreted on the host. chroot discards supplementary
     # groups; no_new_privs prevents staged setuid/file-capability escalation.
@@ -211,8 +211,19 @@ def execute_command(config, request, connection, gateway_env=()):
         selector.close()
         process.stdout.close()
         process.stderr.close()
-    return {'returncode': process.returncode, 'stdout': bytes(chunks['stdout'][:MAX_OUTPUT]).decode(errors='replace'),
-            'stderr': bytes(chunks['stderr'][:MAX_OUTPUT]).decode(errors='replace'), 'termination': reason,
+    # Redact before any output can enter native model messages or transcripts.
+    secret_values = []
+    credential = root / 'home/role/git-credential.json'
+    if credential.exists():
+        record = json.loads(credential.read_text())
+        secret_values.extend(v for k,v in record.items() if k in ('token','password') and isinstance(v,str) and v)
+    secret_values.extend(v.split('=',1)[1] for v in gateway_env if v.startswith('GEWU_ROLE_GATEWAY_TOKEN='))
+    def clean_output(data):
+        text = bytes(data[:MAX_OUTPUT]).decode(errors='replace')
+        for secret in secret_values: text = text.replace(secret, '[REDACTED]')
+        return re.sub(r'(?i)(authorization[\"\s:=]+(?:bearer|token)\s+)[^\s\",]+', r'\1[REDACTED]', text)
+    return {'returncode': process.returncode, 'stdout': clean_output(chunks['stdout']),
+            'stderr': clean_output(chunks['stderr']), 'termination': reason,
             'cleanup_confirmed': not remaining}
 
 

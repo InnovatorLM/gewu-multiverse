@@ -35,6 +35,15 @@ def reconcile(api,config,ledger):
         match=re.search(r'tasks/[a-zA-Z0-9_./-]+',pr.get('body') or '')
         if not match:continue
         task=match.group(0).rstrip('./');key=str(pr['number'])+':'+pr['head']['sha']
+        from author_submission_gate import approved
+        if not approved(pr['head']['sha'],task):
+            old=ledger.get(key)
+            if old and old.get('issue'):
+                api.call('PATCH','/issues/'+str(old['issue']),{'state':'closed'})
+                old.update(state='waiting_author',stage='author_container_preflight',reason='Author pre-submission container checks and iteration evidence required')
+                wake=Path(config['roles'][old['role']]['root'])/'review-dispatch.json'
+                atomic(wake,dict(key=key,generation=old['generation'],state=old['state']));wake.chmod(0o644)
+            continue
         comments=api.pages('/issues/'+str(pr['number'])+'/comments');event=fingerprint(pr,comments)
         if any(v['pr']==pr['number'] and k!=key and v['state']=='reviewing' for k,v in ledger.items()):
             continue  # Finish or park prior revision before assigning the new one.
@@ -64,7 +73,10 @@ def reconcile(api,config,ledger):
         if row['state'] in ('waiting_author','waiting_platform') and event!=row['event']:
             if not any(v['state']=='reviewing' and v['role']==row['role'] for k,v in ledger.items() if k!=key):
                 row.update(state='reviewing',event=event,generation=row['generation']+1,issue=None)
-        if row['state']!='reviewing':continue
+        wake=root/'review-dispatch.json'
+        if row['state']!='reviewing':
+            atomic(wake,dict(key=key,generation=row['generation'],state=row['state']));wake.chmod(0o644)
+            continue
         marker=MARK+' '+key+' generation='+str(row['generation'])
         if not row.get('issue'):
             existing=[i for i in api.pages('/issues?state=all&type=issues') if marker in (i.get('body') or '')]
@@ -75,6 +87,7 @@ def reconcile(api,config,ledger):
                 issue=api.call('POST','/issues',{'title':'[独占评测] PR #'+str(row['pr'])+' '+row['commit'][:8],'body':body,'assignees':['gewu-'+row['role']]})
             row['issue']=issue['number']
         assignment=root/'home/role/review-assignment.json';atomic(assignment,dict(row,key=key));os.chown(assignment,config['roles'][row['role']]['uid'],config['roles'][row['role']]['gid'])
+        atomic(wake,dict(key=key,generation=row['generation'],state=row['state']));wake.chmod(0o644)
     atomic(STATE/'ledger.json',ledger)
 
 def main():

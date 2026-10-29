@@ -72,6 +72,27 @@ try:
     result = connect(request('author-01', "python3 -c \"from pathlib import Path; p=Path('large-pack-check'); f=p.open('wb'); f.seek(65*1024*1024); f.write(b'x'); f.close(); assert p.stat().st_size > 64*1024*1024; p.unlink()\""))
     assert result['returncode'] == 0 and result['cleanup_confirmed'], result
     report['large_git_pack_file_supported'] = True
+    # A long declared command is accepted without the historical 120s CPU cap.
+    result = connect(request('author-01', 'ulimit -t; echo long-budget-ok', timeout=14400))
+    assert result['returncode'] == 0 and result['stdout'].splitlines()[0] == '14400', result
+    report['four_hour_command_budget'] = True
+    # Role secrets must be removed before broker output reaches model/logging.
+    credential = Path(config['roles']['author-01']['root']) / 'home/role/git-credential.json'
+    credential.write_text(json.dumps({'login':'fixture','token':'fixture-secret-do-not-persist'}))
+    credential.chmod(0o600)
+    os.chown(credential, config['roles']['author-01']['uid'], config['roles']['author-01']['gid'])
+    try:
+        result = connect(request('author-01', 'cat /home/role/git-credential.json; echo "Authorization: Bearer fixture-header-secret" >&2'))
+        assert result['returncode'] == 0, result
+        assert 'fixture-secret-do-not-persist' not in result['stdout'], result
+        assert 'fixture-header-secret' not in result['stderr'], result
+        assert '[REDACTED]' in result['stdout'], result
+    finally:
+        credential.unlink(missing_ok=True)
+    report['credentials_redacted_before_transport'] = True
+    result = connect(dict(role='author-01',cwd='/workspace',argv=['/bin/bash','-o','pipefail','-c','false | cat'],timeout=10))
+    assert result['returncode'] != 0, result
+    report['pipeline_failure_propagated'] = True
     result = connect(request('author-01', 'sleep 30', timeout=0.3))
     # Add a sleep binary to fixture if the minimal tool set lacks it.
     if result['returncode'] == 127:

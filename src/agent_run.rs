@@ -2291,14 +2291,14 @@ fn run_codex_harness(
         let request = serde_json::json!({
             "role": plan.agent,
             "instruction": String::from_utf8_lossy(instruction),
-            "timeout": plan.timeout_secs.clamp(1, 1740),
+            "timeout": plan.timeout_secs.clamp(1, 14400),
         })
         .to_string();
         let started = Instant::now();
         let output = match crate::role_broker::execute(
             &plan.workspace,
             &["/usr/local/bin/role-codex-runner", &request],
-            plan.timeout_secs.clamp(1, 1740) + 30,
+            plan.timeout_secs.clamp(1, 14400) + 30,
         ) {
             Ok(output) => output,
             Err(reason) => return RunEnd::failed(reason),
@@ -2743,7 +2743,7 @@ fn model_loop(
     let mut evidence = RunEvidence::default();
 
     loop {
-        if turn >= plan.max_turns {
+        if plan.max_turns != 0 && turn >= plan.max_turns {
             return RunEnd::failed(format!(
                 "the run reached its declared maximum of {} (bound: max_turns) and the model still asked to continue",
                 words::counted(plan.max_turns as usize, "turn", "turns")
@@ -2785,17 +2785,22 @@ fn model_loop(
         if let Some(system) = request_messages.first_mut() {
             let left = plan.max_turns.saturating_sub(turn);
             let mut text = system.content.take().unwrap_or_default();
+            let response_budget = if plan.max_turns == 0 {
+                format!("turn {turn}; no response-count limit")
+            } else {
+                format!("turn {turn} of {}; {left} model responses remain after this one", plan.max_turns)
+            };
             text.push_str(&format!(
-                "\nRun progress: turn {turn} of {}; {left} model responses remain after this one; approximately {} seconds remain. Persist useful intermediate findings in your own workspace when work spans sessions. Do not repeatedly retry an unavailable source without new evidence.\n",
-                plan.max_turns, remaining.as_secs()
+                "\nRun progress: {response_budget}; approximately {} seconds remain. Persist useful intermediate findings in your own workspace when work spans sessions. Do not repeatedly retry an unavailable source without new evidence.\n",
+                remaining.as_secs()
             ));
-            if left <= 3 {
+            if plan.max_turns != 0 && left <= 3 {
                 text.push_str("Finalization window: prioritize saving the requested artifacts or an honest handoff with exact file paths, verified facts, unresolved blockers and next steps. Avoid starting new long network investigations. Do not claim incomplete work is finished.\n");
                 text.push_str("The response-count limit applies even if wall-clock time remains. Do not spend the remaining responses gathering optional evidence. Save the current requested deliverables with explicit unknowns now; a partial handoff is preferable to losing all findings.\n");
             }
-            if left == 1 {
+            if plan.max_turns != 0 && left == 1 {
                 text.push_str("Penultimate response: finish any necessary file writes in one bounded command now. Reserve the next response for your final handoff; do not start another investigation.\n");
-            } else if left == 0 {
+            } else if plan.max_turns != 0 && left == 0 {
                 text.push_str("Last response: give the final handoff without tool calls. State exactly which artifacts were actually saved and what is incomplete. There is no next model response to read another tool result.\n");
             }
             system.content = Some(text);
@@ -3358,11 +3363,12 @@ fn system_prompt(plan: &RunPlan, forgejo: Option<&ForgejoTools>) -> String {
             writes = forgejo_tools::WRITE_BOUND,
         ));
     }
-    prompt.push_str(&format!(
-        "When the work is done, reply with a short summary and no tool call. You have at \
-         most {max_turns} turns in this run.",
-        max_turns = plan.max_turns,
-    ));
+    prompt.push_str("When the work is done, reply with a short summary and no tool call. ");
+    if plan.max_turns == 0 {
+        prompt.push_str("There is no response-count limit; the declared wall-clock deadline still applies.");
+    } else {
+        prompt.push_str(&format!("You have at most {} turns in this run.", plan.max_turns));
+    }
     prompt
 }
 
@@ -3629,8 +3635,8 @@ fn run_shell(
         crate::role_broker::validate_role(&plan.workspace, &plan.agent)?;
         let output = crate::role_broker::execute(
             &shell.workspace,
-            &["/bin/bash", "-c", command],
-            plan.timeout_secs.min(120),
+            &["/bin/bash", "-o", "pipefail", "-c", command],
+            plan.timeout_secs.min(14400),
         )?;
         let mut text = output.stdout;
         if !output.stderr.is_empty() {
@@ -4895,6 +4901,30 @@ mod tests {
             "a TMPDIR under the home leaves the home visible: {hide:?}"
         );
         assert!(hide.iter().any(|path| path == &config));
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn zero_turn_bound_allows_multiple_tools_without_finalization_warning() {
+        let (root, config, skills, credentials) = agent_source("agent-run-unlimited");
+        let dir = run_dir(&root);
+        fs::write(config.join("instruction.md"), "check twice then report\n").unwrap();
+        let stub = Stub::start(vec![
+            StubReply::json(tool_call_completion("first", "true")),
+            StubReply::json(tool_call_completion("second", "true")),
+            StubReply::json(completion("done")),
+        ]);
+        plan_with(&dir, &config, &skills, &credentials, &stub.url(), 0, Vec::new());
+        assert!(execute(&dir).is_success());
+        let requests = stub.requests();
+        assert_eq!(requests.len(), 3);
+        for request in &requests {
+            let body: serde_json::Value = serde_json::from_str(&request.body).unwrap();
+            let system = body["messages"][0]["content"].as_str().unwrap();
+            assert!(system.contains("no response-count limit"));
+            assert!(!system.contains("Finalization window"));
+            assert!(!system.contains("at most 0 turns"));
+        }
         let _ = fs::remove_dir_all(&root);
     }
 

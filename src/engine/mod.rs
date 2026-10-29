@@ -163,7 +163,7 @@ impl EngineOptions {
             layout,
             data_root,
             product_binary,
-            session_timeout: DEFAULT_SESSION_TIMEOUT,
+            session_timeout: std::env::var("GEWU_SESSION_TIMEOUT_SECS").ok().and_then(|v| v.parse::<u64>().ok()).filter(|v| (60..=14400).contains(v)).map(Duration::from_secs).unwrap_or(DEFAULT_SESSION_TIMEOUT),
             stop_grace: DEFAULT_STOP_GRACE,
             ready_timeout: DEFAULT_READY_TIMEOUT,
             auto_start_forgejo: true,
@@ -1486,6 +1486,12 @@ impl Inner {
                 continue;
             }
             if self.block_reason(index).is_some() {
+                continue;
+            }
+            if std::env::var_os(crate::role_broker::CONFIG_ENV).is_some()
+                && name.starts_with("evaluator-")
+                && !review_assignment_ready(&self.options.layout.agents_dir().join(&name))
+            {
                 continue;
             }
             if let Some(request) = self.session_request(index) {
@@ -3055,6 +3061,37 @@ fn provision_agent_job(inner: Arc<Mutex<Inner>>, name: String) {
                 inner.note(format!("`{name}` could not be connected — it tries again"));
             }
         }
+    }
+}
+
+/// Park deployed evaluators before model invocation until a new review generation exists.
+fn review_assignment_ready(root: &Path) -> bool {
+    // Dispatcher publishes no credentials here; private role home stays 0700.
+    let Ok(bytes) = fs::read(root.join("review-dispatch.json")) else { return false; };
+    let Ok(assignment) = serde_json::from_slice::<serde_json::Value>(&bytes) else { return false; };
+    assignment["state"] == "reviewing"
+        && assignment["key"].is_string()
+        && assignment["generation"].is_u64()
+}
+
+#[cfg(test)]
+mod review_assignment_tests {
+    use super::*;
+    #[test]
+    fn waiting_evaluators_need_a_new_assignment_generation() {
+        let root = crate::test_support::scratch_root("review-idle-gate");
+        let home = root.join("home/role");
+        fs::create_dir_all(&home).unwrap();
+        assert!(!review_assignment_ready(&root));
+        fs::write(root.join("review-dispatch.json"), r#"{"key":"30:abc","generation":0,"state":"reviewing"}"#).unwrap();
+        assert!(review_assignment_ready(&root));
+        for state in ["waiting_author", "waiting_platform", "completed"] {
+            fs::write(root.join("review-dispatch.json"), serde_json::json!({"key":"30:abc","generation":0,"state":state}).to_string()).unwrap();
+            assert!(!review_assignment_ready(&root));
+        }
+        fs::write(root.join("review-dispatch.json"), r#"{"key":"30:abc","generation":1,"state":"reviewing"}"#).unwrap();
+        assert!(review_assignment_ready(&root));
+        let _ = fs::remove_dir_all(root);
     }
 }
 

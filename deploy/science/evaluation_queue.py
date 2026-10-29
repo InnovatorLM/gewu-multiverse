@@ -111,8 +111,16 @@ def validated_template(entry, request):
     if environment.get('use_sandbox_claim') is not False or any(not re.fullmatch(image_pattern, environment.get(key, '')) for key in ['runtime_image', 'verifier_image']):
         raise ValueError('Require direct Pods and digest-pinned project ACR images')
     agent = config['agents'][0]
-    if agent['model_name'] != 'openai/deepseek-v4.1-flash-1017' or agent['import_path'] != 'universe_metrics:MetadataOnlyMiniSwe':
-        raise ValueError('Model/aggregate-only harness refused')
+    codex = agent.get('name') == 'codex-preinstall' and not agent.get('import_path')
+    legacy = agent.get('import_path') == 'universe_metrics:MetadataOnlyMiniSwe'
+    if agent.get('model_name') != 'openai/deepseek-v4.1-flash-1017' or not (codex or legacy):
+        raise ValueError('Model/harness refused')
+    if codex:
+        if agent.get('override_timeout_sec') != 14400 or agent.get('kwargs',{}).get('max_steps') is not None:
+            raise ValueError('Codex requires four-hour wall-clock budget and no step bound')
+        env = agent.get('env',{})
+        if env.get('CODEX_MODEL_PROVIDER') != 'dawnfm' or env.get('CODEX_WIRE_API') != 'responses':
+            raise ValueError('Explicit Codex provider and Responses protocol required')
     options = agent.get('kwargs', {})
     if 'private_trajectory_dir' in options or type(options.get('retain_private_trajectory', False)) is not bool:
         raise ValueError('Private trajectory destinations are assigned only by the worker')
@@ -206,7 +214,7 @@ def process(config, request_path, mock=False):
             raise ValueError('Prior job cleanup is not confirmed')
     day = datetime.now(timezone.utc).date().isoformat()
     count = sum(json.loads(path.read_text()).get('day') == day for path in state.glob('*/claim.json'))
-    if count >= config['max_jobs_per_day']:
+    if config['max_jobs_per_day'] and count >= config['max_jobs_per_day']:
         raise ValueError('Daily dispatch budget exhausted')
     job.mkdir(mode=0o700)
     atomic_json(job / 'claim.json', {'day': day, **request, 'mock': mock})
@@ -266,7 +274,7 @@ def process(config, request_path, mock=False):
                 if stop_requested:
                     stop(None, None)
                 try:
-                    child.wait(timeout=2400 if dispatch == 'quality_diagnostic' and quality_backend == 'acs' else 1800)
+                    child.wait(timeout=75600 if dispatch == 'quality_diagnostic' and quality_backend == 'acs' else 15600 if dispatch == 'solver' else 1800)
                 except subprocess.TimeoutExpired:
                     os.killpg(child.pid, signal.SIGTERM)
                     child.wait(timeout=180)
@@ -331,36 +339,45 @@ def main():
     registry = json.loads(root_file(config['registry']).read_text())
     if not isinstance(registry, dict) or not registry:
         raise SystemExit('An operator-registered evaluation catalog is required')
-    if type(config.get('evaluator_uid')) is not int or config['evaluator_uid'] < 20000:
-        raise SystemExit('Evaluator must use a dedicated nonroot role UID')
-    if type(config.get('max_jobs_per_day')) is not int or not 1 <= config['max_jobs_per_day'] <= 10:
-        raise SystemExit('Dispatch budget must be explicitly between1and10')
-    for key in ['inbox', 'results', 'state']:
-        path = Path(config[key])
-        info = path.lstat()
-        expected = config['evaluator_uid'] if key == 'inbox' else 0
-        if path.is_symlink() or not path.is_relative_to(W) or not path.is_dir() or info.st_uid != expected or info.st_mode & 0o022:
-            raise SystemExit('Queue directory ownership/type/mode refused')
+    queues = config.get('role_queues') or [{key:config[key] for key in ('inbox','results','evaluator_uid')}]
+    budget = config.get('max_jobs_per_day', 0)
+    if type(budget) is not int or budget < 0:
+        raise SystemExit('Dispatch budget must be nonnegative; zero means unlimited')
+    config['max_jobs_per_day'] = budget
+    identities = set()
+    for queue in queues:
+        uid = queue.get('evaluator_uid')
+        if type(uid) is not int or uid < 20000 or uid in identities:
+            raise SystemExit('Evaluator requires a distinct dedicated nonroot UID')
+        identities.add(uid)
+        for key in ('inbox', 'results', 'state'):
+            path = Path(config['state'] if key == 'state' else queue[key])
+            info = path.lstat()
+            expected = uid if key == 'inbox' else 0
+            if path.is_symlink() or not path.is_relative_to(W) or not path.is_dir() or info.st_uid != expected or info.st_mode & 0o022:
+                raise SystemExit('Queue directory ownership/type/mode refused')
     with (Path(config['state']) / 'worker.lock').open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         if args.ready_file is not None:
             if args.ready_file.parent.resolve() != Path(config['state']).resolve():
                 raise SystemExit('Readiness file must be in the private worker state directory')
-            atomic_json(args.ready_file, {'pid': os.getpid(), 'evaluator_uid': config['evaluator_uid']})
+            atomic_json(args.ready_file, {'pid': os.getpid(), 'evaluator_uids': sorted(identities)})
         while True:
             handled = 0
-            for request_path in sorted(Path(config['inbox']).glob('*.json')):
-                if not ID.fullmatch(request_path.stem):
-                    continue
-                if (Path(config['results']) / request_path.name).exists():
-                    continue
-                if handled >= 10:
-                    break
-                handled += 1
-                try:
-                    process(config, request_path, args.mock)
-                except (ValueError, OSError, KeyError, TypeError, json.JSONDecodeError):
-                    atomic_json(Path(config['results']) / request_path.name, {'job_id': request_path.stem, 'status': 'rejected', 'quality_acceptance': False}, 0o644)
+            for queue in queues:
+                role_config = {**config, **queue}
+                for request_path in sorted(Path(role_config['inbox']).glob('*.json')):
+                    if not ID.fullmatch(request_path.stem):
+                        continue
+                    if (Path(role_config['results']) / request_path.name).exists():
+                        continue
+                    if handled >= 10:
+                        break
+                    handled += 1
+                    try:
+                        process(role_config, request_path, args.mock)
+                    except (ValueError, OSError, KeyError, TypeError, json.JSONDecodeError):
+                        atomic_json(Path(role_config['results']) / request_path.name, {'job_id': request_path.stem, 'status': 'rejected', 'quality_acceptance': False}, 0o644)
             if args.once:
                 return
             import time

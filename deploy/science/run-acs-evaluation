@@ -22,8 +22,8 @@ cpath, report = [Path(p).resolve() for p in sys.argv[1:]]
 if not all(p.is_relative_to(w) for p in (cpath, report)):
     raise SystemExit('Configuration and report must be workspace-local')
 c = json.loads(cpath.read_text())
-if c.get('n_attempts') != 1 or c.get('n_concurrent_trials') != 1 or c.get('retry', {}).get('max_retries') != 0:
-    raise SystemExit('Require one attempt, concurrency one, zero automatic retries')
+if (c.get('n_attempts'), c.get('n_concurrent_trials')) not in ((1, 1), (5, 1)) or c.get('retry', {}).get('max_retries') != 0:
+    raise SystemExit('Require one or five attempts with concurrency one and zero automatic retries')
 for p in [Path(c['jobs_dir']).resolve(), Path(c['environment']['kwargs']['kubeconfig']).resolve()]:
     if not p.is_relative_to(w):
         raise SystemExit('Job and kubeconfig paths must be workspace-local')
@@ -49,5 +49,5 @@ PY_VALIDATE
 # Original credentials remain 0600; no copying to authors or task repositories.
 source "$W/.config/llm/dawnfm.env"
 exec "$W/acs-harbor-test/.venv/bin/python" \
-  "$W/.agents/skills/acs-harbor-eval/scripts/run_guard.py" \
+  "$W/gewu-multiverse/deploy/science/acs_helpers/run_guard.py" \
   --config "$1" --out "$2" --harbor "$W/acs-harbor-test/.venv/bin/harbor"

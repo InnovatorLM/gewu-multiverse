@@ -111,8 +111,11 @@ def main():
         except BaseException:
             shutil.rmtree(parent)
             raise
-        catalog = Path(config['inbox']).parent / 'catalog.json'
-        atomic_json(catalog, evaluation_catalog(registry), 0o644)
+        queues = config.get('role_queues') or [config]
+        for queue in queues:
+            catalog = Path(queue['inbox']).parent / 'catalog.json'
+            atomic_json(catalog, evaluation_catalog(registry), 0o640)
+            os.chown(catalog,0,queue['evaluator_uid'])
     print(json.dumps({'evaluation_id': args.evaluation_id, 'snapshot_sha256': sha, 'scientific_acceptance': False}))
 
 

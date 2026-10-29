@@ -92,7 +92,7 @@ impl EndpointSettings {
 
     /// The turn bound actually used: a zero in a hand-written file is not a bound.
     pub fn turns(&self) -> u32 {
-        self.max_turns.max(1)
+        self.max_turns
     }
 }
 
