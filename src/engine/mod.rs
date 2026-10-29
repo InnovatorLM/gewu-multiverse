@@ -3086,6 +3086,13 @@ fn session_job(
     let prepared = match prepared {
         Ok(prepared) => prepared,
         Err(reason) => {
+            // Preserve preparation failures in the run directory. Without this,
+            // a failed pre-plan session appears as an unexplained empty run.
+            let _ = std::fs::create_dir_all(&request.run_dir);
+            let _ = std::fs::write(
+                request.run_dir.join("startup-error.txt"),
+                format!("{}\n", reason),
+            );
             let now = clock.now();
             let mut guard = lock_inner(&inner);
             let Some(index) = guard.agent_index(&request.agent) else {
