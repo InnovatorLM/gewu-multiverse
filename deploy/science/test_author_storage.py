@@ -9,7 +9,7 @@ import subprocess
 W = Path('/mnt/data/zhanglinfeng/workspace')
 A = W / 'universes/my-terminal-bench-science/.config/gewu-multiverse/agents'
 results = []
-for name, uid, other in [('author-01', 22001, 'author-02'), ('author-02', 22002, 'author-01')]:
+for name, uid, other in [('author-01', 21001, 'author-02'), ('author-02', 21002, 'author-01')]:
     root = A / name
     def drop():
         os.chroot(root); os.chdir('/workspace'); os.setgroups([]); os.setgid(uid); os.setuid(uid)

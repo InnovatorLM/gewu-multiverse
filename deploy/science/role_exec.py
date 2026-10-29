@@ -45,7 +45,10 @@ def load_config(path):
         raise ValueError('Controller must be nonroot')
     seen = set()
     for role, value in config['roles'].items():
-        if set(value) != {'root', 'uid', 'gid'} or not (role in {'author', 'evaluator', 'curator'} or re.fullmatch(r'author-[0-9]{2,4}', role)):
+        if set(value) != {'root', 'uid', 'gid'} or not (
+            role == 'curator' or
+            re.fullmatch(r'(author|evaluator)-[0-9]{2,4}', role)
+        ):
             raise ValueError('Unexpected role configuration')
         root = trusted(value['root'], directory=True, owner=Path(value['root']).stat().st_uid)
         if root.stat().st_uid not in {0, config['controller_uid']}:

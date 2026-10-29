@@ -1,4 +1,4 @@
-"""Provision the three role roots; credentials remain local and scoped."""
+"""Provision isolated role roots for the science universe."""
 import json
 import os
 from pathlib import Path
@@ -17,7 +17,9 @@ agents = config_root / 'agents'
 agents.mkdir(exist_ok=True)
 os.chown(agents, 65534, 65534)
 agents.chmod(0o700)
-for index, role in enumerate(['author', 'evaluator', 'curator']):
+roles = ([f'author-{i:02d}' for i in range(1, 11)] +
+         [f'evaluator-{i:02d}' for i in range(1, 4)] + ['curator'])
+for index, role in enumerate(roles):
     uid = 21001 + index
     root = agents / role
     root.mkdir(exist_ok=True)
@@ -43,12 +45,15 @@ for index, role in enumerate(['author', 'evaluator', 'curator']):
     if not null.exists():
         null.touch()
     null.chmod(0o666)
-    instruction = universe / 'governance' / ('private' if role == 'evaluator' else 'public') / (role + '-instruction.md')
+    kind = ('evaluator' if role.startswith('evaluator') else
+            'author' if role.startswith('author-') else role)
+    instruction_name = 'evaluator-instruction.md' if kind == 'evaluator' else 'author-instruction.md'
+    instruction = universe / 'governance' / ('private' if kind == 'evaluator' else 'public') / instruction_name
     target = root / 'instruction.md'
     shutil.copyfile(instruction, target)
     os.chown(target, 65534, 65534)
     target.chmod(0o644)
-    if role == 'author':
+    if kind == 'author':
         feedback = universe / 'governance/public/pilot-review-feedback.md'
         if feedback.is_file():
             target = root / 'workspace/PILOT-REVIEW-FEEDBACK.md'
@@ -56,7 +61,8 @@ for index, role in enumerate(['author', 'evaluator', 'curator']):
             os.chown(target, 0, 0)
             target.chmod(0o644)
     target = root / 'home/role/git-credential.json'
-    creds = json.loads((w / '.config/universe-roles' / (role + '.json')).read_text())
+    credential_name = kind + '.json'
+    creds = json.loads((w / '.config/universe-roles' / credential_name).read_text())
     target.write_text(json.dumps({'login': creds['login'], 'token': creds['token']}))
     os.chown(target, uid, uid)
     target.chmod(0o600)
