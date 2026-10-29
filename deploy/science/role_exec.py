@@ -22,7 +22,7 @@ import subprocess
 import sys
 import time
 
-MAX_REQUEST = 2 * 1024 * 1024
+MAX_REQUEST = 16 * 1024 * 1024
 MAX_OUTPUT = 1048576
 
 

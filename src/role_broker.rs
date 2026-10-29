@@ -180,7 +180,7 @@ pub fn execute(cwd: &Path, argv: &[&str], timeout: u64) -> Result<Output, String
     let mut bytes = serde_json::to_vec(&request).map_err(|_| "broker request cannot be encoded")?;
     // Role instructions and Forgejo context can exceed the old 128 KiB cap.
     // Keep the request bounded while allowing the full assigned instruction.
-    if bytes.len() > 2 * 1024 * 1024 {
+    if bytes.len() > 16 * 1024 * 1024 {
         return Err("role command exceeds request limit".into());
     }
     bytes.push(b'\n');
