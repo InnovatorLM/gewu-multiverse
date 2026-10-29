@@ -25,7 +25,12 @@ mkdir -p "$W/.state/science-role-broker"
     > "$W/.state/science-role-broker/production-broker.log" 2>&1 &
 broker_pid=$!
 evaluation_pid=''
+review_dispatch_pid=''
 finish() {
+    if [[ -n "$review_dispatch_pid" ]]; then
+        kill -TERM "$review_dispatch_pid" 2>/dev/null || true
+        wait "$review_dispatch_pid" 2>/dev/null || true
+    fi
     if [[ -n "$evaluation_pid" ]]; then
         kill -TERM "$evaluation_pid" 2>/dev/null || true
         wait "$evaluation_pid" 2>/dev/null || true
@@ -86,5 +91,8 @@ while True:
         raise SystemExit('Evaluation worker failed startup; controller not started')
     time.sleep(0.1)
 PY_QUEUE_CHECK
+mkdir -p "$W/.state/science-review-dispatcher"
+"$PY" "$W/gewu-multiverse/deploy/science/review_dispatcher.py" > "$W/.state/science-review-dispatcher/production.log" 2>&1 &
+review_dispatch_pid=$!
 export USER=nobody LOGNAME=nobody
 setpriv --reuid=65534 --regid=65534 --clear-groups "$PRODUCT" "$@"

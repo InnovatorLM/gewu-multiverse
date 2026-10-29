@@ -105,6 +105,8 @@ for index, role in enumerate(roles):
     if package_binary.is_file():
         from install_role_packages import provision
         provision(root, uid, uid, package_binary)
+    from install_review_dispatch_policy import install as install_review_policy
+    install_review_policy(root, role)
     config['roles'][role] = dict(root=str(root), uid=uid, gid=uid)
 path = control / 'config.json'
 path.write_text(json.dumps(config, indent=2))

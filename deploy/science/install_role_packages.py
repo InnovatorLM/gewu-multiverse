@@ -14,6 +14,9 @@ def provision(root,uid,gid,binary):
         source=Path(dependency); dest=root/source.relative_to('/')
         if not dest.exists():
             dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(source,dest);dest.chmod(0o755)
+    utility=Path('/lib/x86_64-linux-gnu/libutil.so.1');destination=root/'lib/x86_64-linux-gnu/libutil.so.1'
+    if utility.exists() and not destination.exists():
+        shutil.copyfile(utility,destination);destination.chmod(0o755)
     target=root/'usr/local/bin/micromamba';target.unlink(missing_ok=True)
     shutil.copyfile(binary,target);target.chmod(0o755)
     wrapper=root/'usr/local/bin/role-install';wrapper.unlink(missing_ok=True)
