@@ -61,7 +61,9 @@ for index, role in enumerate(roles):
             os.chown(target, 0, 0)
             target.chmod(0o644)
     target = root / 'home/role/git-credential.json'
-    credential_name = kind + '.json'
+    credential_name = role + '.json'
+    if not (w / '.config/universe-roles' / credential_name).is_file():
+        credential_name = kind + '.json'
     creds = json.loads((w / '.config/universe-roles' / credential_name).read_text())
     target.write_text(json.dumps({'login': creds['login'], 'token': creds['token']}))
     os.chown(target, uid, uid)
