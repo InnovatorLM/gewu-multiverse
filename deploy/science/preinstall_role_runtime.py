@@ -14,7 +14,7 @@ def main():
             with log.open('w') as out:
                 result=subprocess.run(command,stdout=out,stderr=out,timeout=7200)
             if result.returncode:raise RuntimeError(name+' preinstall failed; inspect private log')
-        probe=['chroot','--userspec='+str(r['uid'])+':'+str(r['gid']),str(root),'/usr/bin/env','-i','HOME=/home/role','TMPDIR=/tmp','PATH=/home/role/.local/env/bin:/usr/local/bin:/usr/bin:/bin','/bin/bash','-o','pipefail','-c',
+        probe=['chroot','--userspec='+str(r['uid'])+':'+str(r['gid']),str(root),'/usr/bin/env','-i','HOME=/home/role','TMPDIR=/tmp','PATH=/home/role/.local/env/bin:/usr/local/bin:/usr/bin:/bin','LD_LIBRARY_PATH=/home/role/.local/env/lib','/bin/bash','-o','pipefail','-c',
                'set -e; python -c "import numpy,scipy,pandas,sympy,matplotlib,sklearn,netCDF4,astropy,h5py,pytest,requests,yaml,PIL; assert numpy.arange(5).sum()==10"; command -v cmake; command -v make; command -v curl; command -v seq; command -v nohup; printf "#include <iostream>\\nint main(){std::cout << 42;}\\n" > /tmp/gewu-preinstall.cpp; compiler=$(find /home/role/.local/env/bin -maxdepth 1 -name "*-conda-linux-gnu-c++" -print -quit); test -n "$compiler"; "$compiler" /tmp/gewu-preinstall.cpp -o /tmp/gewu-preinstall; test "$(/tmp/gewu-preinstall)" = 42; rm /tmp/gewu-preinstall.cpp /tmp/gewu-preinstall']
         result=subprocess.run(probe,capture_output=True,text=True,timeout=120)
         log=W/'.state/universe-maintenance'/('verify-'+name+'.log')
