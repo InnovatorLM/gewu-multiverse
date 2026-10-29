@@ -2287,6 +2287,51 @@ fn run_codex_harness(
     transcript: &mut Transcript,
     log: &mut RunLog,
 ) -> RunEnd {
+    if shell.method == crate::confinement::Method::RoleBroker {
+        let request = serde_json::json!({
+            "role": plan.agent,
+            "instruction": String::from_utf8_lossy(instruction),
+            "timeout": plan.timeout_secs.clamp(1, 1740),
+        })
+        .to_string();
+        let started = Instant::now();
+        let output = match crate::role_broker::execute(
+            &plan.workspace,
+            &["/usr/local/bin/role-codex-runner", &request],
+            plan.timeout_secs.clamp(1, 1740) + 30,
+        ) {
+            Ok(output) => output,
+            Err(reason) => return RunEnd::failed(reason),
+        };
+        let value: serde_json::Value = match serde_json::from_str(&output.stdout) {
+            Ok(value) => value,
+            Err(_) => return RunEnd::failed("Codex role runner did not return a valid report"),
+        };
+        let text = log.secret().redact(&value.to_string());
+        log.block(&text);
+        if let Err(error) = transcript.append(&Record::tool_result(
+            None,
+            1,
+            "codex",
+            Some(output.returncode),
+            None,
+            started.elapsed().as_millis() as u64,
+            Some(model::excerpt(&text, model::MAX_TOOL_OUTPUT)),
+        )) {
+            return RunEnd::failed(error.to_string());
+        }
+        if output.returncode != 0 || value.get("exit_code").and_then(|v| v.as_i64()) != Some(0) {
+            return RunEnd::failed("Codex role harness failed; inspect private run report");
+        }
+        return match value
+            .get("final_message")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.trim().is_empty())
+        {
+            Some(summary) => RunEnd::completed(log.secret().redact(summary)),
+            None => RunEnd::failed("Codex role harness exited without a final message"),
+        };
+    }
     let base = shell.temp.as_deref().unwrap_or(&plan.workspace);
     let home = base.join(format!(".gewu-codex-{}", plan.run_id));
     let _runtime = match CodexRuntime::create(home.clone()) {
@@ -3377,9 +3422,6 @@ impl Shell {
     /// unconfined plan, so a host without a confinement keeps the old behaviour.
     fn prepare(plan: &RunPlan, run_dir: &Path) -> Result<Self, String> {
         if std::env::var_os(crate::role_broker::CONFIG_ENV).is_some() {
-            if codex_harness_selected() {
-                return Err("role broker requires GEWU_HARNESS=native; no host fallback".into());
-            }
             crate::role_broker::validate_role(&plan.workspace, &plan.agent)?;
             if !crate::role_broker::available(std::slice::from_ref(&plan.workspace)) {
                 return Err("role broker boundary is unavailable; no host fallback".into());

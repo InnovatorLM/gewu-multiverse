@@ -11,6 +11,7 @@ import json
 import os
 from pathlib import Path
 import resource
+import re
 import selectors
 import signal
 import socket
@@ -44,7 +45,7 @@ def load_config(path):
         raise ValueError('Controller must be nonroot')
     seen = set()
     for role, value in config['roles'].items():
-        if set(value) != {'root', 'uid', 'gid'} or role not in {'author', 'evaluator', 'curator'}:
+        if set(value) != {'root', 'uid', 'gid'} or not (role in {'author', 'evaluator', 'curator'} or re.fullmatch(r'author-[0-9]{2,4}', role)):
             raise ValueError('Unexpected role configuration')
         root = trusted(value['root'], directory=True, owner=Path(value['root']).stat().st_uid)
         if root.stat().st_uid not in {0, config['controller_uid']}:
@@ -119,7 +120,7 @@ def clean_role(uid):
         time.sleep(0.01)
 
 
-def execute(config, request, connection):
+def execute_command(config, request, connection, gateway_env=()):
     if set(request) != {'role', 'cwd', 'argv', 'timeout'}:
         raise ValueError('Unexpected request fields')
     role = config['roles'][request['role']]
@@ -152,9 +153,11 @@ def execute(config, request, connection):
                '--userspec=' + str(role['uid']) + ':' + str(role['gid']),
                '--groups=' + str(role['gid']), str(root), '/usr/bin/env', '-i',
                'PATH=/usr/local/bin:/usr/bin:/bin', 'HOME=/home/role',
-               'TMPDIR=/tmp', 'LANG=C', 'LC_ALL=C',
+               'TMPDIR=/tmp', 'XDG_CACHE_HOME=/home/role/.cache',
+               'XDG_CONFIG_HOME=/home/role/.config', 'XDG_STATE_HOME=/home/role/.state',
+               'LANG=C', 'LC_ALL=C',
                'GIT_ASKPASS=/usr/local/bin/role-askpass', 'GIT_TERMINAL_PROMPT=0',
-               '/bin/bash', '-c', 'cd -- "$1" || exit; shift; exec "$@"',
+               *gateway_env, '/bin/bash', '-c', 'cd -- "$1" || exit; shift; exec "$@"',
                'role-exec', str(cwd), *argv]
     process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE, env={'PATH': '/usr/bin:/bin'},
@@ -190,6 +193,13 @@ def execute(config, request, connection):
     finally:
         # Popen retains the leader's PID until wait/reap; descendants are cleaned
         # through dedicated-UID pidfds, including setsid/double-fork children.
+        if process.poll() is None and reason is None:
+            # Pipe EOF can precede the leader's exit by a scheduler tick.
+            # Do not kill a successful runner during that ordinary transition.
+            try:
+                process.wait(timeout=1)
+            except subprocess.TimeoutExpired:
+                reason = 'leader_exit_timeout'
         if process.poll() is None:
             process.kill()
         process.wait()
@@ -200,6 +210,38 @@ def execute(config, request, connection):
     return {'returncode': process.returncode, 'stdout': bytes(chunks['stdout'][:MAX_OUTPUT]).decode(errors='replace'),
             'stderr': bytes(chunks['stderr'][:MAX_OUTPUT]).decode(errors='replace'), 'termination': reason,
             'cleanup_confirmed': not remaining}
+
+
+def execute(config, request, connection):
+    argv = request.get('argv', [])
+    if not argv or argv[0] != '/usr/local/bin/role-codex-runner':
+        return execute_command(config, request, connection)
+    import http.server
+    import secrets
+    import threading
+    from role_codex_gateway import handler_type
+    from controller_credentials import load_controller_credentials
+    if len(argv) != 2:
+        raise ValueError('Invalid Codex runner invocation')
+    payload = json.loads(argv[1])
+    if payload.get('role') != request.get('role'):
+        raise ValueError('Codex role identity mismatch')
+    credentials = load_controller_credentials()
+    key = credentials.get('model_keys', {}).get(request['role']) or credentials.get('model_key')
+    if not isinstance(key, str) or not key:
+        raise ValueError('Designated role model key missing')
+    token = secrets.token_hex(32)
+    gateway = http.server.ThreadingHTTPServer(('127.0.0.1', 0), handler_type(key, access_token=token))
+    thread = threading.Thread(target=gateway.serve_forever, daemon=True)
+    thread.start()
+    try:
+        return execute_command(config, request, connection, (
+            'GEWU_ROLE_GATEWAY_TOKEN=' + token,
+            'GEWU_ROLE_GATEWAY_PORT=' + str(gateway.server_address[1])))
+    finally:
+        gateway.shutdown()
+        gateway.server_close()
+        thread.join(timeout=5)
 
 
 class Handler(socketserver.StreamRequestHandler):

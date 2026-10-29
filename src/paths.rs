@@ -321,6 +321,23 @@ mod tests {
     }
 
     #[test]
+    fn author_instances_have_disjoint_workspaces_and_run_records() {
+        let layout = Layout::rooted_at("/storage-test/config")
+            .expect("absolute")
+            .with_state_root("/storage-test/state")
+            .expect("absolute");
+        let first = layout.agent("author-01").expect("safe instance");
+        let second = layout.agent("author-02").expect("safe instance");
+        assert_ne!(first.workspace(), second.workspace());
+        assert_ne!(first.state_dir(), second.state_dir());
+        assert_ne!(first.instruction(), second.instruction());
+        assert_ne!(first.skills_dir(), second.skills_dir());
+        assert!(!first.workspace().starts_with(second.workspace()));
+        assert!(!second.workspace().starts_with(first.workspace()));
+        assert!(layout.agent("author-01/../author-02").is_err());
+    }
+
+    #[test]
     fn every_directory_of_an_agent_is_derived_from_its_name() {
         let layout = Layout::rooted_at("/tmp/example-root")
             .expect("absolute")

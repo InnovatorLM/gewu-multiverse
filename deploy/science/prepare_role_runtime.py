@@ -66,6 +66,19 @@ for index, role in enumerate(['author', 'evaluator', 'curator']):
         askpass.unlink()
     askpass.write_text('#!/usr/local/bin/python3\nimport json,sys\nc=json.load(open("/home/role/git-credential.json"))\nprint(c["login"] if "Username" in sys.argv[1] else c["token"])\n')
     askpass.chmod(0o755)
+    for filename, executable in [('role_codex_runner.py', 'role-codex-runner'), ('role_forgejo.py', 'role-forgejo')]:
+        target = root / 'usr/local/bin' / executable
+        target.unlink(missing_ok=True)
+        shutil.copyfile(Path(__file__).with_name(filename), target)
+        target.chmod(0o755)
+    proc_self = root / 'proc/self'
+    proc_self.mkdir(parents=True, exist_ok=True)
+    proc_self.chmod(0o755)
+    executable = proc_self / 'exe'
+    executable.unlink(missing_ok=True)
+    executable.symlink_to('/usr/local/bin/codex')
+    if (root / 'proc/1').exists() or (proc_self / 'root').exists():
+        raise ValueError('Host proc exposure refused')
     remote = root / 'usr/lib/git-core/git-remote-https'
     if not remote.exists():
         remote.symlink_to('git-remote-http')

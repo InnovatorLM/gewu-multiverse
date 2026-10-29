@@ -3,7 +3,6 @@
 import argparse
 from datetime import datetime,timezone
 import json
-import re
 import stat
 import tomllib
 from pathlib import Path
@@ -13,10 +12,6 @@ from role_exec import role_processes
 
 
 def role_session_budget(state, launcher_text, now):
-    limits = re.findall(r'^export GEWU_DAILY_ROLE_SESSIONS=([0-9]+)$', launcher_text, re.M)
-    if len(limits) != 1 or not 1 <= int(limits[0]) <= 10:
-        raise ValueError('Installed role-session allowance is not an unambiguous supported literal')
-    limit = int(limits[0])
     day = int(now.timestamp()) // 86400
     roles = {}
     for role in ('author', 'evaluator', 'curator'):
@@ -29,12 +24,11 @@ def role_session_budget(state, launcher_text, now):
                     info = plan.lstat()
                     if not stat.S_ISREG(info.st_mode):
                         raise ValueError('Unexpected role plan type')
-                    # Match the native supervisor: prepared, failed and future-dated
-                    # plans count; opening the board does not reset the allowance.
+                    # Retain historical counts for observability, without gating starts.
                     count += int(info.st_mtime) // 86400 >= day
-        roles[role] = {'prepared_today': count, 'remaining': max(0, limit - count)}
-    return {'configured_per_role': limit, 'roles': roles,
-            'scope': 'Persisted plan modification dates, matching the native UTC-day budget; not solver dispatch claims.'}
+        roles[role] = {'prepared_today': count, 'remaining': None}
+    return {'configured_per_role': None, 'enforced': False, 'roles': roles,
+            'scope': 'Historical UTC-day plan counts only; role session count is unlimited. Solver dispatch claims are separate.'}
 
 
 def catalog_status(registry, published):
@@ -55,7 +49,7 @@ def phase_requirements():
             'readiness': 'requires_current_preflight',
             'qualified_first_task_required': False,
             'required_checks': [
-                'Current dedicated-role processes and persisted role-session allowance.',
+                'Current dedicated-role processes; no daily role-session count limit.',
                 'Current ACS resource inventory and previous run cleanup.',
                 'Broker/controller, designated provider and credential boundaries.',
                 'Explicit proposal-only initial scope; no unreviewed implementation or difficulty trial.'

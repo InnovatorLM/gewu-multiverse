@@ -1335,22 +1335,6 @@ impl Inner {
     fn block_reason(&self, index: usize) -> Option<String> {
         let agent = &self.agents[index];
         if std::env::var_os(crate::role_broker::CONFIG_ENV).is_some() {
-            let allowance = match std::env::var("GEWU_DAILY_ROLE_SESSIONS")
-                .ok()
-                .and_then(|value| value.parse::<usize>().ok())
-            {
-                Some(limit @ 1..=10) => limit,
-                _ => return Some("daily role session budget is not configured".into()),
-            };
-            let path = match self.options.layout.agent(&agent.name) {
-                Ok(path) => path,
-                Err(_) => return Some("daily role budget path is unavailable".into()),
-            };
-            match crate::role_broker::daily_session_count(path.state_dir(), SystemTime::now()) {
-                Ok(count) if count < allowance => {}
-                Ok(_) => return Some("daily role session budget exhausted".into()),
-                Err(reason) => return Some(reason),
-            }
             if self.settings.endpoint.turns() > 24 {
                 return Some("role model turn budget must not exceed 24".into());
             }

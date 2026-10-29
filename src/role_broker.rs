@@ -16,41 +16,6 @@ use serde::Deserialize;
 /// Explicitly supplied, non-secret, root-owned broker configuration.
 pub const CONFIG_ENV: &str = "GEWU_ROLE_BROKER_CONFIG";
 
-/// Persisted UTC-day run count; reopening the board cannot reset the allowance.
-/// Count every prepared plan, including failed/cancelled runs, conservatively.
-pub fn daily_session_count(state: &Path, now: std::time::SystemTime) -> Result<usize, String> {
-    let day = now
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_err(|_| "invalid budget clock")?
-        .as_secs()
-        / 86400;
-    if !state.exists() {
-        return Ok(0);
-    }
-    let entries = fs::read_dir(state).map_err(|_| "daily role budget cannot be read")?;
-    let mut count = 0;
-    for entry in entries {
-        let plan = entry
-            .map_err(|_| "daily role budget cannot be read")?
-            .path()
-            .join("plan.json");
-        if plan.exists() {
-            let stamp = fs::metadata(plan)
-                .and_then(|m| m.modified())
-                .map_err(|_| "daily role budget timestamp unavailable")?;
-            let stamp_day = stamp
-                .duration_since(std::time::UNIX_EPOCH)
-                .map_err(|_| "invalid budget timestamp")?
-                .as_secs()
-                / 86400;
-            if stamp_day >= day {
-                count += 1;
-            }
-        }
-    }
-    Ok(count)
-}
-
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Config {
@@ -119,25 +84,6 @@ fn role_for<'a>(config: &'a Config, cwd: &Path) -> Result<(&'a str, PathBuf), St
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn persisted_budget_counts_failed_or_prepared_plans_after_reopen() {
-        let root = std::env::temp_dir().join(format!(
-            "role-budget-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        fs::create_dir_all(root.join("failed")).unwrap();
-        fs::create_dir_all(root.join("prepared")).unwrap();
-        fs::write(root.join("failed/plan.json"), "{}").unwrap();
-        fs::write(root.join("prepared/plan.json"), "{}").unwrap();
-        let now = std::time::SystemTime::now();
-        assert_eq!(daily_session_count(&root, now).unwrap(), 2);
-        assert_eq!(daily_session_count(&root, now).unwrap(), 2);
-        fs::remove_dir_all(root).unwrap();
-    }
     #[test]
     fn directory_symlink_cannot_switch_role_identity() {
         let root = std::env::temp_dir().join(format!(
