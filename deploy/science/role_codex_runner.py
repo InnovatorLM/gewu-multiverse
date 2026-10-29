@@ -41,9 +41,15 @@ def run(request):
     if set(request) != {'role', 'instruction', 'timeout'}:
         raise ValueError('Unexpected run fields')
     role = request['role']
-    if role not in {'author', 'evaluator', 'curator'}:
-        raise ValueError('Invalid role')
-    if os.getuid() != {'author': 21001, 'evaluator': 21002, 'curator': 21003}[role]:
+    if role == 'curator':
+        expected_uid = 21014
+    else:
+        match = re.fullmatch(r'(author|evaluator)-(\d{2})', role)
+        if not match:
+            raise ValueError('Invalid role')
+        expected_uid = (21000 + int(match.group(2)) if match.group(1) == 'author'
+                        else 21010 + int(match.group(2)))
+    if os.getuid() != expected_uid:
         raise ValueError('Dedicated nonroot role required')
     if Path('/proc/1').exists() or Path('/mnt/data/zhanglinfeng/workspace/.config/llm/dawnfm.env').exists():
         raise ValueError('Host files exposed')
