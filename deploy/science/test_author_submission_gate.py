@@ -16,6 +16,7 @@ class AuthorGateTests(unittest.TestCase):
         self.receipt=dict(commit='a'*40,task='tasks/science/example',
             snapshot_sha256='b'*64,runtime_image='registry/ns/task@sha256:'+'c'*64,
             checks={k:True for k in gate.CHECKS},iteration_applied=True,
+            pre_submission_order=list(gate.REQUIRED_ORDER),
             active_iteration_seconds=17999,difficulty_viable=True,
             evidence_files=[dict(path=str(self.path),sha256=hashlib.sha256(self.path.read_bytes()).hexdigest())])
     def check(self,receipt):
@@ -31,6 +32,10 @@ class AuthorGateTests(unittest.TestCase):
         for key in ('iteration_applied','difficulty_viable'):
             r=copy.deepcopy(self.receipt);r[key]=False
             with self.assertRaises(ValueError):self.check(r)
+    def test_submission_order_required(self):
+        for order in (None, list(reversed(gate.REQUIRED_ORDER)), list(gate.REQUIRED_ORDER[:-1])):
+            r=copy.deepcopy(self.receipt);r['pre_submission_order']=order
+            with self.subTest(order=order),self.assertRaises(ValueError):self.check(r)
     def test_budget(self):
         for value in (18001,-1,True,float('nan'),float('inf')):
             r=copy.deepcopy(self.receipt);r['active_iteration_seconds']=value

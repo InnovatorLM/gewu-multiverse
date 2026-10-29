@@ -3,11 +3,14 @@ import json,re,math
 from pathlib import Path
 W=Path('/mnt/data/zhanglinfeng/workspace')
 CHECKS=('schema','container_build','container_start','author_solve','verifier_positive','verifier_negative','post_iteration_rerun')
+REQUIRED_ORDER=('schema','container_build','container_start','author_solve','verifier_positive','verifier_negative','post_iteration_rerun')
 def validate_receipt(receipt,commit,task):
     if receipt.get('commit')!=commit or receipt.get('task')!=task:raise ValueError('Stale author preflight identity')
     if not re.fullmatch(r'[a-f0-9]{64}',receipt.get('snapshot_sha256','')):raise ValueError('Missing frozen execution identity')
     if not re.fullmatch(r'.+@sha256:[a-f0-9]{64}',receipt.get('runtime_image','')):raise ValueError('Missing image digest')
     if any(receipt.get('checks',{}).get(k) is not True for k in CHECKS):raise ValueError('Author container preflight incomplete')
+    order=receipt.get('pre_submission_order')
+    if order != list(REQUIRED_ORDER):raise ValueError('Pre-submission checks must be recorded in order')
     if receipt.get('iteration_applied') is not True:raise ValueError('No result-driven iteration')
     active=receipt.get('active_iteration_seconds')
     if isinstance(active,bool) or not isinstance(active,(int,float)) or not math.isfinite(active) or not 0<=active<=18000:raise ValueError('Author iteration exceeds five hours')
