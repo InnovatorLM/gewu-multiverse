@@ -16,7 +16,7 @@ base.chmod(0o755)
 source = w / '.state/role-chroot-proof'
 script = Path(__file__).with_name('role_exec.py')
 config = {'controller_uid': 65534, 'socket': '@' + str(base / 'broker.sock'), 'roles': {}}
-for index, role in enumerate(['author', 'evaluator', 'curator']):
+for index, role in enumerate(['author-01', 'evaluator-01', 'curator']):
     uid = 21101 + index
     root = base / role
     root.mkdir(exist_ok=True)
@@ -65,29 +65,29 @@ try:
         assert result['returncode'] == 0 and result['cleanup_confirmed'], result
         assert result['stdout'].splitlines()[0] == str(config['roles'][role]['uid'])
         report[role] = {'uid': config['roles'][role]['uid'], 'filesystem_and_env_check': True}
-    refused = connect(dict(role='author', cwd='/../../', argv=['/bin/cat', '/etc/passwd'], timeout=10))
+    refused = connect(dict(role='author-01', cwd='/../../', argv=['/bin/cat', '/etc/passwd'], timeout=10))
     assert 'error' in refused
     report['traversal_refused'] = True
     # Regression: real repository packs exceed the old 64 MiB file limit.
-    result = connect(request('author', "python3 -c \"from pathlib import Path; p=Path('large-pack-check'); f=p.open('wb'); f.seek(65*1024*1024); f.write(b'x'); f.close(); assert p.stat().st_size > 64*1024*1024; p.unlink()\""))
+    result = connect(request('author-01', "python3 -c \"from pathlib import Path; p=Path('large-pack-check'); f=p.open('wb'); f.seek(65*1024*1024); f.write(b'x'); f.close(); assert p.stat().st_size > 64*1024*1024; p.unlink()\""))
     assert result['returncode'] == 0 and result['cleanup_confirmed'], result
     report['large_git_pack_file_supported'] = True
-    result = connect(request('author', 'sleep 30', timeout=0.3))
+    result = connect(request('author-01', 'sleep 30', timeout=0.3))
     # Add a sleep binary to fixture if the minimal tool set lacks it.
     if result['returncode'] == 127:
-        target = Path(config['roles']['author']['root']) / 'bin/sleep'
+        target = Path(config['roles']['author-01']['root']) / 'bin/sleep'
         shutil.copy2('/bin/sleep', target)
-        result = connect(request('author', 'sleep 30', timeout=0.3))
+        result = connect(request('author-01', 'sleep 30', timeout=0.3))
     assert result['termination'] == 'timeout' and result['cleanup_confirmed'], result
     report['timeout_cleanup'] = True
-    connect(request('author', 'sleep 30'), disconnect=True)
+    connect(request('author-01', 'sleep 30'), disconnect=True)
     time.sleep(0.5)
-    result = connect(request('author', 'echo ready'))
+    result = connect(request('author-01', 'echo ready'))
     assert result['returncode'] == 0 and result['cleanup_confirmed'], result
     report['disconnect_cleanup'] = True
-    root = Path(config['roles']['author']['root'])
+    root = Path(config['roles']['author-01']['root'])
     shutil.copy2('/usr/bin/setsid', root / 'usr/bin/setsid')
-    result = connect(request('author', 'setsid sleep 30 > /workspace/background.log 2>&1 &'))
+    result = connect(request('author-01', 'setsid sleep 30 > /workspace/background.log 2>&1 &'))
     assert result['cleanup_confirmed'], result
     report['detached_child_cleanup'] = True
     # An untrusted role UID can reach an abstract socket name, but is rejected

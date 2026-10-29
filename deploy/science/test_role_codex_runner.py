@@ -18,3 +18,24 @@ class RunnerConfigTests(unittest.TestCase):
             with self.assertRaises(ValueError):config(value)
 
 if __name__=='__main__':unittest.main()
+
+class CaptureTests(unittest.TestCase):
+    def test_streaming_redaction_and_timeout(self):
+        import tempfile, sys, os, json
+        from pathlib import Path
+        from role_codex_runner import capture
+        with tempfile.TemporaryDirectory(dir='/mnt/data/zhanglinfeng/workspace/.tmp') as temp:
+            root = Path(temp)
+            result = capture([sys.executable, '-c', 'import sys;print("secret-token");print("error secret-token",file=sys.stderr)'],
+                             prompt='hello', env=os.environ.copy(), cwd=temp, timeout=5,
+                             archive=root/'success', secrets=('secret-token',))
+            self.assertEqual(result['returncode'], 0)
+            self.assertNotIn('secret-token', (root/'success/events.jsonl').read_text())
+            self.assertIn('[REDACTED]', (root/'success/stderr.log').read_text())
+            self.assertEqual((root/'success/events.jsonl').stat().st_mode & 0o777, 0o600)
+            result = capture([sys.executable, '-u', '-c', 'import time;print("partial");time.sleep(30)'],
+                             prompt='', env=os.environ.copy(), cwd=temp, timeout=2,
+                             archive=root/'timeout')
+            self.assertEqual(result['returncode'], 124)
+            self.assertIn('partial', (root/'timeout/events.jsonl').read_text())
+            self.assertEqual(json.loads((root/'timeout/metadata.json').read_text())['status'], 'timeout')

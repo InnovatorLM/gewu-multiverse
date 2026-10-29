@@ -54,6 +54,10 @@ def provision(name, uid):
         (root / 'references' / src.name).chmod(0o444)
     (root / 'etc/passwd').write_text(f'role:x:{uid}:{uid}:author:/home/role:/bin/bash\n')
     (root / 'etc/group').write_text(f'role:x:{uid}:\n')
+    package_binary = WORKSPACE / '.local/bin/micromamba'
+    if package_binary.is_file():
+        from install_role_packages import provision as install_packages
+        install_packages(root, uid, uid, package_binary)
     manifest = {'name': name, 'role': 'author', 'uid': uid, 'gid': uid,
                 'root': str(root), 'workspace': '/workspace', 'home': '/home/role',
                 'tmp': '/tmp', 'cache': '/cache', 'runs': '/runs',

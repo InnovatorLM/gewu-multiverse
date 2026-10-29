@@ -10,9 +10,13 @@ import os
 from pathlib import Path
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
+import threading
+import time
+import uuid
 
 MODEL = 'deepseek-v4.1-flash-1017'
 
@@ -35,6 +39,62 @@ def config(port):
         'env_key = "GEWU_ROLE_GATEWAY_TOKEN"',
         '',
     ])
+
+
+def capture(command, *, prompt, env, cwd, timeout, archive, secrets=()):
+    """Stream redacted lines to durable files, including on timeout."""
+    archive.mkdir(mode=0o700, parents=True, exist_ok=False)
+    def redact(text):
+        for secret in secrets:
+            if secret:
+                text = text.replace(secret, '[REDACTED]')
+        return text
+    metadata = {'status': 'running', 'started_at': time.time(), 'harness': 'codex',
+                'provider': 'dawnfm', 'model': MODEL}
+    def save():
+        p = archive / 'metadata.json'
+        pending = p.with_suffix('.pending')
+        pending.write_text(json.dumps(metadata, indent=2)); pending.chmod(0o600)
+        pending.replace(p)
+    save()
+    process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE, env=env, cwd=cwd, start_new_session=True)
+    outputs = {'events': [], 'stderr': []}
+    errors = []
+    def pump(pipe, name, filename):
+        try:
+            with (archive / filename).open('w') as target:
+                os.chmod(target.name, 0o600)
+                for raw in iter(pipe.readline, b''):
+                    line = redact(raw.decode('utf-8', errors='replace'))
+                    target.write(line); target.flush()
+                    outputs[name].append(line)
+        except Exception as error:
+            errors.append(str(error))
+        finally:
+            pipe.close()
+    threads = [threading.Thread(target=pump, args=(process.stdout, 'events', 'events.jsonl')),
+               threading.Thread(target=pump, args=(process.stderr, 'stderr', 'stderr.log'))]
+    for thread in threads: thread.start()
+    timed_out = False
+    try:
+        try:
+            process.stdin.write(prompt.encode()); process.stdin.close()
+        except BrokenPipeError:
+            process.stdin.close()
+        process.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        os.killpg(process.pid, signal.SIGKILL); process.wait()
+    finally:
+        for thread in threads: thread.join()
+        metadata.update(status='timeout' if timed_out else 'completed' if process.returncode == 0 else 'failed',
+                        exit_code=process.returncode, finished_at=time.time(), capture_errors=errors)
+        save()
+    if errors:
+        raise ValueError('Trajectory persistence failed')
+    return {'returncode': 124 if timed_out else process.returncode,
+            'events': ''.join(outputs['events']), 'stderr': ''.join(outputs['stderr'])}
 
 
 def run(request):
@@ -76,27 +136,41 @@ def run(request):
             (runtime / name).mkdir(mode=0o700)
         settings = runtime / 'codex/config.toml'
         settings.write_text(config(port)); settings.chmod(0o600)
-        env = {'PATH': '/usr/local/bin:/usr/bin:/bin', 'HOME': str(runtime / 'home'),
+        env = {'PATH': '/home/role/.local/bin:/home/role/.local/env/bin:/usr/local/bin:/usr/bin:/bin', 'MAMBA_ROOT_PREFIX': '/home/role/.local/mamba', 'CONDA_PREFIX': '/home/role/.local/env', 'HOME': str(runtime / 'home'),
                'CODEX_HOME': str(runtime / 'codex'), 'TMPDIR': str(runtime / 'tmp'),
                'XDG_CACHE_HOME': str(runtime / 'cache'), 'LANG': 'C.UTF-8',
                'GEWU_ROLE_GATEWAY_TOKEN': token, 'GIT_ASKPASS': '/usr/local/bin/role-askpass',
                'GIT_TERMINAL_PROMPT': '0', 'NO_PROXY': '127.0.0.1,localhost'}
-        completed = subprocess.run(['/usr/local/bin/codex', 'exec', '--json',
-                                    '--sandbox', 'danger-full-access', '--skip-git-repo-check',
-                                    '-C', '/workspace', '-o', str(runtime / 'last-message.txt'), '-'],
-                                   input=guidance + request['instruction'], text=True,
-                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                                   timeout=timeout, env=env, cwd='/workspace')
+        archive = Path('/home/role/trajectories') / (str(time.time_ns()) + '-' + uuid.uuid4().hex[:10])
+        credential = Path('/home/role/git-credential.json')
+        git_token = json.loads(credential.read_text()).get('token', '') if credential.exists() else ''
+        secrets = (token, git_token)
+        completed = capture(['/usr/local/bin/codex', 'exec', '--json',
+                             '--sandbox', 'danger-full-access', '--skip-git-repo-check',
+                             '-C', '/workspace', '-o', str(runtime / 'last-message.txt'), '-'],
+                            prompt=guidance + request['instruction'], env=env, cwd='/workspace',
+                            timeout=timeout, archive=archive, secrets=secrets)
         final = runtime / 'last-message.txt'
+        final_text = final.read_text() if final.exists() else None
+        if final_text is not None:
+            for secret in secrets:
+                if secret: final_text = final_text.replace(secret, '[REDACTED]')
+            saved = archive / 'final-message.txt'
+            saved.write_text(final_text); saved.chmod(0o600)
+        metadata_path = archive / 'metadata.json'
+        metadata = json.loads(metadata_path.read_text()); metadata['role'] = role
+        pending_metadata = archive / 'metadata.pending'
+        pending_metadata.write_text(json.dumps(metadata, indent=2)); pending_metadata.chmod(0o600)
+        pending_metadata.replace(metadata_path)
         report = {'harness': 'codex', 'role': role, 'provider': 'dawnfm', 'model': MODEL,
-                  'exit_code': completed.returncode,
-                  'events': completed.stdout, 'stderr': completed.stderr,
-                  'final_message': final.read_text() if final.exists() else None}
+                  'exit_code': completed['returncode'],
+                  'events': completed['events'], 'stderr': completed['stderr'],
+                  'trajectory_dir': str(archive), 'final_message': final_text}
         encoded = json.dumps(report, ensure_ascii=False)
         if token in encoded:
             raise ValueError('Gateway token appeared in outputs')
         print(encoded, flush=True)
-        return completed.returncode
+        return completed['returncode']
     finally:
         shutil.rmtree(runtime)
 

@@ -95,12 +95,16 @@ for index, role in enumerate(roles):
     proc_self.chmod(0o755)
     executable = proc_self / 'exe'
     executable.unlink(missing_ok=True)
-    executable.symlink_to('/usr/local/bin/codex')
+    executable.symlink_to('/usr/local/bin/role-self-exe' if (root/'usr/local/bin/role-self-exe').exists() else '/usr/local/bin/codex')
     if (root / 'proc/1').exists() or (proc_self / 'root').exists():
         raise ValueError('Host proc exposure refused')
     remote = root / 'usr/lib/git-core/git-remote-https'
     if not remote.exists():
         remote.symlink_to('git-remote-http')
+    package_binary = w / '.local/bin/micromamba'
+    if package_binary.is_file():
+        from install_role_packages import provision
+        provision(root, uid, uid, package_binary)
     config['roles'][role] = dict(root=str(root), uid=uid, gid=uid)
 path = control / 'config.json'
 path.write_text(json.dumps(config, indent=2))
