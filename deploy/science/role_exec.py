@@ -22,7 +22,7 @@ import subprocess
 import sys
 import time
 
-MAX_REQUEST = 131072
+MAX_REQUEST = 2 * 1024 * 1024
 MAX_OUTPUT = 1048576
 
 
@@ -249,6 +249,7 @@ def execute(config, request, connection):
 
 class Handler(socketserver.StreamRequestHandler):
     def handle(self):
+        request = {}
         try:
             _, uid, _ = struct.unpack('3i', self.request.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12))
             if uid not in {0, self.server.config['controller_uid']}:
@@ -268,7 +269,14 @@ class Handler(socketserver.StreamRequestHandler):
             with lock.open('a') as stream:
                 fcntl.flock(stream, fcntl.LOCK_EX)
                 response = execute(self.server.config, request, self.request)
-        except (ValueError, KeyError, OSError, TypeError, OverflowError):
+        except (ValueError, KeyError, OSError, TypeError, OverflowError) as error:
+            # Persist broker refusals; otherwise the product only sees an empty
+            # run directory and cannot distinguish startup failure from waiting.
+            try:
+                with open('/mnt/data/zhanglinfeng/workspace/.state/science-role-broker/production-broker.log', 'a') as log:
+                    log.write(f'broker refusal role={request.get("role")} error={error!s}\n')
+            except OSError:
+                pass
             response = {'error': 'Role command refused'}
         try:
             self.wfile.write(json.dumps(response).encode() + b'\n')
