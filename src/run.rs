@@ -1079,6 +1079,11 @@ mod tests {
 
     #[test]
     fn a_dying_descriptor_open_error_is_accepted_as_gone() {
+        // Root can open a mode-000 path, so this fixture cannot produce the
+        // intended EACCES observation under a privileged test runner.
+        if rustix::process::geteuid().as_raw() == 0 {
+            return;
+        }
         use std::os::unix::fs::MetadataExt;
         use std::os::unix::fs::PermissionsExt;
         let root = scratch_root("capability-exit-open");
@@ -1115,6 +1120,11 @@ mod tests {
 
     #[test]
     fn a_persistently_inaccessible_capability_holder_stays_uncertain() {
+        // The test is meaningful under the unprivileged role identity used by
+        // production runs; root can inspect this fixture on some kernels.
+        if rustix::process::geteuid().as_raw() == 0 {
+            return;
+        }
         let root = scratch_root("capability-live-inaccessible");
         let (_capability_file, capability) = memfd_capability();
         let mut child = spawn_capability_helper(&root, true, None, 5_000);

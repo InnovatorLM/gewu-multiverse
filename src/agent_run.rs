@@ -4734,7 +4734,10 @@ mod tests {
         );
         // The product roots and the person's real home are in the hide list.
         assert!(shell.hide.iter().any(|path| path == &config));
-        if let Some(real_home) = std::env::var_os("HOME").map(std::path::PathBuf::from) {
+        if let Some(real_home) = std::env::var_os("HOME")
+            .map(std::path::PathBuf::from)
+            .filter(|path| path.exists())
+        {
             assert!(
                 shell.hide.iter().any(|path| path == &real_home),
                 "the person's home {} is not hidden: {:?}",
