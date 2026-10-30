@@ -117,6 +117,8 @@ for index, role in enumerate(roles):
         (root/'instruction.md').write_text(policy.read_text()+chr(10)+(root/'instruction.md').read_text())
     from install_review_dispatch_policy import install as install_review_policy
     install_review_policy(root, role)
+    from install_role_skills import install as install_skills
+    install_skills(root, role)
     config['roles'][role] = dict(root=str(root), uid=uid, gid=uid)
 path = control / 'config.json'
 path.write_text(json.dumps(config, indent=2))
