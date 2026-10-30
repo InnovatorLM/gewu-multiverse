@@ -16,7 +16,7 @@ config = json.loads(config_path.read_text())
 binary = w / '.state/cargo-target/debug/gewu-multiverse'
 requests = []
 live = '--live' in sys.argv
-check_command = 'set -e; id -u; git --version; git -c credential.helper= ls-remote http://127.0.0.1:3000/team/terminal-bench-science.git HEAD; python3 -I -c "import json,statistics; print(123)"; test ! -e /proc/1/root; test ! -e /mnt/data/zhanglinfeng/workspace/.config/llm/dawnfm.env; test -z "${OPENAI_API_KEY-}"; printf role-runtime-ok'
+check_command = 'set -e; id -u; git --version; git init --quiet runtime-check; git -C runtime-check -c user.name=Role -c user.email=role@example.invalid commit --allow-empty -m runtime-check --quiet; git -C runtime-check rev-parse --is-inside-work-tree; python3 -I -c "import json,statistics; print(123)"; test ! -e /proc/1/root; test ! -e /mnt/data/zhanglinfeng/workspace/.config/llm/dawnfm.env; test -z "${OPENAI_API_KEY-}"; printf role-runtime-ok'
 if live:
     assert os.environ.get('LLM_PROVIDER') == 'dawnfm'
     assert os.environ.get('OPENAI_MODEL') == 'deepseek-v4.1-flash-1017'
