@@ -43,10 +43,9 @@ fsync, rename and fresh-process readback. It also checked distinct private
 directories and denied a peer role's read. Evidence:
 `.state/storage-investigation/universe-persistence.json`.
 
-Actual no-model `RealSpawner::prepare` checks passed for author-01..03,
-author-05..10, evaluator-01..03 and curator: two preparations, private
-repository reuse and a subsequent Git fetch. author-04 was omitted while its
-UID was extracting the software environment. Logs:
+Actual no-model `RealSpawner::prepare` checks passed for all 14 roles:
+two preparations, private repository reuse and a subsequent Git fetch. author-04
+was tested after its environment finished extracting. Logs:
 `.state/storage-investigation/*session-prepare.log`.
 
 author-02's validated environment was archived once (2.61 GB; archive SHA-256
@@ -59,7 +58,7 @@ is authoritative in `.state/storage-investigation/bootstrap-status.json`;
 `bootstrap.log` records completed roles. Do not infer completion from a live
 process or a partial staging directory.
 
-At the latest checkpoint, author-01..04 had verified environments and author-05
+At the latest checkpoint, author-01..05 had verified environments and author-06
 was extracting. The final verifier waits for the bootstrap process, then checks
 all 14 role markers, reruns storage persistence, and prepares every actual
 session. Its state is `.state/storage-investigation/recovery-verification.json`.
