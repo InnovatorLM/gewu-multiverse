@@ -17,15 +17,18 @@ def run_owned(command,timeout,**kwargs):
 
 def install_role(name,r,install=True):
     root=Path(r['root']);prefix=root/'home/role/.local/env'
+    role_tmp=root/'home/role/.cache/gewu-preinstall-tmp'
+    role_tmp.mkdir(parents=True,exist_ok=True)
+    os.chown(role_tmp,r['uid'],r['gid']);role_tmp.chmod(0o700)
     marker=prefix/(PREINSTALL_VERSION+'.json')
     if install and not marker.exists():
-        command=['chroot','--userspec='+str(r['uid'])+':'+str(r['gid']),str(root),'/usr/bin/env','-i','HOME=/home/role','TMPDIR=/tmp','PATH=/usr/local/bin:/usr/bin:/bin','MAMBA_ROOT_PREFIX=/home/role/.local/mamba','/usr/local/bin/role-install',*PACKAGES]
+        command=['chroot','--userspec='+str(r['uid'])+':'+str(r['gid']),str(root),'/usr/bin/env','-i','HOME=/home/role','TMPDIR=/home/role/.cache/gewu-preinstall-tmp','PATH=/usr/local/bin:/usr/bin:/bin','MAMBA_ROOT_PREFIX=/home/role/.local/mamba','/usr/local/bin/role-install',*PACKAGES]
         log=W/'.state/universe-maintenance'/('preinstall-'+name+'.log')
         with log.open('w') as out:
             result=run_owned(command,stdout=out,stderr=out,timeout=7200)
         if result.returncode:raise RuntimeError(name+' preinstall failed; inspect private log')
-    probe=['chroot','--userspec='+str(r['uid'])+':'+str(r['gid']),str(root),'/usr/bin/env','-i','HOME=/home/role','TMPDIR=/tmp','PATH=/home/role/.local/env/bin:/usr/local/bin:/usr/bin:/bin','LD_LIBRARY_PATH=/home/role/.local/env/lib','/bin/bash','-o','pipefail','-c',
-           'set -e; python -c "import numpy,scipy,pandas,sympy,matplotlib,sklearn,netCDF4,astropy,h5py,pytest,requests,yaml,PIL,jsonschema,toml,rich,click,typer,httpx,pydantic,jinja2,filelock,psutil,dateutil,tqdm; assert numpy.arange(5).sum()==10"; command -v cmake; command -v make; command -v curl; command -v seq; command -v nohup; printf "#include <iostream>\\nint main(){std::cout << 42;}\\n" > /tmp/gewu-preinstall.cpp; compiler=$(find /home/role/.local/env/bin -maxdepth 1 -name "*-conda-linux-gnu-c++" -print -quit); test -n "$compiler"; "$compiler" /tmp/gewu-preinstall.cpp -o /tmp/gewu-preinstall; test "$(/tmp/gewu-preinstall)" = 42; rm /tmp/gewu-preinstall.cpp /tmp/gewu-preinstall']
+    probe=['chroot','--userspec='+str(r['uid'])+':'+str(r['gid']),str(root),'/usr/bin/env','-i','HOME=/home/role','TMPDIR=/home/role/.cache/gewu-preinstall-tmp','PATH=/home/role/.local/env/bin:/usr/local/bin:/usr/bin:/bin','LD_LIBRARY_PATH=/home/role/.local/env/lib','/bin/bash','-o','pipefail','-c',
+           'set -e; python -c "import numpy,scipy,pandas,sympy,matplotlib,sklearn,netCDF4,astropy,h5py,pytest,requests,yaml,PIL,jsonschema,toml,rich,click,typer,httpx,pydantic,jinja2,filelock,psutil,dateutil,tqdm; assert numpy.arange(5).sum()==10"; command -v cmake; command -v make; command -v curl; command -v seq; command -v nohup; printf "#include <iostream>\\nint main(){std::cout << 42;}\\n" > "$TMPDIR/gewu-preinstall.cpp"; compiler=$(find /home/role/.local/env/bin -maxdepth 1 -name "*-conda-linux-gnu-c++" -print -quit); test -n "$compiler"; "$compiler" "$TMPDIR/gewu-preinstall.cpp" -o "$TMPDIR/gewu-preinstall"; test "$("$TMPDIR/gewu-preinstall")" = 42; rm "$TMPDIR/gewu-preinstall.cpp" "$TMPDIR/gewu-preinstall"']
     result=run_owned(probe,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,timeout=600)
     log=W/'.state/universe-maintenance'/('verify-'+name+'.log')
     log.write_text(result.stdout+'\n'+result.stderr)

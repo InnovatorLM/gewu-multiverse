@@ -6,7 +6,7 @@ W=/mnt/data/zhanglinfeng/workspace
 PY="$W/acs-harbor-test/.venv/bin/python"
 # Validate deployment identity before changing HOME or creating runtime paths.
 U=$(PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$W/gewu-multiverse/deploy/science" \
-    "$PY" -c 'from deployment_paths import universe_root; print(universe_root())')
+    "$PY" -c 'from deployment_paths import universe_root,require_isolated_service_config; u=universe_root(); require_isolated_service_config(u); print(u)')
 export GEWU_UNIVERSE_ROOT="$U"
 export TMPDIR="$U/.tmp" PYTHONDONTWRITEBYTECODE=1
 export XDG_CONFIG_HOME="$U/.config" XDG_STATE_HOME="$U/.state"
@@ -17,7 +17,7 @@ export GEWU_SESSION_TIMEOUT_SECS=14400
 export GEWU_RESPONSE_TOKENS=8192
 export GEWU_CHAT_THINKING=disabled
 export GEWU_FORGEJO_TIMEOUT_SECS=120
-export GEWU_ROLE_BROKER_CONFIG="$W/.state/science-role-broker/config.json"
+export GEWU_ROLE_BROKER_CONFIG="$U/.state/gewu-multiverse/role-broker/config.json"
 PRODUCT="$W/.local/libexec/gewu-multiverse"
 if [[ $(id -u) != 0 ]]; then
     echo 'Start this deployment as the root operator; its controller drops privileges.' >&2
