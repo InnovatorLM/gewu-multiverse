@@ -119,6 +119,9 @@ for index, role in enumerate(roles):
     install_review_policy(root, role)
     from install_role_skills import install as install_skills
     install_skills(root, role)
+    if role.startswith("author-"):
+        from install_author_selftest import install as install_selftest
+        install_selftest(root, uid, uid)
     config['roles'][role] = dict(root=str(root), uid=uid, gid=uid)
 path = control / 'config.json'
 path.write_text(json.dumps(config, indent=2))

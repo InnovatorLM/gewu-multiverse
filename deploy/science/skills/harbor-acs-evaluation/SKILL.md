@@ -16,3 +16,7 @@ description: Prepare a Harbor task for real ACS container execution, request pla
 评测者已有入口为 /evaluation/catalog.json、/evaluation/inbox 和 /evaluation/results，只允许使用已登记 evaluation_id 与 snapshot_sha256；不能把旧题登记项用于新题。需要注册新版本时明确请求平台注册。
 
 任何角色都不得读取宿主 kubeconfig、ACR/模型密钥，或把密钥写进题包、镜像、issue、日志。保留工作区原始证据；清理只针对本次 run 的资源。
+
+## 当前已部署作者入口
+作者可直接运行 role-acs-selftest submit --task /workspace/<repo>/<task-path> --commit <完整40位commit>，返回 job_id。随后运行 role-acs-selftest status <job_id> 查询。控制面冻结上传题包、检查schema、构建ACR镜像，在ACS分别运行oracle参考解和nop负对照。无需在作者环境安装Docker或读取凭证。
+该入口替代上文“没有作者命令”的历史说明。只有selftest_passed证明本次正负对照通过；failed/selftest_failed必须修复。它不自动授予独立审核通过，也不伪造迭代证据。上传字节有独立哈希；source_commit为作者声明，正式审核前仍需核对Git版本与上传一致。
