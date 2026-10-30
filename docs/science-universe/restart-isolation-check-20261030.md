@@ -19,3 +19,9 @@ An orphaned Forgejo process serving this same instance had no PID record and con
 - Monitor endpoint returned HTTP 200.
 
 Runtime launch verification remains pending until fresh plans and growing transcripts prove real activity. Historical archives do not prove current role activity. Evaluators without eligible review assignments should remain idle.
+
+## Live restart observation
+
+The persistent supervisor launched successfully. After approximately three minutes of CPFS history recovery, the controller started one owned Forgejo child; Git health and monitor both returned HTTP 200. Fresh native sessions exist only for author-01 through author-04 and curator. All five actual plans specify role-broker, max_turns=0 and timeout_secs=14400. At the eight-minute observation, model replies were 27,14,15,20 for authors 01–04 and 20 for curator. Transcripts grew across observations. Both enabled evaluators remain intentionally idle without eligible assignments; no stopped role started a new session.
+
+Two authors ran unbounded root filesystem searches; these consumed minutes of CPFS metadata access. The still-running matching search was terminated by verified UID/process identity. Runtime instructions and workspace notices now recommend scoped searches and reuse of installed scientific Python. A direct nonroot chroot probe for author-04 imported NumPy 2.4.6 and SciPy 1.17.1. Curator did not have the same preinstalled environment and is installing dependencies; this remains under observation. No complete task acceptance or five-rollout success is claimed.
