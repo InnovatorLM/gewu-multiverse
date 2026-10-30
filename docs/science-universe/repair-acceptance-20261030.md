@@ -80,3 +80,9 @@ reset与新版部署通过共享／独占生命周期锁互斥，15项相关回�
 - 初始化不再复制旧pilot评审反馈到活跃工作区；已有副本保留在.historical-feedback并注明由当前instruction／skill取代，拒绝符号链接和冲突覆盖。该变更及watchdog／启动就绪共8项回归通过。
 - worker实际构建发布完成，oracle reward1、exception为空、cleanup confirmed；nop仍在运行，完整worker终态尚未取得，不能写成全部通过。
 - 评审环境复制tar进程仍存活且归档持续增长；没有重复启动。旧宇宙未恢复，新宇宙未创建。
+
+### 真实worker终态已取得
+
+worker-acceptance-v1／a48379ab304f427da5482897d326fc7a进程退出0，result.json状态selftest_passed。真实上传15个文件与Git树绑定，实际构建并发布official／Codex runtime／verifier；ACS oracle reward1、nop reward0，两次控制器均退出0、exception为空、cleanup_confirmed=true。作者可见回执及diagnostics文件已生成。该测试使用运维隔离fixture，不是生产角色亲自提交的行为验收，不签发作者自解／迭代凭证，也不表示科学题被接收。
+
+后续仍须证明：角色身份提交和读取回执、作者基于结果迭代后复跑、正式审核资格签发及独占评测；会话计时自动联动、在线reset、新角色环境和上下文摘要；最终备份合并及新宇宙行为验收。不得将本节成功扩写为46项全部完成。
