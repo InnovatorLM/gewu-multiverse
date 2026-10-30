@@ -24,6 +24,13 @@ class AuthorGateTests(unittest.TestCase):
         return gate.validate_receipt(receipt,'a'*40,'tasks/science/example')
     def test_complete_passes(self):
         self.assertIs(self.check(self.receipt),self.receipt)
+    def test_malformed_payloads_are_validation_errors(self):
+        for receipt in (None,[],True,dict(self.receipt,checks=[]),dict(self.receipt,snapshot_sha256=None),dict(self.receipt,runtime_image=[]),dict(self.receipt,evidence_files={}),dict(self.receipt,evidence_files=[None]),dict(self.receipt,evidence_files=[{}])):
+            with self.subTest(receipt=receipt),self.assertRaises(ValueError):self.check(receipt)
+
+    def test_invalid_identity_rejected_before_lookup(self):
+        for commit,task in [('../other','tasks/example'),('a'*40,'../example'),('a'*40,'/example'),('a'*40,'tasks//example'),('a'*40,'tasks/./example'),('a'*40,'tasks\\example')]:
+            with self.subTest(commit=commit,task=task),self.assertRaises(ValueError):gate.approved(commit,task)
     def test_each_missing_check_blocks(self):
         for key in gate.CHECKS:
             with self.subTest(key=key):
