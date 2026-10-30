@@ -21,6 +21,11 @@ def assess(events):
     if requests and requests[-1]>=500000:reasons.append('Large accumulated request history; consider a concise handoff and fresh context')
     if any(x['duration']>=3600000 for x in recent):reasons.append('At least one recent local command exceeded one hour; inspect progress and complexity')
     if any(x['masked'] for x in recent):reasons.append('Traceback with zero exit status observed; inspect actual success artifacts')
+    if checks and checks[-1] == 0:reasons.append('No skills discovered in this archived session; verify the effective startup capabilities before rescheduling')
+    if finish and finish.get('outcome') in ('failed','timed_out'):
+        terminal_reason=finish.get('reason') or ''
+        if 'max_turns' in terminal_reason:reasons.append('Session exhausted its configured turn limit; inspect effective role configuration before blaming the model')
+        elif finish.get('outcome') == 'timed_out':reasons.append('Session timed out; distinguish active work, platform waits and the per-idea iteration budget')
     return dict(recommendation='manual_review' if reasons else 'no_hint',reasons=reasons,last_request_chars=requests[-1] if requests else 0,
         recent_tool_count=len(recent),recent_failed_tools=errors,skills_discovered=checks[-1] if checks else None,last_finish=finish,
         caution='Hints are not a dead-end verdict. Expected failed controls, healthy computation and platform waits must be reviewed separately. No process was signalled.')
