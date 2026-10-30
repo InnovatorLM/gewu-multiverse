@@ -112,3 +112,5 @@ watchdog新增作者账本会话状态核对：校验真实runner的controller U
 正式提交门检按打开的文件描述符核对普通文件、root所有权、非外部可写、大小、读取前后mtime／ctime，拒绝链接／FIFO及读取时变化，避免证据读取阻塞或检查后换文件。门检和派单13项回归通过。
 
 上下文摘要新增真正双tool_call／双tool_result配对的边界回归，4项conversation测试全部通过，不再只依赖空tool_calls的合成测试。新增显式运维science-context-check示例，使用指定dawnfm模型和Rust正式客户端验证大上下文摘要及后续恢复，保留脱敏请求／回复；该live作业仍在编译／执行中，尚不写通过。示例历史是合成fixture，不是生产角色轨迹。
+
+后续终态：science-context-check退出0，两次真实dawnfm／deepseek-v4.1-flash-1017请求完成；摘要前334239字节、摘要后56519字节，后续回复保留fixture ID与常量42。脱敏请求／回复和摘要存于workspace/.state/universe-repair-20261030/live-context-v1.json，0600。验证覆盖正式Rust模型客户端与conversation helpers，仍不等同完整生产model_loop长会话、网页重放或崩溃恢复验收。
