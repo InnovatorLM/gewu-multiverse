@@ -86,3 +86,9 @@ reset与新版部署通过共享／独占生命周期锁互斥，15项相关回�
 worker-acceptance-v1／a48379ab304f427da5482897d326fc7a进程退出0，result.json状态selftest_passed。真实上传15个文件与Git树绑定，实际构建并发布official／Codex runtime／verifier；ACS oracle reward1、nop reward0，两次控制器均退出0、exception为空、cleanup_confirmed=true。作者可见回执及diagnostics文件已生成。该测试使用运维隔离fixture，不是生产角色亲自提交的行为验收，不签发作者自解／迭代凭证，也不表示科学题被接收。
 
 后续仍须证明：角色身份提交和读取回执、作者基于结果迭代后复跑、正式审核资格签发及独占评测；会话计时自动联动、在线reset、新角色环境和上下文摘要；最终备份合并及新宇宙行为验收。不得将本节成功扩写为46项全部完成。
+
+### 自动计时联动实现
+
+watchdog新增作者账本会话状态核对：校验真实runner的controller UID、完整run路径和--run-agent标记，终止后暂停active账本；优先以持久run_finished时间计时，无终态时从首次停止观察起暂停，不猜测历史退款。新runner仅恢复自动暂停，不取消显式ACS／platform等待。预算耗尽仍保持abandoned；单角色损坏账本记录安全错误类型，不关闭全部角色监控。真实文件落盘／0600权限、暂停恢复、不覆盖等待、预算不清零等回归已覆盖；完整生产角色会话仍待新部署行为验收。
+
+评审独立环境归档SHA256为7fdc368137018bb996a63556c9c0ff88f995352d59bbcc43e5d2027b20de2224，当前进入evaluator-01解包阶段，尚未宣布所有环境verified。

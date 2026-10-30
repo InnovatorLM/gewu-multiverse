@@ -1,7 +1,28 @@
 import unittest
-from author_iteration_clock import transition
+from author_iteration_clock import transition,reconcile_session
 
 class ClockTests(unittest.TestCase):
+    def test_automatic_lifecycle_excludes_stopped_interval(self):
+        s={};transition(s,'start','idea-a',0)
+        reconcile_session(s,False,100,observed_end=90)
+        reconcile_session(s,False,10000,observed_end=90)
+        reconcile_session(s,True,11000)
+        self.assertEqual(transition(s,'status','idea-a',11010)['active_seconds'],100)
+
+    def test_live_runner_does_not_cancel_explicit_wait(self):
+        s={};transition(s,'start','idea-a',0)
+        transition(s,'acs-wait','idea-a',10,run_id='actual-acs-run')
+        reconcile_session(s,False,100);reconcile_session(s,True,200)
+        self.assertEqual(s['ideas']['idea-a']['status'],'acs_wait')
+        self.assertEqual(s['ideas']['idea-a']['active_seconds'],10)
+
+    def test_automatic_pause_does_not_refund_exhausted_budget(self):
+        s={};transition(s,'start','idea-a',0)
+        reconcile_session(s,False,18001)
+        self.assertEqual(s['ideas']['idea-a']['status'],'abandoned')
+        reconcile_session(s,True,19000)
+        self.assertEqual(s['ideas']['idea-a']['active_seconds'],18001)
+
     def test_platform_and_stopped_session_do_not_spend_active_budget(self):
         s={};transition(s,'start','idea-a',0)
         transition(s,'platform-wait','idea-a',100,reason='selftest request job-123')

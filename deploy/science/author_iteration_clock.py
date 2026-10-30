@@ -16,6 +16,26 @@ import time
 
 LIMIT = 5 * 3600
 
+def reconcile_session(state, live, now, observed_end=None):
+    """Reconcile an observed runner lifecycle without clearing an idea budget.
+
+    Only pauses created by this hook resume automatically. Explicit ACS/platform
+    waits remain paused until the author acknowledges returning to active work.
+    No historical interval is silently refunded.
+    """
+    for idea,row in state.get('ideas',{}).items():
+        if live and row['status']=='session_paused' and row.get('automatic_session_pause'):
+            transition(state,'resume',idea,now,reason='runner observed live')
+            row.pop('automatic_session_pause',None)
+        elif not live and row['status']=='active':
+            end=now if observed_end is None else max(row['last_at'],min(now,observed_end))
+            try:
+                transition(state,'session-pause',idea,end,reason='runner stopped; automatic lifecycle observation')
+            except ValueError:
+                if row['status']!='abandoned':raise
+            if row['status']=='session_paused':row['automatic_session_pause']=True
+    return state
+
 def transition(state, action, idea, now, run_id=None, reason=None):
     if not re.fullmatch(r'[a-z0-9][a-z0-9-]{0,95}', idea):
         raise ValueError('Use a stable lowercase idea ID across branches and sessions')

@@ -73,7 +73,10 @@ def main():
     with (STATE/'watchdog.lock').open('a') as lock:
         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
         while True:
-            scan(json.loads(CONFIG.read_text()))
+            config=json.loads(CONFIG.read_text())
+            scan(config)
+            from iteration_lifecycle import scan_clocks
+            scan_clocks(config)
             if a.once:return
             time.sleep(30)
 if __name__=='__main__':main()
