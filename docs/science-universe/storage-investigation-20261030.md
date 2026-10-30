@@ -64,8 +64,6 @@ The persistent probe now writes only below the workspace, as required by its
 storage policy. The node-local NVMe comparison above is a historical diagnostic;
 it does not justify moving live role state outside the workspace.
 
-## Remaining work
-
 ## Actual Universe session verification increment
 
 The old `science-role-session-check` example only accepted legacy role names
@@ -93,6 +91,13 @@ it waits for author-03 to finish before verifying and installing the remaining
 roles. Inspect the current process and
 `.state/storage-investigation/all-role-recovery.log` rather than treating this
 PID or document as proof it remains alive.
+
+`verify_universe_storage.py` additionally passed in all 14 actual role roots:
+each dedicated UID wrote, fsynced and renamed a private file, then a separate
+process read back and verified its content. All storage directories were
+distinct, had the expected UID and private mode, and a peer UID could not read
+the file. The report is `.state/storage-investigation/universe-persistence.json`.
+This verifies persistence and isolation without touching installation processes.
 
 ## Remaining work
 
