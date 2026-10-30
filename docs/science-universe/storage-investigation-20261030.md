@@ -118,6 +118,14 @@ now independently write/fsync/rename and read back in `/workspace`, `/cache`,
 `/runs`, `/tmp` and `/home/role` for every configured role, rather than treating
 a HOME-only probe as proof of the complete layout.
 
+The expanded actual persistence run completed successfully for all 14 roles,
+with all five paths covered per role. Author-03 also passed actual
+`RealSpawner::prepare` twice, including subsequent Git fetch, after its
+environment recovery. Its separate session evidence is in workspace state
+`.state/storage-investigation/author-03-session-prepare.log`; no model calls
+were made. These results do not establish completion of the other environment
+copies, which are still waiting for the donor archive to finish.
+
 Current checkpoint: author-03 has completed its conda transaction and passed
 the import/tool/C++ probe. Author-01, author-02 and author-03 now have verified
 environments. The bootstrap worker has acquired the installation lock and is
