@@ -40,7 +40,6 @@ def process(role,entry,request):
   for dockerfile in [task/'environment/Dockerfile',task/'tests/Dockerfile']:
    if dockerfile.is_file():
     text=dockerfile.read_text()
-    import re
     text=re.sub(r'(?im)^(\s*FROM\s+)(?!scratch(?:\s|$))\S+', r'\1'+BASE, text)
     dockerfile.write_text(text)
   for args in [['init','-q'],['config','user.email','operator@localhost'],['config','user.name','operator'],['add','.'],['commit','-qm','Frozen author upload']]:subprocess.run(['git','-C',str(repo),*args],check=True,capture_output=True)
