@@ -2,7 +2,7 @@
 import argparse,fcntl,json,os,signal,subprocess,tempfile
 from pathlib import Path
 W=Path('/mnt/data/zhanglinfeng/workspace')
-PACKAGES=['python=3.11','pip','numpy','scipy','pandas','sympy','matplotlib-base','scikit-learn','netcdf4','astropy','h5py','pytest','requests','pyyaml','pillow','jsonschema','toml','rich','click','typer','httpx','pydantic','jinja2','filelock','psutil','python-dateutil','tqdm','wheel','setuptools','cmake','make','pkg-config','c-compiler','cxx-compiler','git','curl','coreutils','findutils','grep','sed','gawk','tar','gzip','bzip2','xz','unzip','ca-certificates']
+PACKAGES=['python=3.11','pip','numpy','scipy','pandas','sympy','matplotlib-base','scikit-learn','netcdf4','astropy','h5py','pytest','requests','pyyaml','pillow','jsonschema','toml','rich','httpx','filelock','python-dateutil','tqdm','cmake','make','pkg-config','c-compiler','cxx-compiler','git','curl','coreutils','findutils','grep','sed','gawk','tar','gzip','bzip2','xz','unzip','ca-certificates']
 PREINSTALL_VERSION='gewu-preinstalled-v2'
 def run_owned(command,timeout,**kwargs):
     with subprocess.Popen(command,start_new_session=True,**kwargs) as process:
