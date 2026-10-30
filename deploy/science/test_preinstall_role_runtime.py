@@ -5,9 +5,21 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 import subprocess
+import sys
+import time
 import preinstall_role_runtime as runtime
 
 class PreinstallTests(unittest.TestCase):
+    def test_timeout_stops_descendant_writes(self):
+        with tempfile.TemporaryDirectory(dir=runtime.W / '.tmp') as raw:
+            artifact=Path(raw)/'late-write'
+            child='import time;from pathlib import Path;time.sleep(1);Path('+repr(str(artifact))+').write_text("orphan")'
+            parent='import subprocess,sys,time;subprocess.Popen([sys.executable,"-c",'+repr(child)+']);time.sleep(30)'
+            with self.assertRaises(subprocess.TimeoutExpired):
+                runtime.run_owned([sys.executable,'-c',parent],timeout=.5,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+            time.sleep(1.2)
+            self.assertFalse(artifact.exists())
+
     def test_marker_requires_success_and_is_private(self):
         with tempfile.TemporaryDirectory(dir=runtime.W / ".tmp") as raw:
             root=Path(raw); (root / ".state/universe-maintenance").mkdir(parents=True)
