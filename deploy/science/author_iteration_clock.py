@@ -2,7 +2,7 @@
 """Persistent author idea clock; operator must attest ACS exclusions at submission.
 
 Role-local logs are author workflow evidence, not trusted execution attestations.
-Only explicit ACS execution/wait intervals can pause active time. Switching to
+Explicit ACS, platform, and stopped-session intervals can pause active time. Switching to
 another idea requires closing the previous idea, and closed ideas stay closed.
 """
 import argparse
@@ -25,7 +25,7 @@ def transition(state, action, idea, now, run_id=None, reason=None):
     if idea not in ideas:
         if action != 'start':
             raise ValueError('Unknown idea')
-        if any(row['status'] in ('active', 'acs_wait') for row in ideas.values()):
+        if any(row['status'] in ('active', 'acs_wait', 'platform_wait', 'session_paused') for row in ideas.values()):
             raise ValueError('Close the current idea before starting another')
         ideas[idea] = dict(active_seconds=0.0, last_at=now, status='active', events=[])
     row = ideas[idea]
@@ -48,9 +48,13 @@ def transition(state, action, idea, now, run_id=None, reason=None):
         if row['status'] != 'active' or not run_id or not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9._:-]{0,159}', run_id):
             raise ValueError('An actual ACS run ID is required')
         row.update(status='acs_wait', acs_run_id=run_id)
+    elif action in ('platform-wait', 'session-pause'):
+        if row['status'] != 'active' or not reason:
+            raise ValueError('Pause requires an active idea and explicit evidence/reason')
+        row.update(status='platform_wait' if action == 'platform-wait' else 'session_paused', pause_reason=reason)
     elif action == 'resume':
-        if row['status'] != 'acs_wait':
-            raise ValueError('Idea is not waiting for ACS')
+        if row['status'] not in ('acs_wait', 'platform_wait', 'session_paused'):
+            raise ValueError('Idea is not paused')
         row['status'] = 'active'
     elif action in ('finish', 'abandon'):
         if not reason:
@@ -63,7 +67,7 @@ def transition(state, action, idea, now, run_id=None, reason=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=['start', 'status', 'acs-wait', 'resume', 'finish', 'abandon'])
+    parser.add_argument('action', choices=['start', 'status', 'acs-wait', 'platform-wait', 'session-pause', 'resume', 'finish', 'abandon'])
     parser.add_argument('idea')
     parser.add_argument('--acs-run-id')
     parser.add_argument('--reason')

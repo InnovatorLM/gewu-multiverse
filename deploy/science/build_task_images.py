@@ -12,7 +12,7 @@ from pathlib import Path
 import re
 import subprocess
 import shutil
-from dockerfile_bases import pin_bases
+from dockerfile_bases import pin_bases, official_library_transport
 
 from evaluation_queue import W, atomic_json, digest_tree
 from register_evaluation import freeze
@@ -99,8 +99,15 @@ class Docker:
     def run(self,args,json_output=False):
         self.step+=1
         # Logs stay root-private; do not print daemon output or registry errors.
+        path=self.output/f'docker-{self.step:02d}.log'
+        if not json_output:
+            descriptor=os.open(path,os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600)
+            with os.fdopen(descriptor,'wb') as log:
+                result=subprocess.run(['docker',*args],env=self.env,stdout=log,stderr=subprocess.STDOUT,timeout=1200)
+            if result.returncode:raise ValueError(f'Docker step {self.step} failed; inspect private build log')
+            return path.read_text(errors='replace')
         result=subprocess.run(['docker',*args],env=self.env,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=1200)
-        path=self.output/f'docker-{self.step:02d}.log';path.write_bytes(result.stdout+b'\n'+result.stderr);path.chmod(0o600)
+        path.write_bytes(result.stdout+b'\n'+result.stderr);path.chmod(0o600)
         if result.returncode:raise ValueError(f'Docker step {self.step} failed; inspect private build log')
         return json.loads(result.stdout) if json_output else result.stdout.decode()
 
@@ -136,8 +143,9 @@ def main():
         env_hash=validate_context(snapshot/'environment');tests_hash=validate_context(snapshot/'tests')
         docker=Docker(output)
         def resolve_base(image):
-            docker.run(['pull',image])
-            info=docker.run(['image','inspect',image],True)[0]
+            transport=official_library_transport(image,os.environ.get('GEWU_DOCKER_LIBRARY_MIRROR'))
+            docker.run(['pull',transport])
+            info=docker.run(['image','inspect',transport],True)[0]
             refs=info.get('RepoDigests',[])
             if len(refs)!=1 or not PINNED.fullmatch(refs[0]):
                 raise ValueError('Base image must resolve to one immutable repository digest')
@@ -155,6 +163,7 @@ def main():
         identity={'source_commit':args.commit,'source_task_path':args.task_path,'task_name':task_name,'snapshot_sha256':task_hash,'environment_context_sha256':env_hash,'tests_context_sha256':tests_hash,'python_base':args.python_base,'runtime_source_bases':bases,'verifier_source_bases':verifier_bases,'scientific_acceptance':False,'oracle_leakage_review_required':True,'hermetic_build':False,'published':False}
         atomic_json(output/'identity.json',identity)
         identity['base_resolution']=base_resolution
+        identity['official_library_mirror']=os.environ.get('GEWU_DOCKER_LIBRARY_MIRROR')
         identity['environment_effective_context_sha256']=digest_tree(effective_environment)
         atomic_json(output/'identity.json',identity)
         images={}

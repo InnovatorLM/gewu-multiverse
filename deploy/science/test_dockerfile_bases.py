@@ -1,8 +1,15 @@
 import tempfile,unittest
 from pathlib import Path
-from dockerfile_bases import pin_bases
+from dockerfile_bases import pin_bases, official_library_transport
 from evaluation_queue import W
 class BaseTests(unittest.TestCase):
+ def test_explicit_mirror_never_rewrites_third_party_or_private_images(self):
+  mirror='public.ecr.aws/docker/library'
+  self.assertEqual(official_library_transport('python:3.13-slim-bookworm',mirror),mirror+'/python:3.13-slim-bookworm')
+  self.assertEqual(official_library_transport('docker.io/library/python:3.13',mirror),mirror+'/python:3.13')
+  for image in ['company/python:3.13','registry.company/python:3.13']:
+   self.assertEqual(official_library_transport(image,mirror),image)
+  self.assertEqual(official_library_transport('python:3.13'), 'python:3.13')
  def test_preserves_multistage_platform_and_unrelated_instructions(self):
   with tempfile.TemporaryDirectory(dir=W/'.tmp') as raw:
    path=Path(raw)/'Dockerfile';nl=chr(10);path.write_text(nl.join(['FROM --platform=linux/amd64 python:3.13-slim AS build','RUN echo python:3.13-slim','FROM build AS final','COPY --from=build /x /y','']))

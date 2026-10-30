@@ -4,6 +4,21 @@ from pathlib import Path
 
 PINNED = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._:/-]*@sha256:[a-f0-9]{64}$')
 
+def official_library_transport(image, mirror=None):
+    """Explicit operator transport choice; never map private/third-party images."""
+    if not mirror:
+        return image
+    if mirror != 'public.ecr.aws/docker/library':
+        raise ValueError('Unsupported official image mirror')
+    source=image
+    for prefix in ('docker.io/library/','library/'):
+        if source.startswith(prefix):
+            source=source[len(prefix):]
+            break
+    if '/' in source or not re.fullmatch(r'[a-z0-9][a-z0-9._-]*(?::[A-Za-z0-9_.-]+)?',source):
+        return image
+    return mirror+'/'+source
+
 def pin_bases(path, python_base, resolve):
     path=Path(path);source=path.read_text();stages=set();mapping=[];lines=[]
     for line in source.splitlines(keepends=True):

@@ -3387,6 +3387,22 @@ fn system_prompt(plan: &RunPlan, forgejo: Option<&ForgejoTools>) -> String {
             writes = forgejo_tools::WRITE_BOUND,
         ));
     }
+    // Skills were validated/copied at session startup. Make their actual content
+    // available to the native model rather than merely listing host-only paths.
+    if let Ok(entries) = fs::read_dir(&plan.skills_dir) {
+        let mut manifests: Vec<_> = entries.filter_map(Result::ok)
+            .map(|entry| entry.path().join("SKILL.md"))
+            .filter(|path| path.is_file()).collect();
+        manifests.sort();
+        for manifest in manifests {
+            if let Ok(text) = fs::read_to_string(&manifest) {
+                if text.len() <= 32_768 {
+                    let name = manifest.parent().and_then(|path| path.file_name()).unwrap_or_default().to_string_lossy();
+                    prompt.push_str(&format!("\nInstalled skill {name}; apply within the current role policy:\n{text}\n"));
+                }
+            }
+        }
+    }
     prompt.push_str("When the work is done, reply with a short summary and no tool call. ");
     if plan.max_turns == 0 {
         prompt.push_str("There is no response-count limit; the declared wall-clock deadline still applies.");
@@ -5644,6 +5660,12 @@ mod tests {
         assert_eq!(skills_record[0].name, "alpha");
         assert_eq!(skills_record[0].files, 2);
         assert!(skills_record[0].digest.starts_with("fnv1a64:"));
+        let request_body = file.records.iter().find_map(|record| match record {
+            Record::ModelRequest { body, .. } => Some(body),
+            _ => None,
+        }).expect("actual model request recorded");
+        assert!(request_body.contains("Installed skill alpha"));
+        assert!(request_body.contains("# alpha"));
     }
 
     #[test]

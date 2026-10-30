@@ -2,6 +2,19 @@ import unittest
 from author_iteration_clock import transition
 
 class ClockTests(unittest.TestCase):
+    def test_platform_and_stopped_session_do_not_spend_active_budget(self):
+        s={};transition(s,'start','idea-a',0)
+        transition(s,'platform-wait','idea-a',100,reason='selftest request job-123')
+        with self.assertRaises(ValueError):transition(s,'start','idea-b',101)
+        transition(s,'resume','idea-a',40000)
+        transition(s,'session-pause','idea-a',40100,reason='operator shutdown')
+        transition(s,'resume','idea-a',80000)
+        self.assertEqual(transition(s,'status','idea-a',80100)['active_seconds'],300)
+
+    def test_pause_cannot_erase_time_already_spent(self):
+        s={};transition(s,'start','idea-a',0)
+        with self.assertRaises(ValueError):transition(s,'session-pause','idea-a',18001,reason='too late')
+        self.assertEqual(s['ideas']['idea-a']['status'],'abandoned')
     def test_active_across_sessions_and_acs_excluded(self):
         s={};transition(s,'start','idea-a',100)
         transition(s,'status','idea-a',200)

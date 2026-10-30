@@ -14,6 +14,11 @@ def owned_run(command, **kwargs):
     with subprocess.Popen(command, start_new_session=True, **kwargs) as child:
         try:
             child.wait(timeout=timeout)
+            # Wrappers may exit while descendants still mutate retained evidence.
+            try:
+                os.killpg(child.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
             return subprocess.CompletedProcess(command, child.returncode)
         except BaseException:
             try:

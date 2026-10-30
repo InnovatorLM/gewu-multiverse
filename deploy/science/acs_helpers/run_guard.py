@@ -211,7 +211,9 @@ def main():
     signal.signal(signal.SIGTERM, interrupted)
     signal.signal(signal.SIGINT, interrupted)
     try:
-        watchdog_snapshot(kw['kubeconfig'], kw['namespace'], out.with_name(out.stem + '.watchdog-start.json'), kill=True)
+        # Observe stale peers, but never delete another run as a side effect of
+        # starting this one. release() below handles this run's exact identities.
+        watchdog_snapshot(kw['kubeconfig'], kw['namespace'], out.with_name(out.stem + '.watchdog-start.json'), kill=False)
         if not args.cleanup_only:
             if not args.harbor:
                 raise ValueError('--harbor required')
