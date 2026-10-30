@@ -101,6 +101,23 @@ This verifies persistence and isolation without touching installation processes.
 
 ## Remaining work
 
+An expanded audit found a separate concrete layout defect: author-01..05
+still had `/cache` owned by old UIDs 22001..22005 and `/runs` with old groups;
+the remaining roles lacked both directories. The broker identities are
+21001..21014. Corrected the top-level directory metadata from broker config,
+preserving all contents, and created missing directories. `/cache` is private
+0700, owned by its role; `/runs` is controller-owned, role-group writable 2770.
+The actual changes are recorded in workspace state
+`.state/storage-investigation/layout-repair.json`.
+
+`prepare_role_runtime.py` now provisions these directories consistently. The
+author storage regression now uses `bash -e -o pipefail`: previously an early
+cache write failure could be hidden by a later successful temporary-file write.
+The corrected actual author-01/author-02 check passed. Full persistence checks
+now independently write/fsync/rename and read back in `/workspace`, `/cache`,
+`/runs`, `/tmp` and `/home/role` for every configured role, rather than treating
+a HOME-only probe as proof of the complete layout.
+
 Current checkpoint: author-03 has completed its conda transaction and passed
 the import/tool/C++ probe. Author-01, author-02 and author-03 now have verified
 environments. The bootstrap worker has acquired the installation lock and is

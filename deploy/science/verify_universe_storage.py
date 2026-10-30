@@ -43,6 +43,19 @@ def main():
         results.append({'role':name,'uid':role['uid'],'write_fsync_rename':True,
                         'fresh_process_read':True,'private_directory':True,
                         'seconds':round(time.monotonic()-started,3)})
+        # HOME alone cannot establish that cache/workspace/run paths are usable.
+        results[-1]['persistent_paths']={}
+        for location in ('/workspace','/cache','/runs','/tmp','/home/role'):
+            target=location+'/'+identifier
+            program=("import os;from pathlib import Path;p=Path("+repr(target)+
+                     ");p.mkdir(mode=0o700);f=(p/'pending').open('w');f.write("+
+                     repr(payload)+");f.flush();os.fsync(f.fileno());f.close();"
+                     "(p/'pending').rename(p/'committed')")
+            readback="from pathlib import Path;assert (Path("+repr(target)+")/'committed').read_text()=="+repr(payload)
+            for code in (program,readback):
+                result=subprocess.run(prefix+[code],capture_output=True,text=True,timeout=120)
+                if result.returncode:raise RuntimeError(name+' '+location+' failed: '+result.stderr[-500:])
+            results[-1]['persistent_paths'][location]=True
     assert len(set(identities.values()))==len(identities)
     names=list(cfg['roles'])
     for index,name in enumerate(names):

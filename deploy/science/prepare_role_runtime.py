@@ -41,13 +41,13 @@ for index, role in enumerate(roles):
         if (source / name).exists():
             shutil.copytree(source / name, root / name, dirs_exist_ok=True,
                             copy_function=lambda a, b: os.link(a, b) if not Path(b).exists() else b)
-    for name in ['workspace', 'skills', 'home/role', 'tmp', 'dev']:
+    for name in ['workspace', 'runs', 'cache', 'skills', 'home/role', 'tmp', 'dev']:
         target = root / name
         target.mkdir(parents=True, exist_ok=True)
-        if name == 'workspace':
+        if name in ['workspace', 'runs']:
             os.chown(target, 65534, uid)
             target.chmod(0o2770)
-        elif name in ['home/role', 'tmp']:
+        elif name in ['home/role', 'tmp', 'cache']:
             os.chown(target, uid, uid)
             target.chmod(0o700)
         else:

@@ -22,7 +22,7 @@ for name, uid, other in [('author-01', 21001, 'author-02'), ('author-02', 21002,
         'host_credentials_not_visible': 'test ! -e '+str(W / '.config/llm/dawnfm.env'),
     }
     for label, command in checks.items():
-        p = subprocess.run(['/bin/bash', '-c', command], preexec_fn=drop, capture_output=True, timeout=15)
+        p = subprocess.run(['/bin/bash', '-e', '-o', 'pipefail', '-c', command], preexec_fn=drop, capture_output=True, timeout=15)
         results.append({'instance':name, 'check':label, 'passed':p.returncode==0})
     # Distinct Unix identities cannot read peer HOME even without the chroot view.
     def uid_only():
