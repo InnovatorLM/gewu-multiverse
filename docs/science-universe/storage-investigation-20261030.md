@@ -66,6 +66,36 @@ it does not justify moving live role state outside the workspace.
 
 ## Remaining work
 
+## Actual Universe session verification increment
+
+The old `science-role-session-check` example only accepted legacy role names
+(`author` and `evaluator`). It now validates actual role names against the
+operator broker configuration. The example compiled successfully. The session
+test can select roles, avoiding interference with a UID currently installing.
+
+The initial real-session attempt found that Forgejo was stopped; its existing
+instance was restarted as UID65534, bound to 127.0.0.1:3000, without starting
+the Universe scheduler. The next attempt exposed a concrete runtime defect:
+the role PATH selected conda Git but lacked its library path, so fetch failed
+with missing `libiconv.so.2`. Adding the role-local library path to the broker
+and Codex runtime fixed that failure. Codex's shell environment is explicitly
+configured too, because its policy inherits no environment.
+
+Both author-01 and author-02 then passed actual `RealSpawner::prepare` twice,
+including repository reuse and subsequent Git fetch. Evidence is in workspace
+state `.state/harbor-eval/role-real-session-prepare.json`. These checks made no
+model calls, did not start production role scheduling and do not establish
+that all remaining roles are ready. The four Codex/preinstallation unit checks
+and real broker regression also passed after the runtime fix.
+
+The full serial recovery process has been confirmed resident as PID3704163;
+it waits for author-03 to finish before verifying and installing the remaining
+roles. Inspect the current process and
+`.state/storage-investigation/all-role-recovery.log` rather than treating this
+PID or document as proof it remains alive.
+
+## Remaining work
+
 Storage is usable but CPFS metadata latency remains high. This investigation
 does not claim a CPFS service repair. Continue serial preinstallation and
 in-chroot validation for author-03..author-10, evaluator-01..evaluator-03 and

@@ -32,6 +32,11 @@ def config(port):
         'cli_auth_credentials_store = "file"',
         '[shell_environment_policy]',
         'inherit = "none"',
+        '[shell_environment_policy.set]',
+        'PATH = "/home/role/.local/bin:/home/role/.local/env/bin:/usr/local/bin:/usr/bin:/bin"',
+        'LD_LIBRARY_PATH = "/home/role/.local/env/lib"',
+        'HOME = "/home/role"',
+        'TMPDIR = "/tmp"',
         '[model_providers.dawnfm-role-gateway]',
         'name = "dawnfm role gateway"',
         'base_url = "http://127.0.0.1:' + str(port) + '/v1"',
@@ -136,7 +141,7 @@ def run(request):
             (runtime / name).mkdir(mode=0o700)
         settings = runtime / 'codex/config.toml'
         settings.write_text(config(port)); settings.chmod(0o600)
-        env = {'PATH': '/home/role/.local/bin:/home/role/.local/env/bin:/usr/local/bin:/usr/bin:/bin', 'MAMBA_ROOT_PREFIX': '/home/role/.local/mamba', 'CONDA_PREFIX': '/home/role/.local/env', 'HOME': str(runtime / 'home'),
+        env = {'PATH': '/home/role/.local/bin:/home/role/.local/env/bin:/usr/local/bin:/usr/bin:/bin', 'LD_LIBRARY_PATH': '/home/role/.local/env/lib', 'MAMBA_ROOT_PREFIX': '/home/role/.local/mamba', 'CONDA_PREFIX': '/home/role/.local/env', 'HOME': str(runtime / 'home'),
                'CODEX_HOME': str(runtime / 'codex'), 'TMPDIR': str(runtime / 'tmp'),
                'XDG_CACHE_HOME': str(runtime / 'cache'), 'LANG': 'C.UTF-8',
                'GEWU_ROLE_GATEWAY_TOKEN': token, 'GIT_ASKPASS': '/usr/local/bin/role-askpass',

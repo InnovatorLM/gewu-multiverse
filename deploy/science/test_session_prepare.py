@@ -1,4 +1,5 @@
 """Real controller -> SessionSpawner -> isolated Git clone/fetch; no LLM calls."""
+import argparse
 import json
 import os
 from pathlib import Path
@@ -11,6 +12,10 @@ w = Path('/mnt/data/zhanglinfeng/workspace')
 base = w / '.state/science-role-broker'
 config = base / 'config.json'
 data = json.loads(config.read_text())
+parser=argparse.ArgumentParser()
+parser.add_argument('--role',action='append',choices=list(data['roles']))
+args=parser.parse_args()
+selected=args.role or list(data['roles'])
 state = base / ('prepare-check-' + str(time.time_ns()))
 state.mkdir(mode=0o700)
 os.chown(state,65534,65534)
@@ -31,7 +36,7 @@ try:
     env=os.environ.copy()
     env.update(GEWU_ROLE_BROKER_CONFIG=str(config),GEWU_HARNESS='native',TMPDIR=str(w/'.tmp'),HOME=str(state),NO_PROXY='127.0.0.1,localhost',no_proxy='127.0.0.1,localhost')
     report={}
-    for role in data['roles']:
+    for role in selected:
         # Second preparation exercises reuse/fetch, with all Git operations
         # inside the same role boundary as model-requested commands.
         for attempt in [1,2]:

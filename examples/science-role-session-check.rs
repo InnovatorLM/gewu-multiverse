@@ -14,7 +14,12 @@ fn main() -> Result<(), String> {
         );
     }
     let role = &args[1];
-    if !["author", "evaluator", "curator"].contains(&role.as_str()) {
+    let broker_path = std::env::var_os("GEWU_ROLE_BROKER_CONFIG")
+        .ok_or("broker configuration missing")?;
+    let broker: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(broker_path).map_err(|e| e.to_string())?,
+    ).map_err(|e| e.to_string())?;
+    if broker["roles"].get(role).is_none() {
         return Err("unknown role".into());
     }
     let root = PathBuf::from(
@@ -42,7 +47,7 @@ fn main() -> Result<(), String> {
         skills_dir: root.join("agents").join(role).join("skills"),
         endpoint: "https://dawnfm.gravarc.cn/v1/chat/completions".into(),
         model: "deepseek-v4.1-flash-1017".into(),
-        max_turns: 24,
+        max_turns: 0,
         timeout_secs: 300,
         credentials: credential,
         email: format!("{login}@example.invalid"),

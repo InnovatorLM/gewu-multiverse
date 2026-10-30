@@ -157,7 +157,7 @@ def execute_command(config, request, connection, gateway_env=()):
                '--userspec=' + str(role['uid']) + ':' + str(role['gid']),
                '--groups=' + str(role['gid']), str(root), '/usr/bin/env', '-i',
                'PATH=/home/role/.local/bin:/home/role/.local/env/bin:/usr/local/bin:/usr/bin:/bin', 'HOME=/home/role',
-               'TMPDIR=/tmp', 'PYTHONUSERBASE=/home/role/.local', 'PIP_CACHE_DIR=/home/role/.cache/pip', 'MAMBA_ROOT_PREFIX=/home/role/.local/mamba', 'CONDA_PREFIX=/home/role/.local/env', 'XDG_CACHE_HOME=/home/role/.cache',
+               'TMPDIR=/tmp', 'LD_LIBRARY_PATH=/home/role/.local/env/lib', 'PYTHONUSERBASE=/home/role/.local', 'PIP_CACHE_DIR=/home/role/.cache/pip', 'MAMBA_ROOT_PREFIX=/home/role/.local/mamba', 'CONDA_PREFIX=/home/role/.local/env', 'XDG_CACHE_HOME=/home/role/.cache',
                'XDG_CONFIG_HOME=/home/role/.config', 'XDG_STATE_HOME=/home/role/.state',
                'LANG=C', 'LC_ALL=C',
                'GIT_ASKPASS=/usr/local/bin/role-askpass', 'GIT_TERMINAL_PROMPT=0',

@@ -11,6 +11,8 @@ class RunnerConfigTests(unittest.TestCase):
         self.assertEqual(provider['base_url'],'http://127.0.0.1:12345/v1')
         self.assertEqual(provider['wire_api'],'responses')
         self.assertEqual(settings['shell_environment_policy']['inherit'],'none')
+        self.assertEqual(settings['shell_environment_policy']['set']['LD_LIBRARY_PATH'],'/home/role/.local/env/lib')
+        self.assertIn('/home/role/.local/env/bin',settings['shell_environment_policy']['set']['PATH'])
         self.assertNotIn('OPENAI_API_KEY',config(12345))
 
     def test_invalid_port_refused(self):
