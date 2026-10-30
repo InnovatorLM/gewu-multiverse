@@ -62,6 +62,7 @@ class DeploymentTests(unittest.TestCase):
             for relative in ('review-dispatcher/config.json','author-selftest/config.json','command-watchdog/config.json'):
                 path=state/relative;path.parent.mkdir(parents=True,exist_ok=True)
                 path.write_text(json.dumps({'broker_config':str(broker),'state':str(state/relative.split('/')[0])}))
+            (state/'deployment.json').write_text(json.dumps({'status':'service_config_prepared','universe_root':str(root)}))
             self.assertEqual(require_isolated_service_config(root),state)
 
     def test_shared_queue_state_is_rejected_even_when_other_configs_exist(self):
@@ -76,5 +77,20 @@ class DeploymentTests(unittest.TestCase):
             for name in ('review-dispatcher','author-selftest','command-watchdog'):
                 path=state/(name+'/config.json');path.parent.mkdir(parents=True,exist_ok=True)
                 path.write_text(json.dumps({'broker_config':str(broker),'state':str(state/name)}))
+            (state/'deployment.json').write_text(json.dumps({'status':'service_config_prepared','universe_root':str(root)}))
             with self.assertRaisesRegex(RuntimeError,'references shared state'):
+                require_isolated_service_config(root)
+
+    def test_service_marker_does_not_claim_full_deployment_readiness(self):
+        with tempfile.TemporaryDirectory(dir=WORKSPACE/'.tmp') as raw:
+            root=Path(raw);state=root/'.state/gewu-multiverse';broker=state/'role-broker/config.json'
+            broker.parent.mkdir(parents=True);broker.write_text(json.dumps({'socket':'@'+str(state/'role-broker.sock'),'roles':{}}))
+            queue=root/'.config/science-evaluation/queue.json';queue.parent.mkdir(parents=True)
+            queue.write_text(json.dumps({'state':str(state/'evaluation-queue'),'registry':str(root/'.config/science-evaluation/registry.json')}))
+            (root/'.config/science-evaluation/registry.json').write_text('{}')
+            for name in ('review-dispatcher','author-selftest','command-watchdog'):
+                path=state/(name+'/config.json');path.parent.mkdir(parents=True,exist_ok=True)
+                path.write_text(json.dumps({'broker_config':str(broker),'state':str(state/name)}))
+            (state/'deployment.json').write_text(json.dumps({'status':'prepared','universe_root':str(root)}))
+            with self.assertRaisesRegex(RuntimeError,'malformed or references shared state'):
                 require_isolated_service_config(root)

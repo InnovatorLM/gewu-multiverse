@@ -32,6 +32,7 @@ def require_isolated_service_config(root=None, workspace=WORKSPACE):
         'review dispatcher': state/'review-dispatcher/config.json',
         'author selftest worker': state/'author-selftest/config.json',
         'command watchdog': state/'command-watchdog/config.json',
+        'deployment readiness marker': state/'deployment.json',
     }
     missing=[name for name,path in required.items() if not path.is_file() or path.is_symlink()]
     if missing:
@@ -58,6 +59,9 @@ def require_isolated_service_config(root=None, workspace=WORKSPACE):
             service=json.loads(path.read_text())
             if Path(service['broker_config']).resolve()!=broker.resolve() or not Path(service['state']).resolve().is_relative_to(root):
                 raise ValueError
+        marker=json.loads(required['deployment readiness marker'].read_text())
+        if marker.get('status')!='service_config_prepared' or Path(marker['universe_root']).resolve()!=root:
+            raise ValueError
     except (OSError,KeyError,TypeError,ValueError):
         raise RuntimeError('Universe service configuration is malformed or references shared state') from None
     return state

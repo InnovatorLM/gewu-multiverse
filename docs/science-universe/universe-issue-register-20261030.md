@@ -1,6 +1,6 @@
 # 本轮宇宙问题总表（2026-10-30）
 
-2026-10-31更新：同一author-02 UID提交、Git树校验、实际构建发布、ACS oracle/nop及角色读取selftest_passed回执已通过，证据role-selftest-cloud-v1.json。第21项入口可用性已有端到端证明；生产模型自主使用、自解及结果驱动迭代仍待验收。第17项自动计时暂停恢复已接入watchdog并有回归；第42项真实指定模型摘要与续答通过。两者仍需生产会话验收。角色依赖环境已在author-02及evaluator-01/02完成独立复制和验证；evaluator-03仍处于CPFS解包，不能据此宣布全角色完成。全局工作区策略下，预装验证临时文件已改到每个角色自己的`.cache/gewu-preinstall-tmp`。替代宇宙的启动器、dispatcher、selftest worker、watchdog、author preflight和reset现支持所选universe的独立状态路径；门禁核验配置内容中的broker socket、角色根目录、queue/registry和service state，拒绝共享全局状态。独立配置生成、角色存储复制和完整启动验收仍未完成。检查点567d421已推送GitHub备份分支，后续修正尚待提交。未宣称主分支merge。旧宇宙角色调度仍停止，新宇宙未创建。
+2026-10-31更新：同一author-02 UID提交、Git树校验、实际构建发布、ACS oracle/nop及角色读取selftest_passed回执已通过，证据role-selftest-cloud-v1.json。第21项入口可用性已有端到端证明；生产模型自主使用、自解及结果驱动迭代仍待验收。第17项自动计时暂停恢复已接入watchdog并有回归；第42项真实指定模型摘要与续答通过。两者仍需生产会话验收。author-02及三个evaluator的角色依赖环境已完成独立复制并通过复制校验；author-09、author-10、curator 的复制正在进行。全局工作区策略下，预装验证临时文件已改到每个角色自己的`.cache/gewu-preinstall-tmp`。替代宇宙的启动器、dispatcher、selftest worker、watchdog、author preflight和reset现支持所选universe的独立状态路径；已为停机 universe 生成并核验独立配置，标记仅为`service_config_prepared`，不代表角色 ready 或宇宙可启动。门禁核验配置内容中的broker socket、角色根目录、queue/registry和service state，拒绝共享全局状态。完整启动验收仍未完成。检查点567d421已推送GitHub备份分支，后续修正尚待提交。未宣称主分支merge。旧宇宙角色调度仍停止，新宇宙未创建。
 
 状态口径：已修复＝有代码及局部验证；待行为验收＝规则/入口存在但完整角色流程未证明；未闭环＝仍有明确阻塞。历史修复不代表当前全部部署已验收。本表汇总已有审计、重启报告与本次轨迹复查，非所有历史故障均重新复现。
 
