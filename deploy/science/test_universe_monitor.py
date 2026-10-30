@@ -15,3 +15,20 @@ class ArchiveTests(unittest.TestCase):
                 with self.assertRaises(ValueError):m.events_for('author-01','native:../secret')
                 self.assertTrue(any(r['id']=='native:run-test' for r in m.runs_for('author-01')))
             finally:m.ROOT=old
+
+    def test_live_status_does_not_trust_a_stale_pid(self):
+        import os
+        with tempfile.TemporaryDirectory(dir=m.W/'.tmp') as d:
+            run=Path(d)
+            (run/'session.pid').write_text(str(os.getpid()))
+            self.assertFalse(m.live_run(run))
+            (run/'session.pid').write_text('999999999')
+            self.assertFalse(m.live_run(run))
+
+    def test_selection_is_read_from_agent_settings(self):
+        with tempfile.TemporaryDirectory(dir=m.W/'.tmp') as d:
+            old=m.SETTINGS;m.SETTINGS=Path(d)/'settings.toml'
+            try:
+                m.SETTINGS.write_text('[[agents]]\nname = "author-01"\ndesired = "started"\n[[agents]]\nname = "author-05"\ndesired = "stopped"\n')
+                self.assertEqual(m.desired_roles(),{'author-01':'started','author-05':'stopped'})
+            finally:m.SETTINGS=old

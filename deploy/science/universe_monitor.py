@@ -11,11 +11,31 @@ SECRET=re.compile(r'(?i)(api[_-]?key|token|password|authorization|secret)\s*[:=]
 BRIEF_DIR=W/'.state/universe-monitor-briefs'
 BRIEF_DIR.mkdir(parents=True, exist_ok=True)
 BRIEF_FILE=BRIEF_DIR/'latest.json'
+SETTINGS=W/'universes/my-terminal-bench-science/.config/gewu-multiverse/multiverse.toml'
+
+def desired_roles():
+    text=SETTINGS.read_text()
+    roles={}
+    for block in text.split('[[agents]]')[1:]:
+        name=re.search(r'^name\s*=\s*"([^"]+)"',block,re.M)
+        desired=re.search(r'^desired\s*=\s*"([^"]+)"',block,re.M)
+        if name and desired: roles[name[1]]=desired[1]
+    return roles
+
+def live_run(run):
+    try:
+        pid=int((run/'session.pid').read_text().strip())
+        cmd=(Path('/proc')/str(pid)/'cmdline').read_bytes().split(bytes([0]))
+        state=(Path('/proc')/str(pid)/'stat').read_text().split()[2]
+        return state!='Z' and b'--run-agent' in cmd and str(run).encode() in cmd
+    except (OSError,ValueError): return False
+
 
 def safe(s):
     return redact(s)[:1200]
 def snapshot():
     out=[]
+    desired=desired_roles()
     allowed={'curator'} | {f'author-{i:02}' for i in range(1,11)} | {f'evaluator-{i:02}' for i in range(1,4)}
     for role_dir in sorted((p for p in ROOT.iterdir() if p.is_dir() and p.name in allowed), key=lambda p:p.name):
         runs=sorted(role_dir.glob('run-*'),key=lambda p:p.stat().st_mtime,reverse=True)
@@ -28,7 +48,8 @@ def snapshot():
                 try:
                     e=json.loads(line); events.append({'event':e.get('event') or e.get('type'),'ts':e.get('ts'),'text':safe(str(e.get('text',''))), 'tool':safe(str(e.get('command','')) )})
                 except Exception: pass
-        out.append({'role':role_dir.name,'run':run.name,'updated':max((p.stat().st_mtime for p in run.iterdir() if p.is_file()),default=run.stat().st_mtime),'model':MODEL,'log':safe(text),'events':events[-12:]})
+        status='已停用' if desired.get(role_dir.name)!='started' else ('运行中' if live_run(run) else '等待调度')
+        out.append({'status':status,'desired':desired.get(role_dir.name),'role':role_dir.name,'run':run.name,'updated':max((p.stat().st_mtime for p in run.iterdir() if p.is_file()),default=run.stat().st_mtime),'model':MODEL,'log':safe(text),'events':events[-12:]})
     return {'now':time.time(),'roles':out,'brief':read_brief()}
 
 def read_brief():
@@ -45,8 +66,9 @@ def write_brief():
         t=sum(e.get('event') in ('tool_call','tool_result') for e in events)
         replies+=r; tools+=t
         age=now-x.get('updated',now)
-        (stalled if age>900 else active).append(x['role'])
-    text=(f"当前共有 {len(roles)} 个角色处于监控范围，最近摘要中包含 {replies} 次模型回复和 {tools} 次工具活动。"
+        if x.get('status')=='运行中':
+            (stalled if age>900 else active).append(x['role'])
+    text=(f"当前启用 {sum(x.get('desired')=='started' for x in roles)} 个角色，运行中 {sum(x.get('status')=='运行中' for x in roles)} 个，最近摘要中包含 {replies} 次模型回复和 {tools} 次工具活动。"
           f"正在活跃推进的角色包括：{', '.join(active[:12]) or '暂无'}。")
     if stalled: text+=f" {', '.join(stalled[:8])} 最近活动较少，需继续观察。"
     brief={'text':text,'generated_at':now,'periods':[]}
@@ -66,7 +88,7 @@ HTML='''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="view
 </style><main><header><div><h1>Terminal-Bench Science Universe</h1><div class="subtitle">角色运行、模型调用与工具轨迹</div></div><div class="meta" id="meta">正在连接…</div></header><section class="brief"><div class="brief-title">十分钟世界简报</div><div id="brief">简报正在生成…</div><div class="brief-time" id="brief-time"></div></section><section class="history-panel"><div class="section-title"><span>简报时间线</span><span class="section-note">每 10 分钟更新 · 保留最近 6 期</span></div><div id="history" class="history"></div></section><div class="section-title roles-title"><span>角色运行明细</span><span class="section-note">每 1 分钟刷新</span></div><section class="grid" id="grid"></section></main><script>
 const metaEl=document.getElementById('meta'), gridEl=document.getElementById('grid');
 const esc=s=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
-async function tick(){try{let r=await fetch('/api/state',{cache:'no-store'});if(!r.ok)throw Error('API HTTP '+r.status);let d=await r.json();let now=d.now;metaEl.innerHTML=`<strong>${d.roles.length}</strong> 个角色<br><span>最后更新 ${new Date(now*1000).toLocaleTimeString()} · 每 1 分钟刷新</span>`;if(d.brief){document.getElementById('brief').textContent=d.brief.text;document.getElementById('brief-time').textContent=d.brief.generated_at?'生成于 '+new Date(d.brief.generated_at*1000).toLocaleString():'';document.getElementById('history').innerHTML=(d.brief.periods||[]).slice().reverse().map((b,i)=>`<article class="history-item"><div class="history-dot"></div><div class="history-content"><div class="history-date">${new Date(b.generated_at*1000).toLocaleString()} ${i===0?'<span class="latest">最新</span>':''}</div><div>${esc(b.text)}</div></div></article>`).join('')||'<div class="empty">暂时还没有历史简报。</div>'}gridEl.innerHTML=d.roles.map(x=>{let age=Math.max(0,Math.round(now-x.updated));let latest=x.events?.[x.events.length-1];return `<article class="card"><div class="head"><div class="role">${esc(x.role)}</div><span class="badge">有运行记录</span></div><div class="model">${esc(x.model)}</div><div class="run">${esc(x.run)}</div><div class="activity">最近活动：<b>${age<60?age+' 秒前':Math.round(age/60)+' 分钟前'}</b>${latest?' · '+esc(latest.event):''}</div><details open><summary>事件轨迹（${x.events.length}）</summary>${x.events.map(e=>`<div class="event">${esc(e.ts)} · ${esc(e.event)} · ${esc(e.tool||e.text)}</div>`).join('')}</details><details><summary>运行日志</summary><pre>${esc(x.log)}</pre></details></article>`}).join('')}catch(e){metaEl.innerHTML='<span class="error">监控 API 错误</span>';gridEl.innerHTML='<div class="card error">无法读取状态，请检查监控服务。</div>'}setTimeout(tick,60000)}tick();
+async function tick(){try{let r=await fetch('/api/state',{cache:'no-store'});if(!r.ok)throw Error('API HTTP '+r.status);let d=await r.json();let now=d.now;metaEl.innerHTML=`<strong>${d.roles.length}</strong> 个角色<br><span>最后更新 ${new Date(now*1000).toLocaleTimeString()} · 每 1 分钟刷新</span>`;if(d.brief){document.getElementById('brief').textContent=d.brief.text;document.getElementById('brief-time').textContent=d.brief.generated_at?'生成于 '+new Date(d.brief.generated_at*1000).toLocaleString():'';document.getElementById('history').innerHTML=(d.brief.periods||[]).slice().reverse().map((b,i)=>`<article class="history-item"><div class="history-dot"></div><div class="history-content"><div class="history-date">${new Date(b.generated_at*1000).toLocaleString()} ${i===0?'<span class="latest">最新</span>':''}</div><div>${esc(b.text)}</div></div></article>`).join('')||'<div class="empty">暂时还没有历史简报。</div>'}gridEl.innerHTML=d.roles.map(x=>{let age=Math.max(0,Math.round(now-x.updated));let latest=x.events?.[x.events.length-1];return `<article class="card"><div class="head"><div class="role">${esc(x.role)}</div><span class="badge">${esc(x.status)}</span></div><div class="model">${esc(x.model)}</div><div class="run">${esc(x.run)}</div><div class="activity">最近活动：<b>${age<60?age+' 秒前':Math.round(age/60)+' 分钟前'}</b>${latest?' · '+esc(latest.event):''}</div><details open><summary>事件轨迹（${x.events.length}）</summary>${x.events.map(e=>`<div class="event">${esc(e.ts)} · ${esc(e.event)} · ${esc(e.tool||e.text)}</div>`).join('')}</details><details><summary>运行日志</summary><pre>${esc(x.log)}</pre></details></article>`}).join('')}catch(e){metaEl.innerHTML='<span class="error">监控 API 错误</span>';gridEl.innerHTML='<div class="card error">无法读取状态，请检查监控服务。</div>'}setTimeout(tick,60000)}tick();
 </script>'''
 ROLES_ROOT=W/'universes/my-terminal-bench-science/.config/gewu-multiverse/agents'
 ROLE_RE=re.compile(r'(author-[0-9]{2,4}|evaluator-[0-9]{2,4}|curator)')
