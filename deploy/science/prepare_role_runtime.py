@@ -68,12 +68,8 @@ for index, role in enumerate(roles):
     os.chown(target, 65534, 65534)
     target.chmod(0o644)
     if kind == 'author':
-        feedback = universe / 'governance/public/pilot-review-feedback.md'
-        if feedback.is_file():
-            target = root / 'workspace/PILOT-REVIEW-FEEDBACK.md'
-            shutil.copyfile(feedback, target)
-            os.chown(target, 0, 0)
-            target.chmod(0o644)
+        from role_policy import retire_pilot_feedback
+        retire_pilot_feedback(root)
     target = root / 'home/role/git-credential.json'
     credential_name = role + '.json'
     if not (w / '.config/universe-roles' / credential_name).is_file():

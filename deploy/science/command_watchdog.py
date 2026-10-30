@@ -14,16 +14,31 @@ def process_info(pid):
 def overdue(info,uptime,hz,limit):
     return info['state']!='Z' and info['pid']==info['pgid'] and info['comm']=='bash' and uptime-info['start_ticks']/hz>=limit
 
-def stop_verified(expected):
+def stop_verified(expected, sig=signal.SIGTERM):
     try:
         fd=os.pidfd_open(expected['pid'])
         try:
             now=process_info(expected['pid'])
             if (now['uid'],now['start_ticks'],now['pgid'])!=(expected['uid'],expected['start_ticks'],expected['pgid']):return False
-            signal.pidfd_send_signal(fd,signal.SIGTERM)
+            signal.pidfd_send_signal(fd,sig)
             return True
         finally:os.close(fd)
     except (FileNotFoundError,ProcessLookupError):return False
+
+def stop_command_group(leader, members, grace=2):
+    targets=[*members,leader]
+    terminated=sum(stop_verified(member) for member in targets)
+    deadline=time.monotonic()+grace
+    while time.monotonic()<deadline:
+        survivors=[]
+        for member in targets:
+            try:
+                current=process_info(member['pid'])
+                if current['state']!='Z' and (current['uid'],current['start_ticks'],current['pgid'])==(member['uid'],member['start_ticks'],member['pgid']):survivors.append(member)
+            except (FileNotFoundError,ProcessLookupError):pass
+        if not survivors:return dict(term_signals=terminated,kill_signals=0)
+        time.sleep(.05)
+    return dict(term_signals=terminated,kill_signals=sum(stop_verified(member,signal.SIGKILL) for member in survivors))
 
 def scan(config,limit=3600):
     hz=os.sysconf('SC_CLK_TCK');uptime=float(Path('/proc/uptime').read_text().split()[0]);roles={v['uid']:name for name,v in config['roles'].items()}
@@ -47,8 +62,7 @@ def scan(config,limit=3600):
             try: member=process_info(child.name)
             except (OSError,ValueError,IndexError):continue
             if member['uid']==info['uid'] and member['pgid']==info['pgid'] and member['pid']!=info['pid']:children.append(member)
-        payload['descendants_signalled']=sum(stop_verified(member) for member in children)
-        payload['signal_sent']=stop_verified(info)
+        payload['termination']=stop_command_group(info,children)
         record.write_text(json.dumps(payload,indent=2));record.chmod(0o600)
         print(json.dumps(payload),flush=True)
 

@@ -37,7 +37,12 @@ broker_pid=$!
 evaluation_pid=''
 review_dispatch_pid=''
 selftest_pid=''
+watchdog_pid=''
 finish() {
+    if [[ -n "$watchdog_pid" ]]; then
+        kill -TERM "$watchdog_pid" 2>/dev/null || true
+        wait "$watchdog_pid" 2>/dev/null || true
+    fi
     if [[ -n "$selftest_pid" ]]; then
         kill -TERM "$selftest_pid" 2>/dev/null || true
         wait "$selftest_pid" 2>/dev/null || true
@@ -112,5 +117,13 @@ review_dispatch_pid=$!
 "$PY" "$W/gewu-multiverse/deploy/science/author_selftest_worker.py" \
     > "$W/.state/science-author-selftest/production-worker.log" 2>&1 &
 selftest_pid=$!
+mkdir -p "$W/.state/science-command-watchdog"
+"$PY" "$W/gewu-multiverse/deploy/science/command_watchdog.py" \
+    > "$W/.state/science-command-watchdog/production.log" 2>&1 &
+watchdog_pid=$!
+# Refuse a controller start if any owned background service already failed.
+for service_pid in "$broker_pid" "$evaluation_pid" "$review_dispatch_pid" "$selftest_pid" "$watchdog_pid"; do
+    kill -0 "$service_pid" || { echo 'A required deployment service exited during startup.' >&2; exit 1; }
+done
 export USER=nobody LOGNAME=nobody
 setpriv --reuid=65534 --regid=65534 --clear-groups "$PRODUCT" "$@"

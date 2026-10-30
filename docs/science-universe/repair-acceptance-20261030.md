@@ -72,3 +72,11 @@ openssl-selfsigned-cert冻结源码f64efc6cdf097edd5df306fb16be544d08e384e6；Co
 新增accept_author_selftest.py，以冻结的既有openssl题创建隔离上传并调用真实worker，实际构建发布和ACS oracle／nop，不替代作者自解与迭代签发。已启动worker-acceptance-v1，job a48379ab304f427da5482897d326fc7a，上传15个文件与fixture Git树绑定通过；完整构建与云端终态尚在验收。证据目录workspace/.state/universe-repair-20261030/worker-acceptance-v1。
 
 reset与新版部署通过共享／独占生命周期锁互斥，15项相关回归通过；仍要求先停监督器和控制器，尚未实现生产在线单角色reset。旧宇宙保持停止。
+
+## 2026-10-31 生命周期与策略修复
+
+- command_watchdog纳入启动器持有的子进程，退出时TERM并wait，启动控制器前检查所有服务PID；不再依赖人工独立启动。真实启动行为尚须新部署验收。
+- 一小时本地命令干预先TERM再按UID／启动时刻／进程组身份核验后KILL，避免忽略TERM的命令持续占用。真实临时进程忽略TERM的回归通过；不干预独立ACS作业，不自动判定题目死胡同。
+- 初始化不再复制旧pilot评审反馈到活跃工作区；已有副本保留在.historical-feedback并注明由当前instruction／skill取代，拒绝符号链接和冲突覆盖。该变更及watchdog／启动就绪共8项回归通过。
+- worker实际构建发布完成，oracle reward1、exception为空、cleanup confirmed；nop仍在运行，完整worker终态尚未取得，不能写成全部通过。
+- 评审环境复制tar进程仍存活且归档持续增长；没有重复启动。旧宇宙未恢复，新宇宙未创建。
