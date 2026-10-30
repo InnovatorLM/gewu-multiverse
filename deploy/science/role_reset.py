@@ -6,6 +6,7 @@ from command_watchdog import process_info
 W = Path('/mnt/data/zhanglinfeng/workspace')
 from deployment_paths import universe_root
 U = universe_root(W)
+DEPLOYMENT_STATE=U/'.state/gewu-multiverse'
 BEGIN = '<!-- operator-reset:start -->'
 END = '<!-- operator-reset:end -->'
 
@@ -71,7 +72,7 @@ def reset(role, reason, guidance, apply=False, grace=5):
         raise PermissionError('Operator required')
     if not reason.strip() or not guidance.strip() or any(x in reason + guidance for x in (BEGIN, END)):
         raise ValueError('Explicit reason and next action required; marker text forbidden')
-    config = json.loads((W / '.state/science-role-broker/config.json').read_text())
+    config = json.loads((DEPLOYMENT_STATE / 'role-broker/config.json').read_text())
     if role not in config['roles']:
         raise ValueError('Unknown role')
     entry = config['roles'][role]
@@ -112,7 +113,7 @@ def reset(role, reason, guidance, apply=False, grace=5):
         files_preserved=True, restart='controller-managed; new session not yet verified')
     if not apply:
         return receipt
-    directory = W / '.state/science-role-reset'
+    directory = DEPLOYMENT_STATE / 'role-reset'
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     with maintenance_lock(directory), (directory / (role + '.lock')).open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)

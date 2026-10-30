@@ -21,7 +21,7 @@ def register(receipt_path, commit, task, apply=False):
     raw = gate.read_operator_file(receipt_path, 1024 * 1024)
     receipt = gate.validate_receipt(json.loads(raw), commit, task)
     key = commit + '-' + hashlib.sha256(task.encode()).hexdigest()[:16]
-    directory = gate.W / '.state/science-author-preflight'
+    directory = gate.universe_root(gate.W) / '.state/science-author-preflight'
     destination = directory / (key + '.json')
     result = dict(commit=commit, task=task, destination=str(destination),
                   applied=False, source_sha256=hashlib.sha256(raw).hexdigest(),

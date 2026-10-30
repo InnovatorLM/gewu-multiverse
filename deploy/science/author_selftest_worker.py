@@ -8,7 +8,7 @@ from build_task_images import validate_dockerfile
 from selftest_source import verify_source
 from selftest_logs import credential_values, publish as publish_logs
 from selftest_upload import snapshot_upload
-STATE=W/'.state/science-author-selftest'
+STATE=Path(os.environ.get('GEWU_AUTHOR_SELFTEST_STATE',W/'.state/science-author-selftest'))
 PYTHON=W/'acs-harbor-test/.venv/bin/python'
 BASE='public.ecr.aws/docker/library/python@sha256:b7a9e5f6a93d6d4a31f129bbd4bdee69efccb6ded0fb230d78aafaf37af98377'
 def build_command(repo,commit,name,output):
@@ -55,7 +55,8 @@ def process(role,entry,request):
   status.update(verify_source(root/'workspace',q['source_repository'],q['source_task_path'],q['source_commit'],task));save()
   for args in [['init','-q'],['config','user.email','operator@localhost'],['config','user.name','operator'],['add','.'],['commit','-qm','Frozen author upload']]:subprocess.run(['git','-C',str(repo),*args],check=True,capture_output=True)
   commit=subprocess.check_output(['git','-C',str(repo),'rev-parse','HEAD'],text=True).strip();status.update(status='building',source_commit=q['source_commit']);save()
-  env=os.environ.copy();env.update(TMPDIR=str(W/'.tmp'),PYTHONDONTWRITEBYTECODE='1',HOME=str(W/'.state/harbor-home'))
+  task_tmp=work/'tmp';task_home=work/'home';task_tmp.mkdir(mode=0o700,exist_ok=True);task_home.mkdir(mode=0o700,exist_ok=True)
+  env=os.environ.copy();env.update(TMPDIR=str(task_tmp),PYTHONDONTWRITEBYTECODE='1',HOME=str(task_home))
   with (work/'build.log').open('w') as log:
    r=owned_run(build_command(repo,commit,name,work/'build'),env=env,stdout=log,stderr=log,timeout=3600)
   if r.returncode:raise RuntimeError('Image build failed; operator evidence: '+str(work/'build.log'))
@@ -85,12 +86,15 @@ def process(role,entry,request):
   status.update(status='failed',error=sanitize(str(e),secrets)[:600])
  save()
 def main():
+ global STATE
+ p=__import__('argparse').ArgumentParser();p.add_argument('--broker-config',type=Path,default=W/'.state/science-role-broker/config.json');p.add_argument('--state',type=Path,default=STATE);args=p.parse_args()
+ STATE=args.state
  install_stop_handlers()
  STATE.mkdir(mode=0o700,parents=True,exist_ok=True)
  with (STATE/'worker.lock').open('a') as lock:
   fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
   while True:
-   roles=json.loads((W/'.state/science-role-broker/config.json').read_text())['roles']
+   roles=json.loads(args.broker_config.read_text())['roles']
    for role,entry in roles.items():
     if role.startswith('author-'):
      for q in sorted((Path(entry['root'])/'selftest/inbox').glob('*.json')):process(role,entry,q)

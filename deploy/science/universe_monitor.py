@@ -15,7 +15,7 @@ BRIEF_DIR=W/'.state/universe-monitor-briefs'
 BRIEF_DIR.mkdir(parents=True, exist_ok=True)
 BRIEF_FILE=BRIEF_DIR/'latest.json'
 SETTINGS=UNIVERSE/'.config/gewu-multiverse/multiverse.toml'
-DISPATCH_STATE=W/'.state/science-review-dispatcher'
+DISPATCH_STATE=UNIVERSE/'.state/gewu-multiverse/review-dispatcher'
 
 def review_waits():
     try:

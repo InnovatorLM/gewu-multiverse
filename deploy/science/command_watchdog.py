@@ -68,7 +68,9 @@ def scan(config,limit=3600):
 
 def main():
     import fcntl
-    p=argparse.ArgumentParser();p.add_argument('--once',action='store_true');a=p.parse_args()
+    global CONFIG,STATE
+    p=argparse.ArgumentParser();p.add_argument('--once',action='store_true');p.add_argument('--config',type=Path,default=CONFIG);p.add_argument('--state',type=Path,default=STATE);a=p.parse_args()
+    CONFIG,STATE=a.config,a.state
     STATE.mkdir(parents=True,exist_ok=True,mode=0o700)
     with (STATE/'watchdog.lock').open('a') as lock:
         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)

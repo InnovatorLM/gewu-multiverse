@@ -15,6 +15,8 @@ class RegistrationTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.override = patch.object(gate, 'W', self.root)
         self.override.start(); self.addCleanup(self.override.stop)
+        self.universe_override=patch.object(gate,'universe_root',return_value=self.root)
+        self.universe_override.start();self.addCleanup(self.universe_override.stop)
         self.evidence = self.root / 'evidence.json'
         self.evidence.write_text('{"fixture":true}')
         self.evidence.chmod(0o600)

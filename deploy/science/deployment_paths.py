@@ -1,4 +1,5 @@
 """Explicit deployment identity; never silently select another universe."""
+import json
 import os
 from pathlib import Path
 WORKSPACE=Path('/mnt/data/zhanglinfeng/workspace')
@@ -23,9 +24,11 @@ def require_isolated_service_config(root=None, workspace=WORKSPACE):
     """Fail closed until each universe has its own broker and evaluator services."""
     root=Path(root) if root is not None else universe_root(workspace)
     state=deployment_state_root(root)
+    broker=state/'role-broker/config.json'
+    queue=root/'.config/science-evaluation/queue.json'
     required={
-        'role broker': state/'role-broker/config.json',
-        'evaluation queue': root/'.config/science-evaluation/queue.json',
+        'role broker': broker,
+        'evaluation queue': queue,
         'review dispatcher': state/'review-dispatcher/config.json',
         'author selftest worker': state/'author-selftest/config.json',
         'command watchdog': state/'command-watchdog/config.json',
@@ -33,4 +36,28 @@ def require_isolated_service_config(root=None, workspace=WORKSPACE):
     missing=[name for name,path in required.items() if not path.is_file() or path.is_symlink()]
     if missing:
         raise RuntimeError('Universe services are not isolated/configured: '+', '.join(missing))
+    try:
+        broker_config=json.loads(broker.read_text())
+        queue_config=json.loads(queue.read_text())
+        expected_roles=(root/'.config/gewu-multiverse/agents').resolve()
+        socket=broker_config['socket']
+        socket_path=Path(socket[1:] if socket.startswith('@') else socket)
+        if not socket_path.resolve().is_relative_to(root):
+            raise ValueError
+        for role in broker_config['roles'].values():
+            if not Path(role['root']).resolve().is_relative_to(expected_roles):
+                raise ValueError
+        queues=queue_config.get('role_queues') or [queue_config]
+        for queue_entry in queues:
+            for key in ('inbox','results','state','registry'):
+                if not Path(queue_entry.get(key,queue_config.get(key,''))).resolve().is_relative_to(root):
+                    raise ValueError
+        for name,path in [('review dispatcher',required['review dispatcher']),
+                          ('author selftest worker',required['author selftest worker']),
+                          ('command watchdog',required['command watchdog'])]:
+            service=json.loads(path.read_text())
+            if Path(service['broker_config']).resolve()!=broker.resolve() or not Path(service['state']).resolve().is_relative_to(root):
+                raise ValueError
+    except (OSError,KeyError,TypeError,ValueError):
+        raise RuntimeError('Universe service configuration is malformed or references shared state') from None
     return state

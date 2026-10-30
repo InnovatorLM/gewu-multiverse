@@ -103,11 +103,13 @@ def reconcile(api,config,ledger):
 
 def main():
     from controller_credentials import load_controller_credentials
-    p=argparse.ArgumentParser();p.add_argument('--once',action='store_true');a=p.parse_args()
+    global STATE
+    p=argparse.ArgumentParser();p.add_argument('--once',action='store_true');p.add_argument('--config',type=Path,default=W/'.state/science-role-broker/config.json');p.add_argument('--state',type=Path,default=STATE);a=p.parse_args()
+    STATE=a.state
     STATE.mkdir(mode=0o700,exist_ok=True)
     with (STATE/'dispatcher.lock').open('a') as lock:
         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
-        api=Api(load_controller_credentials()['forgejo_admin_token']);config=json.loads((W/'.state/science-role-broker/config.json').read_text())
+        api=Api(load_controller_credentials()['forgejo_admin_token']);config=json.loads(a.config.read_text())
         while True:
             ledger=json.loads((STATE/'ledger.json').read_text()) if (STATE/'ledger.json').exists() else {}
             try:reconcile(api,config,ledger)

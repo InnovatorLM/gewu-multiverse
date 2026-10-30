@@ -1,6 +1,6 @@
 # 本轮宇宙问题总表（2026-10-30）
 
-2026-10-31更新：同一author-02 UID提交、Git树校验、实际构建发布、ACS oracle/nop及角色读取selftest_passed回执已通过，证据role-selftest-cloud-v1.json。第21项入口可用性已有端到端证明；生产模型自主使用、自解及结果驱动迭代仍待验收。第17项自动计时暂停恢复已接入watchdog并有回归；第42项真实指定模型摘要与续答通过。两者仍需生产会话验收。角色依赖环境已在author-02及evaluator-01/02完成独立复制和验证；evaluator-03仍处于CPFS解包，不能据此宣布全角色完成。全局工作区策略下，预装验证临时文件已改到每个角色自己的`.cache/gewu-preinstall-tmp`。替代宇宙状态隔离审计发现broker、评测queue、dispatcher、selftest和watchdog仍有全局路径依赖；启动器现在要求五类服务配置均位于所选宇宙并拒绝缺配置启动，但服务迁移本身仍未完成。检查点6d11fca已推送GitHub备份分支，未宣称主分支merge。旧宇宙角色调度仍停止，新宇宙未创建。
+2026-10-31更新：同一author-02 UID提交、Git树校验、实际构建发布、ACS oracle/nop及角色读取selftest_passed回执已通过，证据role-selftest-cloud-v1.json。第21项入口可用性已有端到端证明；生产模型自主使用、自解及结果驱动迭代仍待验收。第17项自动计时暂停恢复已接入watchdog并有回归；第42项真实指定模型摘要与续答通过。两者仍需生产会话验收。角色依赖环境已在author-02及evaluator-01/02完成独立复制和验证；evaluator-03仍处于CPFS解包，不能据此宣布全角色完成。全局工作区策略下，预装验证临时文件已改到每个角色自己的`.cache/gewu-preinstall-tmp`。替代宇宙的启动器、dispatcher、selftest worker、watchdog、author preflight和reset现支持所选universe的独立状态路径；门禁核验配置内容中的broker socket、角色根目录、queue/registry和service state，拒绝共享全局状态。独立配置生成、角色存储复制和完整启动验收仍未完成。检查点567d421已推送GitHub备份分支，后续修正尚待提交。未宣称主分支merge。旧宇宙角色调度仍停止，新宇宙未创建。
 
 状态口径：已修复＝有代码及局部验证；待行为验收＝规则/入口存在但完整角色流程未证明；未闭环＝仍有明确阻塞。历史修复不代表当前全部部署已验收。本表汇总已有审计、重启报告与本次轨迹复查，非所有历史故障均重新复现。
 
@@ -85,6 +85,7 @@ role_progress_review.py：读取最新轨迹，对反复失败、大上下文、
 
 - 旧宇宙停机记录仍有效：controller、broker、dispatcher、selftest worker和watchdog已退出。8765监控网页进程仍存活，它只读展示状态，不会调度角色。
 - 依赖环境bootstrap进程4087740仍活跃。evaluator-01/02已写入`verified_independent_copy`并通过环境探针；evaluator-03在CPFS解包。归档SHA256为`7fdc368137018bb996a63556c9c0ff88f995352d59bbcc43e5d2027b20de2224`，文件系统有约110 TB可用空间和1.42亿可用inode；观察到tar间歇处于不可中断I/O等待，说明有存储延迟，但未见容量耗尽证据。
-- 替代宇宙路径隔离测试新增6项并通过。启动器要求每个宇宙具备独立broker、queue、review dispatcher、author selftest worker及command watchdog配置；实际服务配置迁移未完成，因此启动器会有意拒绝启动。
+- 替代宇宙路径隔离测试新增7项并通过。启动器要求每个宇宙具备独立broker、queue、review dispatcher、author selftest worker及command watchdog配置，并核验关键路径都位于该宇宙；服务代码现接收显式路径，但这些配置尚未生成且角色根目录未复制，因此启动器会有意拒绝启动。
 - `preinstall_role_runtime.py`的验证临时文件改为角色私有`.cache/gewu-preinstall-tmp`。路径与bootstrap回归合计9项通过，shell语法及diff检查通过。
+- dispatcher、selftest worker、watchdog、role reset、author preflight和监控状态读取改为跟随选定宇宙路径；隔离、reset、watchdog、评测派单及提交门禁相关回归共40项通过。完整新宇宙服务联调尚未进行。
 - 上述修正仍未提交/推送；新宇宙未创建或启动，主分支未合并。

@@ -2,6 +2,7 @@
 import json,re,math,os,stat,hashlib
 from pathlib import Path
 W=Path('/mnt/data/zhanglinfeng/workspace')
+from deployment_paths import universe_root
 CHECKS=('schema','container_build','container_start','author_solve','verifier_positive','verifier_negative','post_iteration_rerun')
 REQUIRED_ORDER=('schema','container_build','container_start','author_solve','verifier_positive','verifier_negative','post_iteration_rerun')
 def validate_identity(commit,task):
@@ -49,7 +50,7 @@ def validate_receipt(receipt,commit,task):
 def approved(commit,task):
     validate_identity(commit,task)
     key=commit+'-'+__import__('hashlib').sha256(task.encode()).hexdigest()[:16]
-    p=W/'.state/science-author-preflight'/ (key+'.json')
+    p=universe_root(W)/'.state/science-author-preflight'/ (key+'.json')
     if not p.exists():return False
     validate_receipt(json.loads(read_operator_file(p,1024*1024)),commit,task)
     return True

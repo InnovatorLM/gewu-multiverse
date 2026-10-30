@@ -18,6 +18,9 @@ export GEWU_RESPONSE_TOKENS=8192
 export GEWU_CHAT_THINKING=disabled
 export GEWU_FORGEJO_TIMEOUT_SECS=120
 export GEWU_ROLE_BROKER_CONFIG="$U/.state/gewu-multiverse/role-broker/config.json"
+SERVICE_STATE="$U/.state/gewu-multiverse"
+QUEUE_CONFIG="$U/.config/science-evaluation/queue.json"
+QUEUE_STATE="$SERVICE_STATE/evaluation-queue"
 PRODUCT="$W/.local/libexec/gewu-multiverse"
 if [[ $(id -u) != 0 ]]; then
     echo 'Start this deployment as the root operator; its controller drops privileges.' >&2
@@ -26,16 +29,16 @@ fi
 [[ -f "$GEWU_ROLE_BROKER_CONFIG" && -x "$PRODUCT" ]]
 # Keep this descriptor for the whole launcher lifetime, including owned children.
 # An operator reset holds the exclusive side and startup must fail closed.
-mkdir -p "$W/.state/science-role-reset"
-exec 9>>"$W/.state/science-role-reset/lifecycle.lock"
-chmod 600 "$W/.state/science-role-reset/lifecycle.lock"
+mkdir -p "$SERVICE_STATE/role-reset"
+exec 9>>"$SERVICE_STATE/role-reset/lifecycle.lock"
+chmod 600 "$SERVICE_STATE/role-reset/lifecycle.lock"
 flock -s -n 9 || { echo 'Operator maintenance/reset is active; deployment not started.' >&2; exit 1; }
 # Run import/tool probes as each enabled role before any controller can schedule it.
 "$PY" "$W/gewu-multiverse/deploy/science/role_capabilities.py" \
     --config "$GEWU_ROLE_BROKER_CONFIG" --settings "$U/.config/gewu-multiverse/multiverse.toml"
-mkdir -p "$W/.state/science-role-broker"
+mkdir -p "$(dirname "$GEWU_ROLE_BROKER_CONFIG")"
 "$PY" "$W/gewu-multiverse/deploy/science/role_exec.py" "$GEWU_ROLE_BROKER_CONFIG" \
-    > "$W/.state/science-role-broker/production-broker.log" 2>&1 &
+    > "$SERVICE_STATE/role-broker/production-broker.log" 2>&1 &
 broker_pid=$!
 evaluation_pid=''
 review_dispatch_pid=''
@@ -87,11 +90,11 @@ while True:
             raise SystemExit('Role broker failed startup; controller not started')
         time.sleep(0.1)
 PY_CHECK
-QUEUE_CONFIG="$W/.config/science-evaluation/queue.json"
-QUEUE_READY="$W/.state/science-evaluation-queue/ready.json"
+QUEUE_READY="$QUEUE_STATE/ready.json"
+mkdir -p "$QUEUE_STATE"
 "$PY" "$W/gewu-multiverse/deploy/science/evaluation_queue.py" \
     --config "$QUEUE_CONFIG" --ready-file "$QUEUE_READY" \
-    > "$W/.state/science-evaluation-queue/production-worker.log" 2>&1 &
+    > "$QUEUE_STATE/production-worker.log" 2>&1 &
 evaluation_pid=$!
 "$PY" - "$evaluation_pid" "$QUEUE_READY" <<'PY_QUEUE_CHECK'
 import errno, json, os, stat, sys, time
@@ -114,15 +117,18 @@ while True:
         raise SystemExit('Evaluation worker failed startup; controller not started')
     time.sleep(0.1)
 PY_QUEUE_CHECK
-mkdir -p "$W/.state/science-review-dispatcher"
-"$PY" "$W/gewu-multiverse/deploy/science/review_dispatcher.py" > "$W/.state/science-review-dispatcher/production.log" 2>&1 &
+"$PY" "$W/gewu-multiverse/deploy/science/review_dispatcher.py" \
+    --config "$GEWU_ROLE_BROKER_CONFIG" --state "$SERVICE_STATE/review-dispatcher" \
+    > "$SERVICE_STATE/review-dispatcher/production.log" 2>&1 &
 review_dispatch_pid=$!
 "$PY" "$W/gewu-multiverse/deploy/science/author_selftest_worker.py" \
-    > "$W/.state/science-author-selftest/production-worker.log" 2>&1 &
+    --broker-config "$GEWU_ROLE_BROKER_CONFIG" --state "$SERVICE_STATE/author-selftest" \
+    > "$SERVICE_STATE/author-selftest/production-worker.log" 2>&1 &
 selftest_pid=$!
-mkdir -p "$W/.state/science-command-watchdog"
+mkdir -p "$SERVICE_STATE/command-watchdog"
 "$PY" "$W/gewu-multiverse/deploy/science/command_watchdog.py" \
-    > "$W/.state/science-command-watchdog/production.log" 2>&1 &
+    --config "$GEWU_ROLE_BROKER_CONFIG" --state "$SERVICE_STATE/command-watchdog" \
+    > "$SERVICE_STATE/command-watchdog/production.log" 2>&1 &
 watchdog_pid=$!
 # Refuse a controller start if any owned background service already failed.
 for service_pid in "$broker_pid" "$evaluation_pid" "$review_dispatch_pid" "$selftest_pid" "$watchdog_pid"; do

@@ -24,7 +24,7 @@ import time
 
 MAX_REQUEST = 16 * 1024 * 1024
 MAX_OUTPUT = 1048576
-BROKER_LOG = "/mnt/data/zhanglinfeng/workspace/.state/science-role-broker/production-broker.log"
+BROKER_LOG = None
 
 
 def trusted(path, directory=False, owner=0):
@@ -270,8 +270,10 @@ class Handler(socketserver.StreamRequestHandler):
             line = self.rfile.readline(MAX_REQUEST + 1)
             if len(line) > MAX_REQUEST or not line.endswith(b'\n'):
                 try:
-                    with open(BROKER_LOG, 'a') as log:
-                        log.write(f'broker refusal bytes={len(line)} max={MAX_REQUEST} newline={line.endswith(bytes([10]))}\n')
+                    log_path=self.server.config.get('_log_path', BROKER_LOG)
+                    if log_path:
+                        with open(log_path, 'a') as log:
+                            log.write(f'broker refusal bytes={len(line)} max={MAX_REQUEST} newline={line.endswith(bytes([10]))}\n')
                 except OSError:
                     pass
                 raise ValueError('Request too large or incomplete')
@@ -290,8 +292,10 @@ class Handler(socketserver.StreamRequestHandler):
             # Persist broker refusals; otherwise the product only sees an empty
             # run directory and cannot distinguish startup failure from waiting.
             try:
-                with open('/mnt/data/zhanglinfeng/workspace/.state/science-role-broker/production-broker.log', 'a') as log:
-                    log.write(f'broker refusal role={request.get("role")} error={error!s}\n')
+                log_path=self.server.config.get('_log_path', BROKER_LOG)
+                if log_path:
+                    with open(log_path, 'a') as log:
+                        log.write(f'broker refusal role={request.get("role")} error={error!s}\n')
             except OSError:
                 pass
             response = {'error': 'Role command refused'}
@@ -317,6 +321,7 @@ def main():
     if os.geteuid() != 0:
         raise SystemExit('Broker must be launched by root')
     config = load_config(args.config)
+    config['_log_path'] = str(Path(args.config).resolve().parent / 'production-broker.log')
     abstract = config['socket'].startswith('@')
     path = Path(config['socket'].removeprefix('@'))
     if not abstract and path.exists():
