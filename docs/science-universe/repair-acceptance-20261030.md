@@ -48,3 +48,11 @@
 - 真实openssl构建v2已启动，仍在运行；不得并行重试同一job。会话12417，日志openssl-build-v2.log。
 - 修正run_guard启动时扫描即删除其他旧run的问题，改为只读观察；本次release仅清理自己的run资源，需补回归。
 - native system prompt嵌入已安装SKILL.md内容，避免只有路径而模型无技能正文；目标回归编译/执行中，会话35013。
+
+## 已完成真实控制测试
+
+openssl-selfsigned-cert冻结源码f64efc6cdf097edd5df306fb16be544d08e384e6；Codex0.164.0／rg15.2.0镜像已发布上海ACR。北京ACS cn-beijing-i实际oracle reward1，nop reward0；两次trial均无exception，控制器退出0，已知Pod404和两次空资源检查确认清理。
+
+同一镜像Codex／dawnfm／deepseek-v4.1-flash-1017真实做题smoke reward1，无exception，cleanup confirmed，agent/trajectory.json为52013字节，codex.txt为27258字节。五次独立模型运行已启动但尚未全部完成，不作为新题质量结论。
+
+最新非特权完整Rust回归345通过，Python组合回归25通过。新增能力回执实际探针发现author02缺pydantic，说明环境仍未全通过；已开始停机角色离线补包。启动器增加启用角色能力门检，不能因安装marker存在就开工。
