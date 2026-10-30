@@ -66,4 +66,8 @@ class DispatchTests(unittest.TestCase):
                 m.reconcile(api,{'roles':{}},ledger)
                 self.assertEqual(api.issues,[])
                 self.assertEqual(ledger,{})
+                import json
+                pending=json.loads((m.STATE/'pending-submissions.json').read_text())
+                self.assertEqual(pending['30:abc']['stage'],'author_container_preflight')
+                self.assertFalse(pending['30:abc']['evaluator_assigned'])
             finally:m.STATE=original

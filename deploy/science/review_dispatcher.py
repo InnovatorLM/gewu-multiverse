@@ -30,6 +30,7 @@ class Api:
 
 def reconcile(api,config,ledger):
     pulls=api.pages('/pulls?state=open')
+    pending={}
     for pr in pulls:
         if pr.get('draft') or 'draft' in pr['title'].lower():continue
         match=re.search(r'tasks/[a-zA-Z0-9_./-]+',pr.get('body') or '')
@@ -37,6 +38,10 @@ def reconcile(api,config,ledger):
         task=match.group(0).rstrip('./');key=str(pr['number'])+':'+pr['head']['sha']
         from author_submission_gate import approved
         if not approved(pr['head']['sha'],task):
+            pending[key]=dict(pr=pr['number'],commit=pr['head']['sha'],task=task,
+                state='waiting_author',stage='author_container_preflight',
+                reason='Container selftest and result-driven iteration evidence required before evaluator assignment',
+                evaluator_assigned=False)
             old=ledger.get(key)
             if old and old.get('issue'):
                 api.call('PATCH','/issues/'+str(old['issue']),{'state':'closed'})
@@ -88,6 +93,7 @@ def reconcile(api,config,ledger):
             row['issue']=issue['number']
         assignment=root/'home/role/review-assignment.json';atomic(assignment,dict(row,key=key));os.chown(assignment,config['roles'][row['role']]['uid'],config['roles'][row['role']]['gid'])
         atomic(wake,dict(key=key,generation=row['generation'],state=row['state']));wake.chmod(0o644)
+    atomic(STATE/'pending-submissions.json',pending)
     atomic(STATE/'ledger.json',ledger)
 
 def main():

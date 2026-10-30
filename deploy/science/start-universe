@@ -21,6 +21,9 @@ if [[ $(id -u) != 0 ]]; then
     exit 1
 fi
 [[ -f "$GEWU_ROLE_BROKER_CONFIG" && -x "$PRODUCT" ]]
+# Run import/tool probes as each enabled role before any controller can schedule it.
+"$PY" "$W/gewu-multiverse/deploy/science/role_capabilities.py" \
+    --config "$GEWU_ROLE_BROKER_CONFIG" --settings "$U/.config/gewu-multiverse/multiverse.toml"
 mkdir -p "$W/.state/science-role-broker"
 "$PY" "$W/gewu-multiverse/deploy/science/role_exec.py" "$GEWU_ROLE_BROKER_CONFIG" \
     > "$W/.state/science-role-broker/production-broker.log" 2>&1 &

@@ -50,6 +50,16 @@ class HelperTests(unittest.TestCase):
             self.assertEqual(c['agents'][0]['env']['OPENAI_API_KEY'], '${OPENAI_API_KEY}')
             self.assertEqual(c['environment']['kwargs']['pod_overrides']['spec']['containers'][0]['image'], args.image)
             run_guard.check_config(c)
+            args.agent='codex-preinstall'
+            with self.assertRaises(ValueError):
+                make_config.build(args)
+            probe.write_text(json.dumps({'live_api_test': True, 'provider': 'dawnfm',
+                                        'base_url': 'https://model.invalid/v1', 'model': 'mock-model',
+                                        'selected_protocol': 'responses'}))
+            codex = make_config.build(args)
+            self.assertEqual(codex['agents'][0]['kwargs'], {'cost_limit': '0'})
+            self.assertEqual(codex['agents'][0]['env']['CODEX_WIRE_API'], 'responses')
+            self.assertEqual(codex['agents'][0]['override_timeout_sec'], 14400)
             c['environment']['kwargs']['pod_overrides']['spec']['containers'][0]['resources']['limits']['memory'] = '4Gi'
             with self.assertRaises(ValueError):
                 run_guard.check_config(c)

@@ -27,7 +27,8 @@ def install(root,role,owner=65534):
     instruction=root/'instruction.md';text=instruction.read_text()
     if BEGIN in text:
         a=text.index(BEGIN);b=text.index(END,a)+len(END);text=text[:a]+text[b:]
-    lines=[BEGIN,'## 可用 ACS skills（开工时先读相关技能）']
+    lines=[BEGIN,'## 可用 ACS skills（开工时先读相关技能）',
+           '启动前平台生成 /capabilities.json，记录实际解释器、导入、工具、指令和技能版本。开工先读取该回执；ready=false或回执缺失时报告具体缺项，不能声称环境已通过。']
     lines.extend('- /skills/'+n+'/SKILL.md' for n in names)
     lines.extend(['技能已安装不代表云执行权限已授予；按实际入口交接，不能把本地模拟当作ACS验收。',END,''])
     instruction.write_text(chr(10).join(lines)+text.lstrip())

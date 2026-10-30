@@ -64,6 +64,8 @@ def build(args):
         protocol = probe.get('selected_protocol')
         if not probe.get('live_api_test') or protocol not in ('chat', 'responses'):
             raise ValueError('Provider protocol has not been confirmed')
+        if args.agent == 'codex-preinstall' and protocol != 'responses':
+            raise ValueError('Codex requires a confirmed Responses protocol probe')
         config['agents'] = [{
             'name': args.agent, 'model_name': 'openai/' + probe['model'],
             'override_timeout_sec': agent_timeout, 'override_setup_timeout_sec': 300,
@@ -91,7 +93,7 @@ def build(args):
         if args.agent == 'codex-preinstall':
             config['agents'][0]['kwargs'] = {'cost_limit': '0'}
         # The label is provider identity; openai/ is only LiteLLM's wire adapter.
-        if protocol == 'responses':
+        if protocol == 'responses' and args.agent != 'codex-preinstall':
             config['agents'][0]['kwargs'].pop('max_tokens')
             config['agents'][0]['kwargs']['config']['model']['model_kwargs']['max_output_tokens'] = 4096
     return config
