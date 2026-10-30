@@ -48,12 +48,23 @@ def owned_run(command, **kwargs):
 def recover_interrupted(work, result, publish):
     work, result = Path(work), Path(result)
     prior = {}
+    malformed = None
     if result.exists():
-        prior = json.loads(result.read_text())
+        try:
+            prior = json.loads(result.read_text())
+            if not isinstance(prior,dict):raise ValueError('Non-object receipt')
+        except (ValueError,UnicodeError):
+            malformed = result.read_bytes()
+            prior = {'receipt_recovery':'Malformed prior result retained; operator inspection required'}
         if prior.get('status') in TERMINAL:
             return True
-    if not work.exists():
+    if not work.exists() and not prior:
         return False
+    work.mkdir(mode=0o700,parents=True,exist_ok=True)
+    if malformed is not None:
+        backup=work/'malformed-prior-result.json'
+        if not backup.exists():
+            backup.write_bytes(malformed);backup.chmod(0o600)
     receipt = dict(prior, status='interrupted', quality_acceptance=False, recovered_at=time.time(),
         error='Previous worker stopped without terminal receipt. Preserved artifacts require inspection and a new submission; cloud cleanup must be verified.')
     atomic_json(work / 'recovery.json', receipt)

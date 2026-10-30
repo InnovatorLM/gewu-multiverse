@@ -33,6 +33,16 @@ class RecoveryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(dir=W / '.tmp') as raw:
             self.assertFalse(recover_interrupted(Path(raw) / 'job', Path(raw) / 'r', lambda _: None))
 
+    def test_malformed_result_does_not_crash_worker_or_restart_cloud_work(self):
+        with tempfile.TemporaryDirectory(dir=W / '.tmp') as raw:
+            root=Path(raw);result=root/'result';result.write_text('{partial')
+            published=[]
+            self.assertTrue(recover_interrupted(root/'work',result,published.append))
+            self.assertEqual(published[0]['status'],'interrupted')
+            self.assertIn('Malformed',published[0]['receipt_recovery'])
+            self.assertEqual(result.read_text(),'{partial')
+            self.assertEqual((root/'work/malformed-prior-result.json').read_text(),'{partial')
+
     def test_timeout_is_not_swallowed(self):
         with self.assertRaises(subprocess.TimeoutExpired):
             owned_run(['sleep', '20'], timeout=0.05)
