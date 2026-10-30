@@ -5,6 +5,7 @@ from evaluation_queue import W,atomic_json
 from check_harbor_task import inspect_task
 from selftest_lifecycle import owned_run, recover_interrupted, install_stop_handlers
 from build_task_images import validate_dockerfile
+from selftest_source import verify_source
 STATE=W/'.state/science-author-selftest'
 PYTHON=W/'acs-harbor-test/.venv/bin/python'
 BASE='public.ecr.aws/docker/library/python@sha256:b7a9e5f6a93d6d4a31f129bbd4bdee69efccb6ded0fb230d78aafaf37af98377'
@@ -42,6 +43,7 @@ def process(role,entry,request):
   frozen=work/'upload.tar';__import__('shutil').copyfile(archive,frozen)
   if hashlib.sha256(frozen.read_bytes()).hexdigest()!=q['archive_sha256']:raise ValueError('Upload changed')
   repo=work/'source';task=repo/name;unpack(frozen,task);atomic_json(work/'mechanical.json',inspect_task(task))
+  status.update(verify_source(root/'workspace',q['source_repository'],q['source_task_path'],q['source_commit'],task));save()
   for dockerfile in [task/'environment/Dockerfile',task/'tests/Dockerfile']:
    if dockerfile.is_file():
     validate_dockerfile(dockerfile,BASE)

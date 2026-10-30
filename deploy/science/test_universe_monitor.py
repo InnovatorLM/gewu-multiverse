@@ -2,6 +2,14 @@ import json,tempfile,unittest
 from pathlib import Path
 import universe_monitor as m
 class ArchiveTests(unittest.TestCase):
+    def test_snapshot_tail_is_bounded_and_drops_partial_first_line(self):
+        with tempfile.TemporaryDirectory(dir=m.W/'.tmp') as d:
+            path=Path(d)/'large'
+            path.write_bytes(b'x'*1000000+bytes([10])+b'last'+bytes([10]))
+            tail=m.tail_text(path,100)
+            self.assertLessEqual(len(tail),100)
+            self.assertEqual(tail.strip(),'last')
+
     def test_partial_append_and_redaction(self):
         with tempfile.TemporaryDirectory(dir=m.W/'.tmp') as d:
             old=m.ROOT;m.ROOT=Path(d)

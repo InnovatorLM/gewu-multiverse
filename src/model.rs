@@ -193,7 +193,7 @@ fn shell_description(method: crate::confinement::Method) -> &'static str {
         Method::RoleBroker => {
             "Run one shell command in /workspace inside this role's nonroot chroot. \
              Host credentials, host proc and other role files are unavailable. \
-             Network access is permitted. Commands have a 120-second bound; \
+             Network access is permitted. Commands are bounded by the remaining session timeout, up to four hours; \
              background processes are cleaned when the command ends."
         }
         Method::Landlock => {

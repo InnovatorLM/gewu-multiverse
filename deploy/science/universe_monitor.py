@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json, re, time, threading
+from datetime import datetime
 from urllib.parse import urlsplit, parse_qs
 from pathlib import Path
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
@@ -33,6 +34,17 @@ def live_run(run):
 
 def safe(s):
     return redact(s)[:1200]
+
+def tail_text(path, budget=262144):
+    """Bound snapshot I/O independently of multi-gigabyte trajectory history."""
+    with Path(path).open('rb') as stream:
+        stream.seek(0,2)
+        size=stream.tell();start=max(0,size-budget);stream.seek(start)
+        data=stream.read(budget)
+    if start:
+        data=data.partition(bytes([10]))[2]
+    return data.decode(errors='replace')
+
 def snapshot():
     out=[]
     desired=desired_roles()
@@ -41,10 +53,10 @@ def snapshot():
         runs=sorted(role_dir.glob('run-*'),key=lambda p:p.stat().st_mtime,reverse=True)
         if not runs: continue
         run=runs[0]; log=run/'run.log'; tr=run/'transcript.jsonl'
-        text=log.read_text(errors='replace')[-4000:] if log.exists() else ''
+        text=tail_text(log,8192)[-4000:] if log.exists() else ''
         events=[]
         if tr.exists():
-            for line in tr.read_text(errors='replace').splitlines()[-30:]:
+            for line in tail_text(tr).splitlines()[-30:]:
                 try:
                     e=json.loads(line); events.append({'event':e.get('event') or e.get('type'),'ts':e.get('ts'),'text':safe(str(e.get('text',''))), 'tool':safe(str(e.get('command','')) )})
                 except Exception: pass
@@ -62,8 +74,11 @@ def write_brief():
     active=[]; stalled=[]; replies=tools=0
     for x in roles:
         events=x.get('events',[])
-        r=sum(e.get('event')=='model_reply' for e in events)
-        t=sum(e.get('event') in ('tool_call','tool_result') for e in events)
+        def recent(event):
+            try:return now-600 <= datetime.fromisoformat(event['ts'].replace('Z','+00:00')).timestamp() <= now
+            except (ValueError,KeyError,TypeError):return False
+        r=sum(e.get('event')=='model_reply' and recent(e) for e in events)
+        t=sum(e.get('event') in ('tool_call','tool_result') and recent(e) for e in events)
         replies+=r; tools+=t
         age=now-x.get('updated',now)
         if x.get('status')=='运行中':
@@ -74,6 +89,8 @@ def write_brief():
     brief={'text':text,'generated_at':now,'periods':[]}
     old=read_brief(); brief['periods']=(old.get('periods') or [])[-5:]
     brief['periods'].append({'text':text,'generated_at':now})
+    with (BRIEF_DIR/'history.jsonl').open('a') as history:
+        history.write(json.dumps({'text':text,'generated_at':now},ensure_ascii=False)+chr(10))
     BRIEF_FILE.write_text(json.dumps(brief,ensure_ascii=False,indent=2),encoding='utf-8')
 
 def brief_loop():
