@@ -2,6 +2,11 @@ import json,tempfile,unittest
 from pathlib import Path
 import universe_monitor as m
 class ArchiveTests(unittest.TestCase):
+    def test_stopped_controller_is_not_presented_as_scheduling_wait(self):
+        self.assertEqual(m.role_status('started',False,False),'控制器未运行')
+        self.assertEqual(m.role_status('started',False,True),'等待调度')
+        self.assertEqual(m.role_status('stopped',True,False),'运行中')
+        self.assertEqual(m.role_status('stopped',False,False),'已停用')
     def test_snapshot_tail_is_bounded_and_drops_partial_first_line(self):
         with tempfile.TemporaryDirectory(dir=m.W/'.tmp') as d:
             path=Path(d)/'large'

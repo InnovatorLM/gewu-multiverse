@@ -9,6 +9,13 @@ from selftest_source import verify_source
 STATE=W/'.state/science-author-selftest'
 PYTHON=W/'acs-harbor-test/.venv/bin/python'
 BASE='public.ecr.aws/docker/library/python@sha256:b7a9e5f6a93d6d4a31f129bbd4bdee69efccb6ded0fb230d78aafaf37af98377'
+def build_command(repo,commit,name,output):
+ codex=Path(os.environ.get('GEWU_CODEX_BINARY',str(W/'.local/libexec/science-runtime/codex')))
+ rg=Path(os.environ.get('GEWU_RG_BINARY',str(W/'.local/libexec/science-runtime/rg')))
+ for binary in (codex,rg):
+  if not binary.resolve().is_relative_to(W.resolve()) or not binary.is_file() or not os.access(binary,os.X_OK):
+   raise ValueError('Missing workspace-local Codex runtime binary: '+str(binary))
+ return [str(PYTHON),str(Path(__file__).with_name('build_task_images.py')),'--repo',str(repo),'--commit',commit,'--task-path',name,'--output',str(output),'--python-base',BASE,'--harness','codex','--codex-binary',str(codex),'--rg-binary',str(rg),'--publish']
 def unpack(archive,destination):
  with tarfile.open(archive) as t:
   members=t.getmembers()
@@ -48,7 +55,7 @@ def process(role,entry,request):
   commit=subprocess.check_output(['git','-C',str(repo),'rev-parse','HEAD'],text=True).strip();status.update(status='building',source_commit=q['source_commit']);save()
   env=os.environ.copy();env.update(TMPDIR=str(W/'.tmp'),PYTHONDONTWRITEBYTECODE='1',HOME=str(W/'.state/harbor-home'))
   with (work/'build.log').open('w') as log:
-   r=owned_run([str(PYTHON),str(Path(__file__).with_name('build_task_images.py')),'--repo',str(repo),'--commit',commit,'--task-path',name,'--output',str(work/'build'),'--python-base',BASE,'--harness','mini-swe-agent','--publish'],env=env,stdout=log,stderr=log,timeout=3600)
+   r=owned_run(build_command(repo,commit,name,work/'build'),env=env,stdout=log,stderr=log,timeout=3600)
   if r.returncode:raise RuntimeError('Image build failed; operator evidence: '+str(work/'build.log'))
   images=json.loads((work/'build/receipt.json').read_text())['images'];status['images']={k:v['published_digest'] for k,v in images.items()};status['trials']=[]
   for agent in ['oracle','nop']:

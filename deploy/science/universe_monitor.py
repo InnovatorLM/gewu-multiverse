@@ -14,6 +14,25 @@ BRIEF_DIR.mkdir(parents=True, exist_ok=True)
 BRIEF_FILE=BRIEF_DIR/'latest.json'
 SETTINGS=W/'universes/my-terminal-bench-science/.config/gewu-multiverse/multiverse.toml'
 
+def controller_live():
+    """Verify an actual deployment controller, rather than desired role settings."""
+    universe=str(ROOT.parent.parent).encode()
+    for entry in Path('/proc').iterdir():
+        if not entry.name.isdigit():continue
+        try:
+            argv=(entry/'cmdline').read_bytes().split(bytes([0]))
+            if not argv or b'--run-agent' in argv:continue
+            if b'gewu-multiverse' not in Path(argv[0].decode(errors='replace')).name.encode():continue
+            if universe not in argv and (entry/'cwd').resolve()!=ROOT.parent.parent:continue
+            if (entry/'stat').read_text().split()[2]!='Z':return True
+        except (OSError,ValueError):continue
+    return False
+
+def role_status(desired, running, controller):
+    if running:return '运行中'
+    if desired!='started':return '已停用'
+    return '等待调度' if controller else '控制器未运行'
+
 def desired_roles():
     text=SETTINGS.read_text()
     roles={}
@@ -48,6 +67,7 @@ def tail_text(path, budget=262144):
 def snapshot():
     out=[]
     desired=desired_roles()
+    controller=controller_live()
     allowed={'curator'} | {f'author-{i:02}' for i in range(1,11)} | {f'evaluator-{i:02}' for i in range(1,4)}
     for role_dir in sorted((p for p in ROOT.iterdir() if p.is_dir() and p.name in allowed), key=lambda p:p.name):
         runs=sorted(role_dir.glob('run-*'),key=lambda p:p.stat().st_mtime,reverse=True)
@@ -60,9 +80,9 @@ def snapshot():
                 try:
                     e=json.loads(line); events.append({'event':e.get('event') or e.get('type'),'ts':e.get('ts'),'text':safe(str(e.get('text',''))), 'tool':safe(str(e.get('command','')) )})
                 except Exception: pass
-        status='已停用' if desired.get(role_dir.name)!='started' else ('运行中' if live_run(run) else '等待调度')
+        status=role_status(desired.get(role_dir.name),live_run(run),controller)
         out.append({'status':status,'desired':desired.get(role_dir.name),'role':role_dir.name,'run':run.name,'updated':max((p.stat().st_mtime for p in run.iterdir() if p.is_file()),default=run.stat().st_mtime),'model':MODEL,'log':safe(text),'events':events[-12:]})
-    return {'now':time.time(),'roles':out,'brief':read_brief()}
+    return {'now':time.time(),'controller_running':controller,'roles':out,'brief':read_brief()}
 
 def read_brief():
     try: return json.loads(BRIEF_FILE.read_text(encoding='utf-8'))
