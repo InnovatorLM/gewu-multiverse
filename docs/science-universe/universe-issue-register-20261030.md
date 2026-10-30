@@ -1,6 +1,6 @@
 # 本轮宇宙问题总表（2026-10-30）
 
-2026-10-31更新：同一author-02 UID提交、Git树校验、实际构建发布、ACS oracle/nop及角色读取selftest_passed回执已通过，证据role-selftest-cloud-v1.json。第21项入口可用性已有端到端证明；生产模型自主使用、自解及结果驱动迭代仍待验收。第17项自动计时暂停恢复已接入watchdog并有回归；第42项真实指定模型摘要与续答通过。两者仍需生产会话验收。author-02及三个evaluator的角色依赖环境已完成独立复制并通过复制校验；author-09、author-10、curator 的复制正在进行。全局工作区策略下，预装验证临时文件已改到每个角色自己的`.cache/gewu-preinstall-tmp`。替代宇宙的启动器、dispatcher、selftest worker、watchdog、author preflight和reset现支持所选universe的独立状态路径；已为停机 universe 生成并核验独立配置，标记仅为`service_config_prepared`，不代表角色 ready 或宇宙可启动。门禁核验配置内容中的broker socket、角色根目录、queue/registry和service state，拒绝共享全局状态。完整启动验收仍未完成。检查点567d421已推送GitHub备份分支，后续修正尚待提交。未宣称主分支merge。旧宇宙角色调度仍停止，新宇宙未创建。
+2026-10-31更新：同一author-02 UID提交、Git树校验、实际构建发布、ACS oracle/nop及角色读取selftest_passed回执已通过，证据role-selftest-cloud-v1.json。第21项入口可用性已有端到端证明；生产模型自主使用、自解及结果驱动迭代仍待验收。第17项自动计时暂停恢复已接入watchdog并有回归；第42项真实指定模型摘要与续答通过。两者仍需生产会话验收。author-02及三个evaluator的角色依赖环境已完成独立复制并通过复制校验；author-09、author-10、curator 的复制正在进行。全局工作区策略下，预装验证临时文件已改到每个角色自己的`.cache/gewu-preinstall-tmp`。替代宇宙的启动器、dispatcher、selftest worker、watchdog、author preflight和reset现支持所选universe的独立状态路径；已为停机 universe 生成并核验独立配置，标记仅为`service_config_prepared`，不代表角色 ready 或宇宙可启动。门禁核验配置内容中的broker socket、角色根目录、queue/registry和service state，拒绝共享全局状态。完整启动验收仍未完成。备份分支最新检查点`2de680d`已推送，主分支尚未合并。旧宇宙角色调度仍停止，新宇宙未创建。
 
 状态口径：已修复＝有代码及局部验证；待行为验收＝规则/入口存在但完整角色流程未证明；未闭环＝仍有明确阻塞。历史修复不代表当前全部部署已验收。本表汇总已有审计、重启报告与本次轨迹复查，非所有历史故障均重新复现。
 
@@ -25,7 +25,7 @@
 | 17 | 四小时会话、五小时单题有效迭代预算混淆 | 已增加持久化active／acs_wait／platform_wait／session_paused及测试；自动会话生命周期接入未完成。 |
 | 18 | 死胡同缺人工 reset | 手动reset CLI和诊断共10项测试通过，含真实临时进程终止；在线重调度、网页按钮待验收。 |
 | 19 | 角色结束后持续等待，监控缺原因 | 当前待定位；需显示 blocked reason、next_at、依赖状态，不能仅靠进程存在判断健康。 |
-| 20 | skills 安装与运行时发现脱节 | skill清单已注入实际模型请求并通过请求体断言；新生产会话待验收。 |
+| 20 | skills 安装与运行时发现脱节 | 最新skills已安装到角色目录；当前产品二进制早于注入实现提交，且二进制中没有请求提示标记，须先重建部署，再用新生产会话确认模型实际收到并使用技能。 |
 | 21 | 作者有自测要求却没有可用真实容器入口 | author-02真实UID完成冻结上传、Git树校验、构建发布、ACS oracle/nop、回读成功回执；生产模型自主使用和结果驱动迭代仍待验收。 |
 | 22 | 自测队列中断恢复、日志回传和终态缺失 | 中断终态、遗留子进程清理和停止回执已修复；完整分阶段恢复及作者日志未闭环。 |
 | 23 | 自测构建替换所有 FROM 改变题目语义 | 原始源文件保持不变，在独立effective上下文解析FROM到digest；局部测试通过，真实构建验证中。 |
@@ -51,7 +51,7 @@
 | 43 | 每次请求体重复写入完整历史 | 请求增量记录测试通过；重放读取和网页兼容未完成。 |
 | 44 | 自动检测可能误把负对照／长计算当死胡同 | 本次工具只发 manual_review 提示，无自动kill；人工查看产物、进展和失败类型再决定。 |
 | 45 | reset 与控制器并发启动缺事务协调 | 新版启动器持有共享生命周期锁，reset独占锁拒绝与部署并发；锁竞争及释放回归通过。当前仍要求停控制器及监督器，不是在线单角色原子reset；生产新会话验收待完成。 |
-| 46 | 部署与代码保存状态易混淆 | 备份分支含6d11fca并已推送；当前工作区另有未提交修正，主分支merge未验证，不把push等同merge。 |
+| 46 | 部署与代码保存状态易混淆 | 备份分支最新含`2de680d`并已推送；主分支merge未验证，不把push等同merge。 |
 
 ## 本次新增功能验证
 
@@ -84,8 +84,8 @@ role_progress_review.py：读取最新轨迹，对反复失败、大上下文、
 ## 2026-10-31后续核验
 
 - 旧宇宙停机记录仍有效：controller、broker、dispatcher、selftest worker和watchdog已退出。8765监控网页进程仍存活，它只读展示状态，不会调度角色。
-- 依赖环境bootstrap进程4087740仍活跃。evaluator-01/02已写入`verified_independent_copy`并通过环境探针；evaluator-03在CPFS解包。归档SHA256为`7fdc368137018bb996a63556c9c0ff88f995352d59bbcc43e5d2027b20de2224`，文件系统有约110 TB可用空间和1.42亿可用inode；观察到tar间歇处于不可中断I/O等待，说明有存储延迟，但未见容量耗尽证据。
+- 依赖环境bootstrap第一次已完成：evaluator-01/02/03均为独立副本并完成包导入、工具和C++运行验证。第二次bootstrap正在给author-09、author-10和curator补环境，当前author-09处于隔离暂存目录解包；CPFS tar会短时进入不可中断I/O等待，但归档及提取字节仍增长，没有发现容量耗尽。
 - 替代宇宙路径隔离测试新增7项并通过。启动器要求每个宇宙具备独立broker、queue、review dispatcher、author selftest worker及command watchdog配置，并核验关键路径都位于该宇宙；服务代码现接收显式路径，但这些配置尚未生成且角色根目录未复制，因此启动器会有意拒绝启动。
 - `preinstall_role_runtime.py`的验证临时文件改为角色私有`.cache/gewu-preinstall-tmp`。路径与bootstrap回归合计9项通过，shell语法及diff检查通过。
 - dispatcher、selftest worker、watchdog、role reset、author preflight和监控状态读取改为跟随选定宇宙路径；隔离、reset、watchdog、评测派单及提交门禁相关回归共40项通过。完整新宇宙服务联调尚未进行。
-- 上述修正仍未提交/推送；新宇宙未创建或启动，主分支未合并。
+- 服务隔离与配置迁移修正已记录在备份分支`2de680d`并推送；主分支尚未合并。新宇宙未创建或启动，作者和curator环境补齐、更新角色运行二进制、全部启用角色能力探针及生产行为验收仍未完成。

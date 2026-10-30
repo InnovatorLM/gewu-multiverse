@@ -21,6 +21,7 @@
 ## 2026-10-31 修复复查
 
 - 14 个角色的 skills 已按角色重新安装；作者获得 `harbor-acs-evaluation`，evaluator 另获得质量滚动评测技能，curator 获得协调技能。旧归档中的 `skills_discovered: []` 仍是历史事实，不能当作新会话已加载的证明。
+- 新发现的部署缺口：当前安装的产品二进制早于 skill 内容注入的源码提交；角色目录有 skill 并不保证当前运行器会把内容传给模型。必须用工作区内的 Rust 工具链构建当前源码、验证请求体并更新产品二进制后，才能做新会话行为验收。
 - author-02 的预装环境已作为独立副本验证，evaluator-01/02/03 随后完成独立复制；author-09、author-10、curator 的复制仍在进行。curator 的 YAML 导入要以复制完成后的能力探针为准，不能提前宣称全部角色 ready。
 - 已生成并核验 universe-local 的 broker、queue、registry、review dispatcher、selftest worker、watchdog 配置。就绪标记明确写为 `service_config_prepared`，避免把路径隔离误读为角色能力或生产可启动。
 - 轨迹审计没有发现需要自动 kill 的确定死胡同；长上下文、退出码掩盖异常、旧 max_turns 和历史未加载 skill 是平台复查项，需新会话行为验收。
