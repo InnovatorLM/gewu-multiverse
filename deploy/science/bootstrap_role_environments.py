@@ -39,6 +39,7 @@ def main():
         try:
             donor=cfg['roles'][args.donor]
             require_stopped(donor)
+            status['state']='verifying_donor';save()
             install_role(args.donor,donor,install=False)
             archive=directory/'verified-environment.tar'
             pending=archive.with_suffix('.pending')

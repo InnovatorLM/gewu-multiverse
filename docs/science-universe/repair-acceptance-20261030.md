@@ -56,3 +56,11 @@ openssl-selfsigned-cert冻结源码f64efc6cdf097edd5df306fb16be544d08e384e6；Co
 同一镜像Codex／dawnfm／deepseek-v4.1-flash-1017真实做题smoke reward1，无exception，cleanup confirmed，agent/trajectory.json为52013字节，codex.txt为27258字节。五次独立模型运行已启动但尚未全部完成，不作为新题质量结论。
 
 最新非特权完整Rust回归345通过，Python组合回归25通过。新增能力回执实际探针发现author02缺pydantic，说明环境仍未全通过；已开始停机角色离线补包。启动器增加启用角色能力门检，不能因安装marker存在就开工。
+
+## 五次真实模型链路验收
+
+2026-10-30，同一已冻结openssl-selfsigned-cert测试题，指定dawnfm／deepseek-v4.1-flash-1017，Codex0.164.0，4c/8Gi，在北京ACS cn-beijing-i独立顺序运行5次。5/5均reward1、exception为空、控制器退出0；5份agent/trajectory.json存在并逐份计算SHA256，5次cleanup confirmed。私有证据：workspace/.state/universe-repair-20261030/five-model-trials-v1/summary.json及各trial原始产物。
+
+这是既有简单题的基础设施回归，不能作为新科学题质量接收；五次全对也不满足目标新题<=60%的难度口径。作者自测队列自身端到端、作者迭代凭证、独占评审、新角色启动、reset及计时联动仍须继续验收。
+
+作者自测增加脱敏日志回传（有限尾部、不暴露原始运维凭证），子进程回收及损坏中断回执恢复；10项相关测试及后续9项恢复回归通过。author02完整依赖导入和C++编译运行通过；evaluator独立环境副本仍在配置，不宣称全部环境就绪。
