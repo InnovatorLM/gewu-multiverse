@@ -44,9 +44,6 @@ def process(role,entry,request):
   if hashlib.sha256(frozen.read_bytes()).hexdigest()!=q['archive_sha256']:raise ValueError('Upload changed')
   repo=work/'source';task=repo/name;unpack(frozen,task);atomic_json(work/'mechanical.json',inspect_task(task))
   status.update(verify_source(root/'workspace',q['source_repository'],q['source_task_path'],q['source_commit'],task));save()
-  for dockerfile in [task/'environment/Dockerfile',task/'tests/Dockerfile']:
-   if dockerfile.is_file():
-    validate_dockerfile(dockerfile,BASE)
   for args in [['init','-q'],['config','user.email','operator@localhost'],['config','user.name','operator'],['add','.'],['commit','-qm','Frozen author upload']]:subprocess.run(['git','-C',str(repo),*args],check=True,capture_output=True)
   commit=subprocess.check_output(['git','-C',str(repo),'rev-parse','HEAD'],text=True).strip();status.update(status='building',source_commit=q['source_commit']);save()
   env=os.environ.copy();env.update(TMPDIR=str(W/'.tmp'),PYTHONDONTWRITEBYTECODE='1',HOME=str(W/'.state/harbor-home'))

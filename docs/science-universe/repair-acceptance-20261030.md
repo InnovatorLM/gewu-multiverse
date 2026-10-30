@@ -29,3 +29,9 @@
 - 修正模型所见120秒命令上限说明；实际执行使用会话上限，尚待统一单命令剩余时间与长任务机制。
 - 完整Rust单元测试正在运行：日志为workspace/.state/universe-repair-20261030/all-rust-tests.log。
 - 旧宇宙仍停止，新宇宙未创建。本阶段尚未证明真实ACS oracle/nop、五次模型评测和最终merge。
+
+## 第二批补充验证
+
+- 原始基础镜像可解析为digest：在独立effective context修改FROM引用，保留source snapshot、平台参数、多阶段别名与其他Dockerfile指令。解析映射写入build receipt。2项解析测试和3项构建provenance回归通过。真实构建仍待验证。
+- 完整Rust root运行结果342通过、2失败；两项失败是权限fixture在root可绕过限制。以生产controller UID65534单独运行两项均通过，未跳过断言；完整非特权344项重跑进行中。
+- ACS当前API可达，节点列表包含cn-beijing-i；Docker服务28.1.0可达。仅为当前只读连通证据，不代表题目运行成功。
