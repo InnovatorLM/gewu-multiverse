@@ -19,6 +19,12 @@ def owned_run(command, **kwargs):
                 os.killpg(child.pid, signal.SIGTERM)
             except ProcessLookupError:
                 pass
+            # The leader may already be reaped while a child ignores SIGTERM.
+            # Kill only the group created for this invocation, never other jobs.
+            try:
+                os.killpg(child.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
             return subprocess.CompletedProcess(command, child.returncode)
         except BaseException:
             try:

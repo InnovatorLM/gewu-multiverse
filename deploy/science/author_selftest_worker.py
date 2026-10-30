@@ -6,6 +6,7 @@ from check_harbor_task import inspect_task
 from selftest_lifecycle import owned_run, recover_interrupted, install_stop_handlers
 from build_task_images import validate_dockerfile
 from selftest_source import verify_source
+from selftest_logs import credential_values, publish as publish_logs
 STATE=W/'.state/science-author-selftest'
 PYTHON=W/'acs-harbor-test/.venv/bin/python'
 BASE='public.ecr.aws/docker/library/python@sha256:b7a9e5f6a93d6d4a31f129bbd4bdee69efccb6ded0fb230d78aafaf37af98377'
@@ -39,7 +40,9 @@ def process(role,entry,request):
   atomic_json(result,payload);os.chown(result,0,entry['gid']);result.chmod(0o640)
  if recover_interrupted(work,result,publish):return
  work.mkdir(mode=0o700);status={'job_id':job,'role':role,'status':'validating','quality_acceptance':False}
+ secrets=credential_values(root)
  def save():
+  status['diagnostics']=publish_logs(work,root,job,entry['gid'],secrets)
   status['updated_at']=time.time();publish(status);atomic_json(work/'status.json',status)
  save()
  try:
@@ -78,7 +81,9 @@ def process(role,entry,request):
   status['note']='Author selftest only; iteration/rerun and independent evaluation still required.'
  except KeyboardInterrupt:
   status.update(status='interrupted',error='Worker stopped; inspect preserved logs and cloud cleanup.');save();raise
- except Exception as e:status.update(status='failed',error=str(e)[:600])
+ except Exception as e:
+  from selftest_logs import sanitize
+  status.update(status='failed',error=sanitize(str(e),secrets)[:600])
  save()
 def main():
  install_stop_handlers()
