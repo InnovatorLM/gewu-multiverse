@@ -54,10 +54,14 @@ def _scan_clocks(config):
             raise ValueError('Unsafe author clock directory')
         path=directory/'ledger.json'
         if not path.exists():continue
-        lockfd=os.open(directory/'clock.lock',os.O_CREAT|os.O_RDWR|os.O_NOFOLLOW,0o600)
+        lockfd=os.open(directory/'clock.lock',os.O_CREAT|os.O_RDWR|os.O_NOFOLLOW|os.O_NONBLOCK,0o600)
         try:
+            lockinfo=os.fstat(lockfd)
+            if not stat.S_ISREG(lockinfo.st_mode) or lockinfo.st_nlink!=1:
+                raise ValueError('Invalid author clock lock')
+            try:fcntl.flock(lockfd,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            except BlockingIOError:continue
             os.fchown(lockfd,entry['uid'],entry['gid'])
-            fcntl.flock(lockfd,fcntl.LOCK_EX)
             fd=os.open(path,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
             with os.fdopen(fd,'r') as stream:
                 info=os.fstat(stream.fileno())

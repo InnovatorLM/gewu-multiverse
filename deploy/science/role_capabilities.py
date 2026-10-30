@@ -46,6 +46,10 @@ def inspect(role, entry, runner=subprocess.run):
     if observed.get('uid') != entry['uid']: raise ValueError('Probe ran under unexpected identity')
     required = ['role-acs-selftest'] if role.startswith('author-') else []
     entrypoints = {name:(root/'usr/local/bin'/name).is_file() for name in required}
+    if role.startswith('author-'):
+        deployed=root/'usr/local/bin/role-acs-selftest'
+        expected=Path(__file__).with_name('role_acs_selftest.py')
+        entrypoints['selftest_client_current']=deployed.is_file() and not deployed.is_symlink() and hashlib.sha256(deployed.read_bytes()).digest()==hashlib.sha256(expected.read_bytes()).digest()
     if set(observed.get('modules',{}))!=set(MODULES) or set(observed.get('tools',{}))!=set(TOOLS):
         raise ValueError('Incomplete capability probe response')
     healthy = all(v.get('ok') is True for v in observed['modules'].values()) and all(observed['tools'].values()) and all(entrypoints.values())

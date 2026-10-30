@@ -3,6 +3,7 @@ import hashlib
 from pathlib import Path, PurePosixPath
 import re
 import subprocess
+import tempfile
 
 def verify_source(workspace, repository, task_path, commit, uploaded):
     workspace = Path(workspace).resolve(strict=True)
@@ -15,7 +16,13 @@ def verify_source(workspace, repository, task_path, commit, uploaded):
         raise ValueError('Invalid committed source identity')
     command = ['git', '-c', 'safe.directory=' + str(repo), '-C', str(repo)]
     env = {'PATH': '/usr/bin:/bin', 'GIT_CONFIG_NOSYSTEM': '1', 'GIT_CONFIG_GLOBAL': '/dev/null', 'GIT_NO_REPLACE_OBJECTS': '1'}
-    raw = subprocess.check_output(command + ['ls-tree', '-r', '-z', commit + ':' + task_relative.as_posix()], env=env, timeout=30)
+    # Older patched Git ignores safe.directory supplied via -c. Supply exactly
+    # this repository in a private operator-owned protected config, never '*'.
+    with tempfile.NamedTemporaryFile(mode='w',prefix='selftest-git-',dir=Path('/mnt/data/zhanglinfeng/workspace/.tmp')) as protected:
+        protected.write('[safe]\n\tdirectory = '+__import__('json').dumps(str(repo))+'\n')
+        protected.flush()
+        env['GIT_CONFIG_GLOBAL']=protected.name
+        raw = subprocess.check_output(command + ['ls-tree', '-r', '-z', commit + ':' + task_relative.as_posix()], env=env, timeout=30)
     expected = {}
     for row in raw.split(bytes([0])):
         if not row:

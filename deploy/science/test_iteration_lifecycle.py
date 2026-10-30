@@ -1,3 +1,4 @@
+import fcntl
 import json
 import os
 from pathlib import Path
@@ -10,6 +11,16 @@ import iteration_lifecycle as lifecycle
 
 
 class LifecycleTests(unittest.TestCase):
+    def test_busy_clock_does_not_block_global_watchdog(self):
+        with tempfile.TemporaryDirectory(dir=W/'.tmp') as raw:
+            root=Path(raw);directory=root/'home/role/.state/author-iteration';directory.mkdir(parents=True)
+            path=directory/'ledger.json';path.write_text('{}')
+            config=dict(controller_uid=os.getuid(),roles={'author-01':dict(root=str(root),uid=os.getuid(),gid=os.getgid())})
+            with (directory/'clock.lock').open('a') as lock:
+                fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+                self.assertEqual(lifecycle.scan_clocks(config),[])
+            self.assertEqual(path.read_text(),'{}')
+
     def test_one_bad_ledger_does_not_disable_other_roles(self):
         config=dict(controller_uid=1,roles={'author-01':{},'author-02':{}})
         with patch.object(lifecycle,'_scan_clocks',side_effect=[ValueError('private role content'),None]) as scan,patch('builtins.print') as output:

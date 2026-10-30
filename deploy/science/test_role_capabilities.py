@@ -10,6 +10,7 @@ class CapabilityTests(unittest.TestCase):
         (root/'instruction.md').write_text('policy')
         for name in ['home/role/.local/env/bin/python','usr/local/bin/role-acs-selftest']:
             path=root/name;path.parent.mkdir(parents=True,exist_ok=True);path.touch()
+        (root/'usr/local/bin/role-acs-selftest').write_bytes(Path(__file__).with_name('role_acs_selftest.py').read_bytes())
         return dict(root=str(root),uid=21001,gid=21001)
 
     def test_checks_identity_and_reports_missing_dependencies(self):
@@ -32,5 +33,14 @@ class CapabilityTests(unittest.TestCase):
             entry=self.fixture(Path(raw))
             with self.assertRaisesRegex(ValueError,'no raw output'):
                 inspect('author-01',entry,lambda *a,**k:subprocess.CompletedProcess([],1,'secret','secret'))
+
+    def test_stale_client_blocks_startup_even_when_entrypoint_exists(self):
+        with tempfile.TemporaryDirectory(dir=W/'.tmp') as raw:
+            root=Path(raw);entry=self.fixture(root)
+            (root/'usr/local/bin/role-acs-selftest').write_text('old client')
+            payload=dict(uid=21001,modules={k:{'ok':True} for k in MODULES},tools={k:'/usr/bin/'+k for k in TOOLS})
+            result=inspect('author-01',entry,lambda *a,**k:subprocess.CompletedProcess([],0,json.dumps(payload),''))
+            self.assertFalse(result['ready'])
+            self.assertFalse(result['entrypoints']['selftest_client_current'])
 
 if __name__=='__main__':unittest.main()

@@ -92,3 +92,11 @@ worker-acceptance-v1／a48379ab304f427da5482897d326fc7a进程退出0，result.js
 watchdog新增作者账本会话状态核对：校验真实runner的controller UID、完整run路径和--run-agent标记，终止后暂停active账本；优先以持久run_finished时间计时，无终态时从首次停止观察起暂停，不猜测历史退款。新runner仅恢复自动暂停，不取消显式ACS／platform等待。预算耗尽仍保持abandoned；单角色损坏账本记录安全错误类型，不关闭全部角色监控。真实文件落盘／0600权限、暂停恢复、不覆盖等待、预算不清零等回归已覆盖；完整生产角色会话仍待新部署行为验收。
 
 评审独立环境归档SHA256为7fdc368137018bb996a63556c9c0ff88f995352d59bbcc43e5d2027b20de2224，当前进入evaluator-01解包阶段，尚未宣布所有环境verified。
+
+### 角色身份测试发现并修正部署差异
+
+以author-02真实UID21002在隔离根执行客户端，发现已部署客户端缺少source_repository字段；已在停机角色安装当前版本，并增加能力门检按SHA256核对客户端与源文件一致，旧版文件存在也不能通过启动。
+
+宿主机Git2.34.1拒绝作者拥有的仓库，先前root fixture未暴露此问题。verify_source现在使用0600临时受保护配置，只信任精确仓库路径，不使用safe.directory=*；真实UID客户端提交、Git树验证和读取root发布0640回执已通过。证据role-selftest-client-v3.json，明确cloud_run=false；与前述真实worker云测试为两项独立证据，不拼接伪称同一生产角色已完成云测试。客户端fixture请求改名保留，避免误入正式队列。
+
+计时锁改为非阻塞获取，拒绝特殊／多硬链接锁文件，避免单角色持锁拖死全局watchdog。源码绑定、客户端版本门检及计时文件集成10项回归通过；作者计时和集成16项通过。旧宇宙仍停止，完整重建目标未完成。
