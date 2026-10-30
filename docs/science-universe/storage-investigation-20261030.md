@@ -89,3 +89,28 @@ Remaining: finish independent environment copies for author-05..10,
 evaluator-01..03 and curator; require each full per-role probe; run the final
 14-role live session and persistence verifier; check all reports and process
 exit states. Keep the Universe scheduler stopped until these checks pass.
+
+## User-approved storage acceptance (2026-10-30)
+
+The user then requested that we stop waiting for the remaining software
+environment copies once the storage checks were complete. The acceptance gate
+was satisfied and recorded in
+`.state/storage-investigation/storage-acceptance-all-roles.json`:
+
+- 14/14 actual role UIDs passed write/fsync/rename/readback and peer isolation
+  across `/workspace`, `/cache`, `/runs`, `/tmp` and `/home/role` (70 path
+  checks total).
+- 14/14 roles passed two real session preparations, private repository reuse
+  and a subsequent Git fetch, with zero model calls. The evidence is split
+  across the `*session-prepare.log` files and checked into the aggregate report.
+- Installation lock was free after stopping; no bootstrap, tar or recovery
+  verifier process remains. Production scheduling was never started.
+
+The donor copy and author-01..08 environments were fully verified. The user
+approved stopping the remaining copies; author-09's staging extraction was
+preserved but not published, and author-10/evaluator/curator environment
+replication was not attempted. This is an intentional scope boundary: the
+storage/session acceptance is complete, while universal software preinstall is
+not claimed. The status files explicitly say
+`cancelled_by_user_after_storage_acceptance`, rather than reporting a false
+full-environment pass.
