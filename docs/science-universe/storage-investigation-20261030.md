@@ -101,6 +101,14 @@ This verifies persistence and isolation without touching installation processes.
 
 ## Remaining work
 
+`verify_storage_recovery.py` is resident waiting for the identified serial
+recovery process. It checks the process start identity to avoid PID reuse,
+acquires the installation lock after recovery ends, rejects missing or invalid
+role markers, and runs the all-role persistence and real session-preparation
+checks. `.state/storage-investigation/recovery-verification.json` records
+waiting/verifying/verified/failed explicitly. Its unit tests mock subprocesses
+and are not live recovery results. Do not infer completion from worker startup.
+
 Storage is usable but CPFS metadata latency remains high. This investigation
 does not claim a CPFS service repair. Continue serial preinstallation and
 in-chroot validation for author-03..author-10, evaluator-01..evaluator-03 and
