@@ -260,7 +260,7 @@ def main():
             report['cleanup'] = release(cluster, run_id, known)
         except Exception as exc:
             report['cleanup'] = {'confirmed': False, 'error_type': type(exc).__name__}
-        watchdog_snapshot(kw['kubeconfig'], kw['namespace'], out.with_name(out.stem + '.watchdog-end.json'), kill=True)
+        watchdog_snapshot(kw['kubeconfig'], kw['namespace'], out.with_name(out.stem + '.watchdog-end.json'), kill=False)
         save()
     print(json.dumps(report, indent=2))
     successful = (args.cleanup_only or (report.get('result_available') and report['harbor_exit_code'] == 0))
