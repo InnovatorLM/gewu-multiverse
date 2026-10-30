@@ -91,5 +91,13 @@ def main():
             status['state']='verified';status['finished_at']=time.time();save()
         except BaseException as error:
             status.update(state='failed',error=str(error),finished_at=time.time());save();raise
+        finally:
+            # Unlock only a state that this process actually reached, so a
+            # stale 'deploying' never outlives the maintenance lock holder.
+            current=None
+            try:current=json.loads((directory/'bootstrap-status.json').read_text())
+            except (OSError,ValueError):pass
+            if current and current.get('state') in ('deploying','waiting_for_install_lock','verifying_donor','packing'):
+                status['state']='failed';status['error']=status.get('error') or 'Bootstrap stopped before verification; see this file and the maintenance lock';status['finished_at']=status.get('finished_at') or time.time();save()
 
 if __name__=='__main__':main()
