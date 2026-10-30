@@ -11,14 +11,24 @@ import os
 from pathlib import Path
 import subprocess
 import time
-from preinstall_role_runtime import W,install_role,run_owned
+from preinstall_role_runtime import W,install_role,run_owned,PREINSTALL_VERSION
+from role_exec import role_processes
+
+def require_stopped(role):
+    if role_processes(role['uid']):
+        raise ValueError('Refusing to clone or replace an active role environment')
+
+def existing_verified(env):
+    return (Path(env)/(PREINSTALL_VERSION+'.json')).is_file()
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--donor',default='author-02')
+    parser.add_argument('--role',action='append',help='Provision only these configured roles')
     args=parser.parse_args()
     directory=W/'.state/storage-investigation'
     directory.mkdir(parents=True,exist_ok=True)
     cfg=json.loads((W/'.state/science-role-broker/config.json').read_text())
+    if args.role and set(args.role)-set(cfg['roles']):raise ValueError('Unknown target role')
     status={'state':'waiting_for_install_lock','roles':{},'started_at':time.time()}
     def save():
         p=directory/'bootstrap-status.pending';p.write_text(json.dumps(status,indent=2)+'\n')
@@ -28,6 +38,7 @@ def main():
         fcntl.flock(lock,fcntl.LOCK_EX)
         try:
             donor=cfg['roles'][args.donor]
+            require_stopped(donor)
             install_role(args.donor,donor,install=False)
             archive=directory/'verified-environment.tar'
             pending=archive.with_suffix('.pending')
@@ -35,7 +46,7 @@ def main():
             pending.chmod(0o600)
             status['state']='packing';save()
             source=Path(donor['root'])/'home/role/.local'
-            run=run_owned(['tar','--exclude=env/gewu-preinstalled-v1.json','-cf',str(pending),'-C',str(source),'env'],timeout=7200)
+            run=run_owned(['tar','--exclude=env/gewu-preinstalled-*.json','-cf',str(pending),'-C',str(source),'env'],timeout=7200)
             if run.returncode:raise RuntimeError('Environment archive failed')
             pending.chmod(0o600);pending.replace(archive)
             digest=hashlib.sha256()
@@ -43,8 +54,10 @@ def main():
                 for block in iter(lambda:stream.read(1024*1024),b''):digest.update(block)
             status['archive_sha256']=digest.hexdigest();status['state']='deploying';save()
             for name,role in cfg['roles'].items():
+                if args.role and name not in args.role:continue
+                require_stopped(role)
                 root=Path(role['root']);local=root/'home/role/.local';env=local/'env'
-                if (env/'gewu-preinstalled-v1.json').exists():
+                if name==args.donor or existing_verified(env):
                     install_role(name,role,install=False)
                     status['roles'][name]='verified_existing';save();continue
                 stage=local/('bootstrap-'+str(time.time_ns()))
