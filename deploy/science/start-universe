@@ -27,7 +27,12 @@ mkdir -p "$W/.state/science-role-broker"
 broker_pid=$!
 evaluation_pid=''
 review_dispatch_pid=''
+selftest_pid=''
 finish() {
+    if [[ -n "$selftest_pid" ]]; then
+        kill -TERM "$selftest_pid" 2>/dev/null || true
+        wait "$selftest_pid" 2>/dev/null || true
+    fi
     if [[ -n "$review_dispatch_pid" ]]; then
         kill -TERM "$review_dispatch_pid" 2>/dev/null || true
         wait "$review_dispatch_pid" 2>/dev/null || true
@@ -95,5 +100,8 @@ PY_QUEUE_CHECK
 mkdir -p "$W/.state/science-review-dispatcher"
 "$PY" "$W/gewu-multiverse/deploy/science/review_dispatcher.py" > "$W/.state/science-review-dispatcher/production.log" 2>&1 &
 review_dispatch_pid=$!
+"$PY" "$W/gewu-multiverse/deploy/science/author_selftest_worker.py" \
+    > "$W/.state/science-author-selftest/production-worker.log" 2>&1 &
+selftest_pid=$!
 export USER=nobody LOGNAME=nobody
 setpriv --reuid=65534 --regid=65534 --clear-groups "$PRODUCT" "$@"
