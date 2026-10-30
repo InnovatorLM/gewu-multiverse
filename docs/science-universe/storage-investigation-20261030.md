@@ -170,3 +170,27 @@ in-chroot validation for author-03..author-10, evaluator-01..evaluator-03 and
 curator. Confirm every role marker and run role isolation plus the complete
 code regression before restarting the Universe. Keep the Universe stopped
 until that verification is complete.
+
+## Latest live checkpoint (2026-10-30)
+
+The donor archive has finished with SHA-256
+`b25797ba2a814e4fbd8a2e11a380852aa068bfdcd4d3ef043e6f842146f3c573`.
+Independent extraction and complete role verification are now running for
+author-04; do not interpret the older “packing” checkpoints above as current.
+The extracted data is being written to its private staging directory and is
+approximately 2.4 GB at the latest I/O check.
+
+Live no-model `RealSpawner::prepare` checks passed for author-03, author-05..10,
+evaluator-01..03 and curator. Each had two preparations, private repository
+reuse and a subsequent fetch. author-01/02 had passed earlier. Thus 13/14
+actual session paths have passed; author-04 is excluded while its UID runs the
+environment extraction. Logs are in workspace state under
+`.state/storage-investigation/*session-prepare.log`.
+
+The all-role persistence verifier has passed for 14 roles and all five
+locations (`/workspace`, `/cache`, `/runs`, `/tmp`, `/home/role`) per role.
+The expanded author-01/02 isolation test also passes after fixing its shell
+failure handling. CPFS reports 114 TiB available. The final automatic worker
+continues waiting for the recovery process, then will require valid role
+markers and run the persistence and all-role session checks. The scheduler
+remains stopped pending that result.
