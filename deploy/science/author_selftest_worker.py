@@ -7,6 +7,7 @@ from selftest_lifecycle import owned_run, recover_interrupted, install_stop_hand
 from build_task_images import validate_dockerfile
 from selftest_source import verify_source
 from selftest_logs import credential_values, publish as publish_logs
+from selftest_upload import snapshot_upload
 STATE=W/'.state/science-author-selftest'
 PYTHON=W/'acs-harbor-test/.venv/bin/python'
 BASE='public.ecr.aws/docker/library/python@sha256:b7a9e5f6a93d6d4a31f129bbd4bdee69efccb6ded0fb230d78aafaf37af98377'
@@ -46,11 +47,9 @@ def process(role,entry,request):
   status['updated_at']=time.time();publish(status);atomic_json(work/'status.json',status)
  save()
  try:
-  if request.is_symlink() or request.stat().st_uid!=entry['uid'] or request.stat().st_size>16384:raise ValueError('Invalid request owner/size')
-  q=json.loads(request.read_text());name=q['task_name'];archive=request.with_suffix('.tar')
+  q=json.loads(snapshot_upload(request,entry['uid'],16384));name=q['task_name'];archive=request.with_suffix('.tar')
   if q['job_id']!=job or not re.fullmatch('[a-z0-9][a-z0-9._-]{0,90}',name) or not re.fullmatch('[a-f0-9]{40}',q['source_commit']):raise ValueError('Invalid request identity')
-  if archive.is_symlink() or archive.stat().st_uid!=entry['uid'] or archive.stat().st_size>140*1024*1024:raise ValueError('Invalid archive')
-  frozen=work/'upload.tar';__import__('shutil').copyfile(archive,frozen)
+  frozen=work/'upload.tar';snapshot_upload(archive,entry['uid'],140*1024*1024,frozen)
   if hashlib.sha256(frozen.read_bytes()).hexdigest()!=q['archive_sha256']:raise ValueError('Upload changed')
   repo=work/'source';task=repo/name;unpack(frozen,task);atomic_json(work/'mechanical.json',inspect_task(task))
   status.update(verify_source(root/'workspace',q['source_repository'],q['source_task_path'],q['source_commit'],task));save()

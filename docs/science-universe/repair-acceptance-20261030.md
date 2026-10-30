@@ -64,3 +64,11 @@ openssl-selfsigned-cert冻结源码f64efc6cdf097edd5df306fb16be544d08e384e6；Co
 这是既有简单题的基础设施回归，不能作为新科学题质量接收；五次全对也不满足目标新题<=60%的难度口径。作者自测队列自身端到端、作者迭代凭证、独占评审、新角色启动、reset及计时联动仍须继续验收。
 
 作者自测增加脱敏日志回传（有限尾部、不暴露原始运维凭证），子进程回收及损坏中断回执恢复；10项相关测试及后续9项恢复回归通过。author02完整依赖导入和C++编译运行通过；evaluator独立环境副本仍在配置，不宣称全部环境就绪。
+
+## 自测上传与实际worker验收
+
+上传请求和tar使用O_NOFOLLOW／O_NONBLOCK打开后按文件描述符校验普通文件、UID、长度及读取前后mtime／ctime，冻结输出0600且不可覆盖；避免检查后换成链接／FIFO或增长文件。上传、Git内容绑定、Codex构建入口、中断恢复、子进程清理和脱敏日志组合16项回归通过。
+
+新增accept_author_selftest.py，以冻结的既有openssl题创建隔离上传并调用真实worker，实际构建发布和ACS oracle／nop，不替代作者自解与迭代签发。已启动worker-acceptance-v1，job a48379ab304f427da5482897d326fc7a，上传15个文件与fixture Git树绑定通过；完整构建与云端终态尚在验收。证据目录workspace/.state/universe-repair-20261030/worker-acceptance-v1。
+
+reset与新版部署通过共享／独占生命周期锁互斥，15项相关回归通过；仍要求先停监督器和控制器，尚未实现生产在线单角色reset。旧宇宙保持停止。
