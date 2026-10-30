@@ -1,5 +1,5 @@
 """Operator-only role reset; retains archives/workspaces and defers restart to controller."""
-import argparse, fcntl, json, os, signal, time, uuid
+import argparse, contextlib, fcntl, json, os, signal, time, uuid
 from pathlib import Path
 from command_watchdog import process_info
 
@@ -7,6 +7,20 @@ W = Path('/mnt/data/zhanglinfeng/workspace')
 U = W / 'universes/my-terminal-bench-science'
 BEGIN = '<!-- operator-reset:start -->'
 END = '<!-- operator-reset:end -->'
+
+@contextlib.contextmanager
+def maintenance_lock(directory):
+    """Launcher holds a shared lifetime lock; mutations require exclusive access."""
+    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+    fd = os.open(directory / 'lifecycle.lock', os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+    try:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise RuntimeError('Deployment is active; stop its launcher and supervisor before reset') from None
+        yield
+    finally:
+        os.close(fd)
 
 def directive(text, reset_id, reason, guidance):
     if BEGIN in text or END in text:
@@ -99,7 +113,7 @@ def reset(role, reason, guidance, apply=False, grace=5):
         return receipt
     directory = W / '.state/science-role-reset'
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
-    with (directory / (role + '.lock')).open('a') as lock:
+    with maintenance_lock(directory), (directory / (role + '.lock')).open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         instruction = root / 'instruction.md'
         if instruction.is_symlink():

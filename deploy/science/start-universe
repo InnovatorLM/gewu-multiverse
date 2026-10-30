@@ -21,6 +21,12 @@ if [[ $(id -u) != 0 ]]; then
     exit 1
 fi
 [[ -f "$GEWU_ROLE_BROKER_CONFIG" && -x "$PRODUCT" ]]
+# Keep this descriptor for the whole launcher lifetime, including owned children.
+# An operator reset holds the exclusive side and startup must fail closed.
+mkdir -p "$W/.state/science-role-reset"
+exec 9>>"$W/.state/science-role-reset/lifecycle.lock"
+chmod 600 "$W/.state/science-role-reset/lifecycle.lock"
+flock -s -n 9 || { echo 'Operator maintenance/reset is active; deployment not started.' >&2; exit 1; }
 # Run import/tool probes as each enabled role before any controller can schedule it.
 "$PY" "$W/gewu-multiverse/deploy/science/role_capabilities.py" \
     --config "$GEWU_ROLE_BROKER_CONFIG" --settings "$U/.config/gewu-multiverse/multiverse.toml"

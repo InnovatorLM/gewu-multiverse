@@ -1,9 +1,33 @@
-import os, signal, subprocess, tempfile, time, unittest
+import fcntl, os, signal, subprocess, tempfile, time, unittest
 from pathlib import Path
 from unittest.mock import patch
 import role_reset as r
 
 class ResetTests(unittest.TestCase):
+    def test_active_launcher_blocks_reset_and_restart_can_follow(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            with (directory / 'lifecycle.lock').open('a') as launcher:
+                fcntl.flock(launcher, fcntl.LOCK_SH | fcntl.LOCK_NB)
+                with self.assertRaisesRegex(RuntimeError, 'Deployment is active'):
+                    with r.maintenance_lock(directory):
+                        self.fail('reset entered while launcher active')
+            with r.maintenance_lock(directory):
+                with (directory / 'lifecycle.lock').open('a') as restart:
+                    with self.assertRaises(BlockingIOError):
+                        fcntl.flock(restart, fcntl.LOCK_SH | fcntl.LOCK_NB)
+            with (directory / 'lifecycle.lock').open('a') as restart:
+                fcntl.flock(restart, fcntl.LOCK_SH | fcntl.LOCK_NB)
+
+    def test_lifecycle_lock_refuses_symlink(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            (directory / 'other').touch()
+            (directory / 'lifecycle.lock').symlink_to(directory / 'other')
+            with self.assertRaises(OSError):
+                with r.maintenance_lock(directory):
+                    self.fail('symlink accepted')
+
     def test_directive_replaces_previous_reset_and_preserves_policy(self):
         first = r.directive('original policy', 'one', 'stalled', 'pivot')
         second = r.directive(first, 'two', 'new reason', 'new direction')
