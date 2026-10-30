@@ -27,8 +27,12 @@ export MAMBA_EXTRACT_THREADS=1
 export MAMBA_ROOT_PREFIX=/home/role/.local/mamba
 p=/home/role/.local/env
 if [ -f "$p/conda-meta/history" ]; then action=install; else action=create; fi
-exec /usr/local/bin/micromamba "$action" -y -p "$p" -c conda-forge "$@"
+exec /usr/local/bin/python3 /usr/local/bin/role-install-locked "$action" -y -p "$p" -c conda-forge "$@"
 ''');wrapper.chmod(0o755)
+    locked=root/'usr/local/bin/role-install-locked'
+    locked.unlink(missing_ok=True)
+    shutil.copyfile(Path(__file__).with_name('role_install_locked.py'),locked)
+    locked.chmod(0o755)
     dispatcher=root/'usr/local/bin/role-self-exe'
     dispatcher.write_text('#!/bin/bash'+chr(10)+'if [ "$1" = extract ] || [ "$2" = extract ] || [ "$1" = package ]; then exec /usr/local/bin/micromamba "$@"; else exec /usr/local/bin/codex "$@"; fi'+chr(10));dispatcher.chmod(0o755)
     executable=root/'proc/self/exe';executable.unlink(missing_ok=True);executable.symlink_to('/usr/local/bin/role-self-exe')
