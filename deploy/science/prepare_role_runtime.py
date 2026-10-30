@@ -58,8 +58,11 @@ for index, role in enumerate(roles):
     null.chmod(0o666)
     kind = ('evaluator' if role.startswith('evaluator') else
             'author' if role.startswith('author-') else role)
-    instruction_name = 'evaluator-instruction.md' if kind == 'evaluator' else 'author-instruction.md'
-    instruction = universe / 'governance' / ('private' if kind == 'evaluator' else 'public') / instruction_name
+    if kind == 'curator':
+        instruction = Path(__file__).resolve().parents[2] / 'docs/science-universe/curator-coordination-policy.md'
+    else:
+        instruction_name = 'evaluator-instruction.md' if kind == 'evaluator' else 'author-instruction.md'
+        instruction = universe / 'governance' / ('private' if kind == 'evaluator' else 'public') / instruction_name
     target = root / 'instruction.md'
     shutil.copyfile(instruction, target)
     os.chown(target, 65534, 65534)
