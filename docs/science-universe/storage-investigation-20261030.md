@@ -20,6 +20,16 @@ actual chroot took 7.72 s and 0.315 s. These results demonstrate high metadata
 latency, not a corrupt or unavailable filesystem. The volume showed over 100
 TiB available during repair, and writes/fsync/readback succeeded.
 
+The long environment unpack is storage-bound rather than CPU-bound. A live
+`tar` extraction spent multiple minutes in uninterruptible I/O wait while its
+accumulated CPU time was only about 0.27 seconds; its read/write counters grew
+as it progressed. Both archive and destination live on CPFS, where each file
+creation and metadata update incurs the slow path. More CPU cores are therefore
+unlikely to materially reduce the observed time. An overlay/reflink shortcut
+was tested: CPFS reflink returns `Operation not supported`, and overlay mounts
+are denied in the current runtime. Avoid changing CPU sizing as a response to
+this measured bottleneck.
+
 An interrupted micromamba transaction was resumed under its original role UID
 and prefix. A role-local install lock and global recovery lock prevent
 overlapping package writers. Timeout handling now kills child processes, and a
@@ -58,7 +68,7 @@ is authoritative in `.state/storage-investigation/bootstrap-status.json`;
 `bootstrap.log` records completed roles. Do not infer completion from a live
 process or a partial staging directory.
 
-At the latest checkpoint, author-01..05 had verified environments and author-06
+At the latest checkpoint, author-01..06 had verified environments and author-07
 was extracting. The final verifier waits for the bootstrap process, then checks
 all 14 role markers, reruns storage persistence, and prepares every actual
 session. Its state is `.state/storage-investigation/recovery-verification.json`.
