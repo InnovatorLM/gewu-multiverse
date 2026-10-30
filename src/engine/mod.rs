@@ -145,6 +145,21 @@ pub struct EngineOptions {
     forgejo_starter: Option<Arc<dyn ForgejoStarter>>,
 }
 
+/// Only configured agents can be scheduled. Retained directories from removed
+/// agents must not invalidate the boundary of the current configured set.
+fn configured_workspaces(layout: &Layout, settings: &Settings) -> Result<Vec<PathBuf>, String> {
+    settings
+        .agents
+        .iter()
+        .map(|agent| {
+            layout
+                .agent(&agent.name)
+                .map(|paths| paths.workspace().to_path_buf())
+                .map_err(|error| error.to_string())
+        })
+        .collect()
+}
+
 impl EngineOptions {
     /// Options for one installation, with the product executable found now.
     pub fn new(layout: Layout, data_root: impl Into<PathBuf>) -> Result<Self, String> {
@@ -156,7 +171,8 @@ impl EngineOptions {
         // workspace symlinked over a parent of the configuration root cannot be
         // confined, and `detect` must see that before the board claims anything
         // (B9-R-R).
-        let workspaces = crate::confinement::agent_workspaces(&layout.agents_dir());
+        let configured = Settings::load(&settings::path_in(layout.root()))?;
+        let workspaces = configured_workspaces(&layout, &configured)?;
         let confinement =
             crate::confinement::detect(layout.root(), layout.state_root(), &data_root, &workspaces);
         Ok(Self {
@@ -743,7 +759,14 @@ impl Inner {
     /// workspace that cannot be confined takes the board's claim away now, instead of
     /// waiting for a run to refuse it (B9-R-R).
     fn refresh_confinement(&mut self) {
-        let workspaces = crate::confinement::agent_workspaces(&self.options.layout.agents_dir());
+        let workspaces = match configured_workspaces(&self.options.layout, &self.settings) {
+            Ok(workspaces) => workspaces,
+            Err(reason) => {
+                self.options.confinement = crate::confinement::Method::None;
+                self.note(reason);
+                return;
+            }
+        };
         let method = crate::confinement::detect(
             self.options.layout.root(),
             self.options.layout.state_root(),
@@ -1335,6 +1358,9 @@ impl Inner {
     fn block_reason(&self, index: usize) -> Option<String> {
         let agent = &self.agents[index];
         if std::env::var_os(crate::role_broker::CONFIG_ENV).is_some() {
+            if self.options.confinement != crate::confinement::Method::RoleBroker {
+                return Some("configured role broker is unavailable; unconfined runs refused".into());
+            }
             if self.settings.endpoint.turns() > 24 {
                 return Some("role model turn budget must not exceed 24".into());
             }
@@ -3434,6 +3460,20 @@ mod tests {
     use crate::board::Board;
     use crate::engine::clock::FakeClock;
     use crate::test_support::scratch_root;
+
+    #[test]
+    fn confinement_workspace_set_ignores_retired_roles_but_keeps_configured_paths() {
+        let root = scratch_root("configured-confinement-workspaces");
+        let layout = Layout::rooted_at(root.clone()).unwrap();
+        fs::create_dir_all(layout.agents_dir().join("retired/workspace")).unwrap();
+        let mut settings = Settings::default();
+        settings.add_agent("author-01", Desired::Started).unwrap();
+        let paths = configured_workspaces(&layout, &settings).unwrap();
+        assert_eq!(paths, vec![layout.agents_dir().join("author-01/workspace")]);
+        // Missing configured paths remain in the probe set, so they cannot be
+        // silently skipped and misrepresented as confined.
+        assert!(!paths[0].exists());
+    }
 
     fn test_options(root: &Path) -> EngineOptions {
         let layout = Layout::rooted_at(root.to_path_buf()).expect("the test layout is absolute");
