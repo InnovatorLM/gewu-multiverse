@@ -2,10 +2,17 @@
 import copy
 import unittest
 from unittest.mock import patch
-from prepare_review_packet import validate
+from prepare_review_packet import validate,GATES
 
 
 class PacketTests(unittest.TestCase):
+    def test_removed_user_requirements_cannot_reappear_as_admission_gates(self):
+        for removed in ('source_and_license','semantic_comparison_both_benchmarks','first_pilot_user_approval'):
+            self.assertNotIn(removed,GATES)
+        self.assertIn('source_provenance',GATES)
+        self.assertIn('independent_reference_and_negative_controls',GATES)
+        self.assertIn('empirical_difficulty',GATES)
+
     def packet(self):
         return {'schema_version':1,'kind':'private_review_inventory','evaluation_id':'test',
           'source_commit':'a'*40,'source_task_path':'tasks/test','snapshot_sha256':'b'*64,

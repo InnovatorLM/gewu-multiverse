@@ -6,7 +6,8 @@ import shutil
 import subprocess
 
 w = Path('/mnt/data/zhanglinfeng/workspace')
-universe = w / 'universes/my-terminal-bench-science'
+from deployment_paths import universe_root
+universe = universe_root(w)
 source = w / '.state/role-chroot-proof'
 # Python package installation is role-local: vendor pip into the immutable
 # runtime source, while each role receives its own user site and cache.

@@ -3,7 +3,11 @@
 set -euo pipefail
 set +x
 W=/mnt/data/zhanglinfeng/workspace
-U="$W/universes/my-terminal-bench-science"
+PY="$W/acs-harbor-test/.venv/bin/python"
+# Validate deployment identity before changing HOME or creating runtime paths.
+U=$(PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$W/gewu-multiverse/deploy/science" \
+    "$PY" -c 'from deployment_paths import universe_root; print(universe_root())')
+export GEWU_UNIVERSE_ROOT="$U"
 export TMPDIR="$U/.tmp" PYTHONDONTWRITEBYTECODE=1
 export XDG_CONFIG_HOME="$U/.config" XDG_STATE_HOME="$U/.state"
 export XDG_DATA_HOME="$U/.local/share" XDG_CACHE_HOME="$U/.cache"
@@ -14,7 +18,6 @@ export GEWU_RESPONSE_TOKENS=8192
 export GEWU_CHAT_THINKING=disabled
 export GEWU_FORGEJO_TIMEOUT_SECS=120
 export GEWU_ROLE_BROKER_CONFIG="$W/.state/science-role-broker/config.json"
-PY="$W/acs-harbor-test/.venv/bin/python"
 PRODUCT="$W/.local/libexec/gewu-multiverse"
 if [[ $(id -u) != 0 ]]; then
     echo 'Start this deployment as the root operator; its controller drops privileges.' >&2

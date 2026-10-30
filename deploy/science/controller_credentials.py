@@ -3,12 +3,13 @@ import os
 import stat
 import tomllib
 from evaluation_queue import W
+from deployment_paths import universe_root
 
 
 def load_controller_credentials():
     if os.geteuid() != 0:
         raise ValueError('Operator required')
-    path = W / 'universes/my-terminal-bench-science/.config/gewu-multiverse/credentials.toml'
+    path = universe_root(W) / '.config/gewu-multiverse/credentials.toml'
     info = path.lstat()
     parent = path.parent.lstat()
     # The controller runs as65534; its credentials intentionally are not root-owned.

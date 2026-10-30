@@ -11,12 +11,12 @@ from pathlib import Path
 from evaluation_queue import W, atomic_json, root_file, validated_template
 from build_task_images import validate_build_receipt
 
-GATES = ('scientific_suitability', 'source_and_license', 'oracle_leak_review',
+GATES = ('scientific_suitability', 'source_provenance', 'oracle_leak_review',
          'independent_reference_and_negative_controls', 'harbor_lifecycle',
-         'semantic_comparison_both_benchmarks', 'task_quality_direct',
+         'task_quality_direct',
          'task_quality_winrate', 'trajectory_direct', 'trajectory_winrate',
          'empirical_difficulty', 'resource_cleanup', 'evaluator_approval',
-         'first_pilot_user_approval', 'curator_admission')
+         'curator_admission')
 
 
 def evidence_record(path):

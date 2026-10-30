@@ -13,7 +13,9 @@ from selftest_source import verify_source
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--role',default='author-02')
     parser.add_argument('--fixture',type=Path,required=True)
-    parser.add_argument('--output',type=Path,required=True);args=parser.parse_args()
+    parser.add_argument('--output',type=Path,required=True)
+    parser.add_argument('--cloud',action='store_true',help='Run this exact role upload through the real worker and ACS controls')
+    args=parser.parse_args()
     if args.output.exists() or not args.output.resolve().is_relative_to(W):raise ValueError('Fresh workspace output required')
     config=json.loads((W/'.state/science-role-broker/config.json').read_text())
     entry=config['roles'][args.role];root=Path(entry['root'])
@@ -35,14 +37,21 @@ def main():
     # Client-only acceptance must never remain eligible for production workers.
     request_file.rename(request_file.with_suffix('.acceptance-completed'))
     result=root/'selftest/results'/(request['job_id']+'.json')
-    # This is explicitly a client/read-boundary fixture, never cloud success.
-    result.write_text(json.dumps(dict(job_id=request['job_id'],status='client_acceptance_only',quality_acceptance=False)))
-    os.chown(result,0,entry['gid']);result.chmod(0o640)
+    if args.cloud:
+        import author_selftest_worker as worker
+        worker.STATE=args.output.parent/(args.output.stem+'-worker')
+        worker.STATE.mkdir(mode=0o700)
+        os.environ.setdefault('GEWU_DOCKER_LIBRARY_MIRROR','public.ecr.aws/docker/library')
+        worker.process(args.role,entry,request_file.with_suffix('.acceptance-completed'))
+    else:
+        # Client-only fixtures never attest a real cloud run.
+        result.write_text(json.dumps(dict(job_id=request['job_id'],status='client_acceptance_only',quality_acceptance=False)))
+        os.chown(result,0,entry['gid']);result.chmod(0o640)
     verified=verify_source(root/'workspace',request['source_repository'],request['source_task_path'],commit,target/'openssl-selfsigned-cert')
     observed=json.loads(run(['/home/role/.local/env/bin/python','/usr/local/bin/role-acs-selftest','status',request['job_id']]))
-    assert observed['status']=='client_acceptance_only'
+    assert observed['status']==('selftest_passed' if args.cloud else 'client_acceptance_only')
     args.output.parent.mkdir(parents=True,exist_ok=True)
-    args.output.write_text(json.dumps(dict(role=args.role,uid=entry['uid'],job_id=request['job_id'],submit_under_role_uid=True,read_operator_result=True,source_git_tree_verified=verified['source_git_tree_verified'],cloud_run=False),indent=2));args.output.chmod(0o600)
+    args.output.write_text(json.dumps(dict(role=args.role,uid=entry['uid'],job_id=request['job_id'],submit_under_role_uid=True,read_operator_result=True,source_git_tree_verified=verified['source_git_tree_verified'],cloud_run=args.cloud,observed_status=observed['status']),indent=2));args.output.chmod(0o600)
     print(args.output.read_text())
 
 

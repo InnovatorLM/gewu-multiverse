@@ -114,3 +114,9 @@ watchdog新增作者账本会话状态核对：校验真实runner的controller U
 上下文摘要新增真正双tool_call／双tool_result配对的边界回归，4项conversation测试全部通过，不再只依赖空tool_calls的合成测试。新增显式运维science-context-check示例，使用指定dawnfm模型和Rust正式客户端验证大上下文摘要及后续恢复，保留脱敏请求／回复；该live作业仍在编译／执行中，尚不写通过。示例历史是合成fixture，不是生产角色轨迹。
 
 后续终态：science-context-check退出0，两次真实dawnfm／deepseek-v4.1-flash-1017请求完成；摘要前334239字节、摘要后56519字节，后续回复保留fixture ID与常量42。脱敏请求／回复和摘要存于workspace/.state/universe-repair-20261030/live-context-v1.json，0600。验证覆盖正式Rust模型客户端与conversation helpers，仍不等同完整生产model_loop长会话、网页重放或崩溃恢复验收。
+
+### 同一真实角色身份的云端自测闭环
+
+2026-10-31，role-selftest-cloud-v1.json确认author-02／UID21002提交job 4c37fe30e94d4a27a46009c5baeadd27，Git树验证、实际worker云端执行以及该UID读取运维回执均通过，observed_status=selftest_passed。不是将两次独立测试拼接：本次同一上传请求完成了完整路径。测试仍由运维驱动既有简单题，未证明生产作者自主自解、结果驱动迭代和正式资格签发。
+
+新部署路径选择新增边界校验，启动器在修改HOME或创建运行目录前拒绝工作区外路径。该路径支持尚不代表broker/queue全状态按宇宙隔离，不能据此直接创建替代宇宙。人工reset和轨迹诊断本轮12项回归通过；8角色归档复查与合并问题清单另见trajectory-and-reset-review-20261031.md。

@@ -4,7 +4,8 @@ from pathlib import Path
 from command_watchdog import process_info
 
 W = Path('/mnt/data/zhanglinfeng/workspace')
-U = W / 'universes/my-terminal-bench-science'
+from deployment_paths import universe_root
+U = universe_root(W)
 BEGIN = '<!-- operator-reset:start -->'
 END = '<!-- operator-reset:end -->'
 

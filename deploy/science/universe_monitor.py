@@ -6,13 +6,15 @@ from pathlib import Path
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 W=Path('/mnt/data/zhanglinfeng/workspace')
-ROOT=W/'universes/my-terminal-bench-science/.state/gewu-multiverse'
+from deployment_paths import universe_root
+UNIVERSE=universe_root(W)
+ROOT=UNIVERSE/'.state/gewu-multiverse'
 MODEL='deepseek-v4.1-flash-1017'
 SECRET=re.compile(r'(?i)(api[_-]?key|token|password|authorization|secret)\s*[:=]\s*["\']?[^\s,"\'}]+')
 BRIEF_DIR=W/'.state/universe-monitor-briefs'
 BRIEF_DIR.mkdir(parents=True, exist_ok=True)
 BRIEF_FILE=BRIEF_DIR/'latest.json'
-SETTINGS=W/'universes/my-terminal-bench-science/.config/gewu-multiverse/multiverse.toml'
+SETTINGS=UNIVERSE/'.config/gewu-multiverse/multiverse.toml'
 DISPATCH_STATE=W/'.state/science-review-dispatcher'
 
 def review_waits():
@@ -140,7 +142,7 @@ const metaEl=document.getElementById('meta'), gridEl=document.getElementById('gr
 const esc=s=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;');
 async function tick(){try{let r=await fetch('/api/state',{cache:'no-store'});if(!r.ok)throw Error('API HTTP '+r.status);let d=await r.json();let now=d.now;metaEl.innerHTML=`<strong>${d.roles.length}</strong> 个角色<br><span>最后更新 ${new Date(now*1000).toLocaleTimeString()} · 每 1 分钟刷新</span>`;if(d.brief){document.getElementById('brief').textContent=d.brief.text;document.getElementById('brief-time').textContent=d.brief.generated_at?'生成于 '+new Date(d.brief.generated_at*1000).toLocaleString():'';document.getElementById('history').innerHTML=(d.brief.periods||[]).slice().reverse().map((b,i)=>`<article class="history-item"><div class="history-dot"></div><div class="history-content"><div class="history-date">${new Date(b.generated_at*1000).toLocaleString()} ${i===0?'<span class="latest">最新</span>':''}</div><div>${esc(b.text)}</div></div></article>`).join('')||'<div class="empty">暂时还没有历史简报。</div>'}gridEl.innerHTML=d.roles.map(x=>{let age=Math.max(0,Math.round(now-x.updated));let latest=x.events?.[x.events.length-1];return `<article class="card"><div class="head"><div class="role">${esc(x.role)}</div><span class="badge">${esc(x.status)}</span></div><div class="model">${esc(x.model)}</div><div class="run">${esc(x.run)}</div><div class="activity">最近活动：<b>${age<60?age+' 秒前':Math.round(age/60)+' 分钟前'}</b>${latest?' · '+esc(latest.event):''}</div>${x.review?`<div class="activity">评审状态：${esc(x.review.state)} · ${esc(x.review.stage)}<br>${esc(x.review.reason||"")}</div>`:""}<details open><summary>事件轨迹（${x.events.length}）</summary>${x.events.map(e=>`<div class="event">${esc(e.ts)} · ${esc(e.event)} · ${esc(e.tool||e.text)}</div>`).join('')}</details><details><summary>运行日志</summary><pre>${esc(x.log)}</pre></details></article>`}).join('')}catch(e){metaEl.innerHTML='<span class="error">监控 API 错误</span>';gridEl.innerHTML='<div class="card error">无法读取状态，请检查监控服务。</div>'}setTimeout(tick,60000)}tick();
 </script>'''
-ROLES_ROOT=W/'universes/my-terminal-bench-science/.config/gewu-multiverse/agents'
+ROLES_ROOT=UNIVERSE/'.config/gewu-multiverse/agents'
 ROLE_RE=re.compile(r'(author-[0-9]{2,4}|evaluator-[0-9]{2,4}|curator)')
 
 def redact(value):
