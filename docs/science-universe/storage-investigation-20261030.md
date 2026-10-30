@@ -68,8 +68,10 @@ is authoritative in `.state/storage-investigation/bootstrap-status.json`;
 `bootstrap.log` records completed roles. Do not infer completion from a live
 process or a partial staging directory.
 
-At the latest checkpoint, author-01..06 had verified environments and author-07
-was extracting. The final verifier waits for the bootstrap process, then checks
+At the latest checkpoint, author-01..07 had verified environments and author-08
+was extracting. author-07's tar extraction completed after approximately 39
+minutes; its environment import/tool/C++ probe and subsequent real session
+prepare/fetch both passed. The final verifier waits for the bootstrap process, then checks
 all 14 role markers, reruns storage persistence, and prepares every actual
 session. Its state is `.state/storage-investigation/recovery-verification.json`.
 No scheduler or model calls are part of these checks. Production scheduling
