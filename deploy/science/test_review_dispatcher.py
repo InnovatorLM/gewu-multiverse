@@ -27,6 +27,21 @@ class FakeApi:
         return issue
 
 class DispatchTests(unittest.TestCase):
+    @patch('author_submission_gate.approved',side_effect=[ValueError('private evidence details'),False])
+    def test_invalid_receipt_does_not_block_other_prs(self,approved):
+        import tempfile,json
+        from pathlib import Path
+        import review_dispatcher as m
+        with tempfile.TemporaryDirectory(dir=m.W/'.tmp') as d,patch.object(m,'STATE',Path(d)):
+            api=FakeApi()
+            api.pulls.append(dict(number=33,title='Second candidate',body='tasks/science/second',head={'sha':'def'}))
+            m.reconcile(api,{'roles':{}},{})
+            pending=json.loads((Path(d)/'pending-submissions.json').read_text())
+            self.assertEqual(set(pending),{'30:abc','33:def'})
+            self.assertEqual(pending['30:abc']['validation_error_type'],'ValueError')
+            self.assertNotIn('private evidence details',json.dumps(pending))
+            self.assertEqual(api.issues,[])
+
     @patch("author_submission_gate.approved", return_value=True)
     def test_exclusive_wait_resume_and_revision(self, approved):
         import tempfile,json,os

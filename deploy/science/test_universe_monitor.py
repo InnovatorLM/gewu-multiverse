@@ -2,6 +2,15 @@ import json,tempfile,unittest
 from pathlib import Path
 import universe_monitor as m
 class ArchiveTests(unittest.TestCase):
+    def test_review_wait_reason_is_latest_and_redacted(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory(dir=m.W/'.tmp') as d,patch.object(m,'DISPATCH_STATE',Path(d)):
+            (Path(d)/'ledger.json').write_text(json.dumps({'old':dict(role='evaluator-01',state='reviewing',updated_at=1),'new':dict(role='evaluator-01',state='waiting_author',stage='completeness',reason='missing test.sh token=private-value',updated_at=2)}))
+            row=m.review_waits()['evaluator-01']
+            self.assertEqual(row['key'],'new')
+            self.assertEqual(row['state'],'waiting_author')
+            self.assertNotIn('private-value',row['reason'])
+
     def test_stopped_controller_is_not_presented_as_scheduling_wait(self):
         self.assertEqual(m.role_status('started',False,False),'控制器未运行')
         self.assertEqual(m.role_status('started',False,True),'等待调度')

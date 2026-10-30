@@ -37,11 +37,16 @@ def reconcile(api,config,ledger):
         if not match:continue
         task=match.group(0).rstrip('./');key=str(pr['number'])+':'+pr['head']['sha']
         from author_submission_gate import approved
-        if not approved(pr['head']['sha'],task):
+        gate_error=None
+        try:eligible=approved(pr['head']['sha'],task)
+        except (OSError,ValueError,KeyError,TypeError) as error:
+            eligible=False;gate_error=type(error).__name__
+        if not eligible:
             pending[key]=dict(pr=pr['number'],commit=pr['head']['sha'],task=task,
                 state='waiting_author',stage='author_container_preflight',
                 reason='Container selftest and result-driven iteration evidence required before evaluator assignment',
                 evaluator_assigned=False)
+            if gate_error:pending[key]['validation_error_type']=gate_error
             old=ledger.get(key)
             if old and old.get('issue'):
                 api.call('PATCH','/issues/'+str(old['issue']),{'state':'closed'})

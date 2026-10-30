@@ -100,3 +100,9 @@ watchdog新增作者账本会话状态核对：校验真实runner的controller U
 宿主机Git2.34.1拒绝作者拥有的仓库，先前root fixture未暴露此问题。verify_source现在使用0600临时受保护配置，只信任精确仓库路径，不使用safe.directory=*；真实UID客户端提交、Git树验证和读取root发布0640回执已通过。证据role-selftest-client-v3.json，明确cloud_run=false；与前述真实worker云测试为两项独立证据，不拼接伪称同一生产角色已完成云测试。客户端fixture请求改名保留，避免误入正式队列。
 
 计时锁改为非阻塞获取，拒绝特殊／多硬链接锁文件，避免单角色持锁拖死全局watchdog。源码绑定、客户端版本门检及计时文件集成10项回归通过；作者计时和集成16项通过。旧宇宙仍停止，完整重建目标未完成。
+
+### 评审派单与等待状态容错
+
+损坏／失效的单个作者凭证不再中断整轮PR reconciliation；对应PR进入waiting_author并记录安全错误类型，不复制私有异常文本，不分配evaluator，后续PR仍继续检查。派单和作者门检12项回归通过，其中新增双PR一份凭证损坏的隔离测试。
+
+监控API为各评审角色附带最新派单state／stage／reason，网页卡片渲染并转义、脱敏这些内容。监控和派单10项回归通过，内嵌JavaScript经Node语法检查通过。尚未将源码更新等同实际监控部署或浏览器渲染验收。
