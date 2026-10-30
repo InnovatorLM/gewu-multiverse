@@ -1,0 +1,56 @@
+"""Durable selftest lifecycle; interrupted work is never silently skipped."""
+import json
+import os
+import signal
+import subprocess
+import time
+from pathlib import Path
+from evaluation_queue import atomic_json
+
+TERMINAL = {'selftest_passed', 'selftest_failed', 'failed', 'interrupted'}
+
+def owned_run(command, **kwargs):
+    timeout = kwargs.pop('timeout', None)
+    with subprocess.Popen(command, start_new_session=True, **kwargs) as child:
+        try:
+            child.wait(timeout=timeout)
+            return subprocess.CompletedProcess(command, child.returncode)
+        except BaseException:
+            try:
+                os.killpg(child.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+            try:
+                child.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                try:
+                    os.killpg(child.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                child.wait()
+            try:
+                os.killpg(child.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            raise
+
+def recover_interrupted(work, result, publish):
+    work, result = Path(work), Path(result)
+    prior = {}
+    if result.exists():
+        prior = json.loads(result.read_text())
+        if prior.get('status') in TERMINAL:
+            return True
+    if not work.exists():
+        return False
+    receipt = dict(prior, status='interrupted', quality_acceptance=False, recovered_at=time.time(),
+        error='Previous worker stopped without terminal receipt. Preserved artifacts require inspection and a new submission; cloud cleanup must be verified.')
+    atomic_json(work / 'recovery.json', receipt)
+    publish(receipt)
+    return True
+
+def install_stop_handlers():
+    def stop(signum, frame):
+        raise KeyboardInterrupt('Worker stop requested')
+    signal.signal(signal.SIGTERM, stop)
+    signal.signal(signal.SIGINT, stop)

@@ -3,6 +3,8 @@ import json,os,re,subprocess,tarfile,hashlib,time,fcntl
 from pathlib import Path,PurePosixPath
 from evaluation_queue import W,atomic_json
 from check_harbor_task import inspect_task
+from selftest_lifecycle import owned_run, recover_interrupted, install_stop_handlers
+from build_task_images import validate_dockerfile
 STATE=W/'.state/science-author-selftest'
 PYTHON=W/'acs-harbor-test/.venv/bin/python'
 BASE='public.ecr.aws/docker/library/python@sha256:b7a9e5f6a93d6d4a31f129bbd4bdee69efccb6ded0fb230d78aafaf37af98377'
@@ -25,9 +27,12 @@ def process(role,entry,request):
  job=request.stem
  if not re.fullmatch('[a-f0-9]{32}',job):return
  root=Path(entry['root']);result=root/'selftest/results'/(job+'.json');work=STATE/job
- if result.exists() or work.exists():return
+ def publish(payload):
+  atomic_json(result,payload);os.chown(result,0,entry['gid']);result.chmod(0o640)
+ if recover_interrupted(work,result,publish):return
  work.mkdir(mode=0o700);status={'job_id':job,'role':role,'status':'validating','quality_acceptance':False}
- def save():atomic_json(result,status);os.chown(result,0,entry['gid']);result.chmod(0o640)
+ def save():
+  status['updated_at']=time.time();publish(status);atomic_json(work/'status.json',status)
  save()
  try:
   if request.is_symlink() or request.stat().st_uid!=entry['uid'] or request.stat().st_size>16384:raise ValueError('Invalid request owner/size')
@@ -39,14 +44,12 @@ def process(role,entry,request):
   repo=work/'source';task=repo/name;unpack(frozen,task);atomic_json(work/'mechanical.json',inspect_task(task))
   for dockerfile in [task/'environment/Dockerfile',task/'tests/Dockerfile']:
    if dockerfile.is_file():
-    text=dockerfile.read_text()
-    text=re.sub(r'(?im)^(\s*FROM\s+)(?!scratch(?:\s|$))\S+', r'\1'+BASE, text)
-    dockerfile.write_text(text)
+    validate_dockerfile(dockerfile,BASE)
   for args in [['init','-q'],['config','user.email','operator@localhost'],['config','user.name','operator'],['add','.'],['commit','-qm','Frozen author upload']]:subprocess.run(['git','-C',str(repo),*args],check=True,capture_output=True)
   commit=subprocess.check_output(['git','-C',str(repo),'rev-parse','HEAD'],text=True).strip();status.update(status='building',source_commit=q['source_commit']);save()
   env=os.environ.copy();env.update(TMPDIR=str(W/'.tmp'),PYTHONDONTWRITEBYTECODE='1',HOME=str(W/'.state/harbor-home'))
   with (work/'build.log').open('w') as log:
-   r=subprocess.run([str(PYTHON),str(Path(__file__).with_name('build_task_images.py')),'--repo',str(repo),'--commit',commit,'--task-path',name,'--output',str(work/'build'),'--python-base',BASE,'--harness','mini-swe-agent','--publish'],env=env,stdout=log,stderr=log,timeout=3600)
+   r=owned_run([str(PYTHON),str(Path(__file__).with_name('build_task_images.py')),'--repo',str(repo),'--commit',commit,'--task-path',name,'--output',str(work/'build'),'--python-base',BASE,'--harness','mini-swe-agent','--publish'],env=env,stdout=log,stderr=log,timeout=3600)
   if r.returncode:raise RuntimeError('Image build failed; operator evidence: '+str(work/'build.log'))
   images=json.loads((work/'build/receipt.json').read_text())['images'];status['images']={k:v['published_digest'] for k,v in images.items()};status['trials']=[]
   for agent in ['oracle','nop']:
@@ -58,7 +61,7 @@ def process(role,entry,request):
     container['image']=images['official']['published_digest']
     for k in ['requests','limits']:container['resources'][k].update(cpu='4',memory='8Gi')
    cfg=work/(agent+'.json');atomic_json(cfg,c);report=work/(agent+'-report.json')
-   with (work/(agent+'.log')).open('w') as log:r=subprocess.run([str(Path(__file__).with_name('run-acs-evaluation')),str(cfg),str(report)],env=env,stdout=log,stderr=log,timeout=15000)
+   with (work/(agent+'.log')).open('w') as log:r=owned_run([str(Path(__file__).with_name('run-acs-evaluation')),str(cfg),str(report)],env=env,stdout=log,stderr=log,timeout=15000)
    d=json.loads(report.read_text()) if report.exists() else {};trials=[]
    if d.get('result_path'):
     for f in Path(d['result_path']).parent.glob('*/result.json'):
@@ -67,9 +70,12 @@ def process(role,entry,request):
   def valid(t,reward):return t['exit_code']==0 and t['cleanup_confirmed'] and len(t['results'])==1 and not t['results'][0]['exception_type'] and (t['results'][0]['rewards'] or {}).get('reward')==reward
   status['status']='selftest_passed' if valid(status['trials'][0],1) and valid(status['trials'][1],0) else 'selftest_failed'
   status['note']='Author selftest only; iteration/rerun and independent evaluation still required.'
+ except KeyboardInterrupt:
+  status.update(status='interrupted',error='Worker stopped; inspect preserved logs and cloud cleanup.');save();raise
  except Exception as e:status.update(status='failed',error=str(e)[:600])
  save()
 def main():
+ install_stop_handlers()
  STATE.mkdir(mode=0o700,parents=True,exist_ok=True)
  with (STATE/'worker.lock').open('a') as lock:
   fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)

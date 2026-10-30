@@ -25,7 +25,7 @@ class PreinstallTests(unittest.TestCase):
             root=Path(raw); (root / ".state/universe-maintenance").mkdir(parents=True)
             prefix=root / "home/role/.local/env"; prefix.mkdir(parents=True)
             role=dict(root=str(root),uid=os.getuid(),gid=os.getgid())
-            marker=prefix / "gewu-preinstalled-v1.json"
+            marker=prefix / (runtime.PREINSTALL_VERSION + ".json")
             with patch.object(runtime, "W", root), patch.object(runtime, "run_owned", return_value=subprocess.CompletedProcess([],1,"","failed")):
                 with self.assertRaises(RuntimeError): runtime.install_role("author-test",role,install=False)
             self.assertFalse(marker.exists())

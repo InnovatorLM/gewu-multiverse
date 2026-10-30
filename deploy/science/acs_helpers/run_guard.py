@@ -156,6 +156,11 @@ def release(cluster, run_id, known):
     raise RuntimeError('Resource deletion unconfirmed after 120s; inspect labeled resources')
 
 
+def execution_mode(config):
+    name = config["agents"][0].get("name")
+    return name if name in ("oracle", "nop") else "llm"
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', required=True)
@@ -178,7 +183,7 @@ def main():
         raise ValueError('Cluster region does not match --expected-region')
     out = Path(args.out).resolve()
     out.parent.mkdir(parents=True, exist_ok=True)
-    report = {'run_id': run_id, 'mode': 'oracle' if c['agents'][0].get('name') == 'oracle' else 'llm',
+    report = {'run_id': run_id, 'mode': execution_mode(c),
               'cleanup': {'confirmed': False}, 'harbor_exit_code': None}
     known = {}
     # Recover names seen before a previous interruption; never infer arbitrary names.
