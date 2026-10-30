@@ -1,196 +1,80 @@
-# Storage investigation and repair
+# Universe role storage investigation and repair
 
 ## Plan
 
-1. Check active writers before touching package environments, and record the
-   filesystem backing the workspace.
-2. Compare bounded small-file and sequential large-file operations on the
-   workspace and the node-local temporary filesystem.
-3. Repeat the bounded probe as the real author-02 UID inside its chroot.
-4. Resume the interrupted environment transaction in place; do not start a
-   second installer against the same prefix.
-5. Verify the scientific imports, basic tools and C++ compilation in the role
-   chroot before writing an atomic success marker.
-6. Run remaining role installations serially and require a per-role marker.
+1. Identify the workspace filesystem and check active writers before modifying role environments.
+2. Measure bounded create/read/rename and sequential write/fsync/read behavior, including inside a real role chroot.
+3. Repair interrupted package installations without concurrent writes to the same prefix.
+4. Make each role's workspace, cache, runs, temporary directory and HOME independently writable and persistent; verify isolation as the configured UIDs.
+5. Give every role a complete independent software environment, validated by imports, command availability and C++ compile/run.
+6. Exercise real session preparation, repository reuse and Git fetch for every role, then inspect the final automated verification state. Keep production scheduling off until this passes.
 
-## Evidence
+## Findings
 
-The workspace resolves to the Shanghai CPFS FUSE mount
-`fuse.aliyun-alinas-efc`. The node-local `/tmp` resolves to an ext4 NVMe disk.
-Both filesystems completed bounded create/read/rename and write/fsync/hash
-probes. On this run, 100 x 4 KiB small-file operations took 7.56 s on CPFS and
-0.0025 s on NVMe. A 16 MiB write, fsync and read/hash took 0.586 s on CPFS and
-0.061 s on NVMe. The author-02 chroot, running as UID 21002, reproduced CPFS
-behavior: 7.72 s for 100 small files and 0.315 s for the 16 MiB test.
+The workspace is on the Shanghai CPFS FUSE mount `fuse.aliyun-alinas-efc`.
+Bounded probes completed successfully, but CPFS metadata operations are much
+slower than local NVMe: creating/reading/renaming 100 x 4 KiB files took 7.56 s
+on CPFS and 0.0025 s on the comparison filesystem. A 16 MiB write, fsync and
+read/hash took 0.586 s and 0.061 s respectively. Repeating inside author-02's
+actual chroot took 7.72 s and 0.315 s. These results demonstrate high metadata
+latency, not a corrupt or unavailable filesystem. The volume showed over 100
+TiB available during repair, and writes/fsync/readback succeeded.
 
-This is evidence of severe CPFS small-file/metadata latency, not evidence that
-the CPFS service is unavailable or corrupt. The filesystem accepted writes,
-renames, fsync and verified reads. A recursive walk over the partially linked
-conda environment was also prohibitively slow, so inventory and repair should
-avoid repeated full-tree scans.
+An interrupted micromamba transaction was resumed under its original role UID
+and prefix. A role-local install lock and global recovery lock prevent
+overlapping package writers. Timeout handling now kills child processes, and a
+role-owned success marker is written atomically only after package imports,
+basic tools and a C++ compile/run succeed. A second installer was refused
+while the lock was held. author-01..03 passed the full environment probe.
 
-The initial author-02 micromamba operation had reached package linking and
-stopped at `botocore`; its package cache and prefix remained. It was resumed
-serially with the same role UID and prefix. Micromamba resolved from cached
-packages and completed the remaining transaction. The existing incomplete
-prefix was preserved throughout.
+An expanded storage audit uncovered incorrect `/cache` and `/runs` ownership
+on some old role roots and missing directories on others. The directories
+were repaired from the broker's UID/GID configuration without deleting
+contents. `/cache` is role-owned mode 0700; `/runs` is controller-owned and
+role-group writable mode 2770. Provisioning code now creates these paths for
+future roles. The isolation test now uses `bash -e -o pipefail`, so early
+permission failures cannot be hidden by later successful commands.
 
-## Repair and validation
+## Live validation
 
-- Terminated the stale shell that polled for a pip command by matching its own
-  command line. It was not performing useful installation work.
-- Kept micromamba package extraction single-threaded and resumed author-02 in
-  place instead of launching a competing installer.
-- Changed `preinstall_role_runtime.py` to support one-role-at-a-time recovery,
-  a nonblocking global install lock, a longer bounded verification, and an
-  atomic, role-owned success marker written only after all probes pass.
-- Added process-group cleanup on verification/installation timeout, and a
-  role-local install lock inherited by micromamba. The wrapper is deployed in
-  all 14 role roots. An actual UID21002 second installation was refused while
-  the lock was held; no package transaction started.
-- Author-02 passed imports and a NumPy computation for NumPy, SciPy, Pandas,
-  SymPy, Matplotlib, scikit-learn, netCDF4, Astropy, h5py, pytest, requests,
-  PyYAML and Pillow; `cmake`, `make`, `curl`, `seq`, `nohup`; and C++ compile/run.
-  Its marker was then generated by the updated verifier.
-- The same workspace-vs-NVMe probe passed as a unit test.
-- Live author-01/author-02 persistent-write and isolation checks passed, as did
-  the actual author/evaluator/curator command-broker regression, including
-  large file handling and timeout/disconnect/detached-process cleanup.
-- Author-03 installation is running, not passed: process I/O showed about
-  3 GB written during extraction with a conda package metadata file open.
-  A `D` process state alone is not evidence that installation has stalled.
+The actual-UID persistence verifier passed all 14 roles. In each role's
+`/workspace`, `/cache`, `/runs`, `/tmp` and `/home/role`, it performed a write,
+fsync, rename and fresh-process readback. It also checked distinct private
+directories and denied a peer role's read. Evidence:
+`.state/storage-investigation/universe-persistence.json`.
 
-The persistent probe now writes only below the workspace, as required by its
-storage policy. The node-local NVMe comparison above is a historical diagnostic;
-it does not justify moving live role state outside the workspace.
-
-## Actual Universe session verification increment
-
-The old `science-role-session-check` example only accepted legacy role names
-(`author` and `evaluator`). It now validates actual role names against the
-operator broker configuration. The example compiled successfully. The session
-test can select roles, avoiding interference with a UID currently installing.
-
-The initial real-session attempt found that Forgejo was stopped; its existing
-instance was restarted as UID65534, bound to 127.0.0.1:3000, without starting
-the Universe scheduler. The next attempt exposed a concrete runtime defect:
-the role PATH selected conda Git but lacked its library path, so fetch failed
-with missing `libiconv.so.2`. Adding the role-local library path to the broker
-and Codex runtime fixed that failure. Codex's shell environment is explicitly
-configured too, because its policy inherits no environment.
-
-Both author-01 and author-02 then passed actual `RealSpawner::prepare` twice,
-including repository reuse and subsequent Git fetch. Evidence is in workspace
-state `.state/harbor-eval/role-real-session-prepare.json`. These checks made no
-model calls, did not start production role scheduling and do not establish
-that all remaining roles are ready. The four Codex/preinstallation unit checks
-and real broker regression also passed after the runtime fix.
-
-The full serial recovery process has been confirmed resident as PID3704163;
-it waits for author-03 to finish before verifying and installing the remaining
-roles. Inspect the current process and
-`.state/storage-investigation/all-role-recovery.log` rather than treating this
-PID or document as proof it remains alive.
-
-`verify_universe_storage.py` additionally passed in all 14 actual role roots:
-each dedicated UID wrote, fsynced and renamed a private file, then a separate
-process read back and verified its content. All storage directories were
-distinct, had the expected UID and private mode, and a peer UID could not read
-the file. The report is `.state/storage-investigation/universe-persistence.json`.
-This verifies persistence and isolation without touching installation processes.
-
-## Remaining work
-
-An expanded audit found a separate concrete layout defect: author-01..05
-still had `/cache` owned by old UIDs 22001..22005 and `/runs` with old groups;
-the remaining roles lacked both directories. The broker identities are
-21001..21014. Corrected the top-level directory metadata from broker config,
-preserving all contents, and created missing directories. `/cache` is private
-0700, owned by its role; `/runs` is controller-owned, role-group writable 2770.
-The actual changes are recorded in workspace state
-`.state/storage-investigation/layout-repair.json`.
-
-`prepare_role_runtime.py` now provisions these directories consistently. The
-author storage regression now uses `bash -e -o pipefail`: previously an early
-cache write failure could be hidden by a later successful temporary-file write.
-The corrected actual author-01/author-02 check passed. Full persistence checks
-now independently write/fsync/rename and read back in `/workspace`, `/cache`,
-`/runs`, `/tmp` and `/home/role` for every configured role, rather than treating
-a HOME-only probe as proof of the complete layout.
-
-The expanded actual persistence run completed successfully for all 14 roles,
-with all five paths covered per role. Author-03 also passed actual
-`RealSpawner::prepare` twice, including subsequent Git fetch, after its
-environment recovery. Its separate session evidence is in workspace state
-`.state/storage-investigation/author-03-session-prepare.log`; no model calls
-were made. These results do not establish completion of the other environment
-copies, which are still waiting for the donor archive to finish.
-
-Current checkpoint: author-03 has completed its conda transaction and passed
-the import/tool/C++ probe. Author-01, author-02 and author-03 now have verified
-environments. The bootstrap worker has acquired the installation lock and is
-packing author-02's verified environment; no new role copy has passed yet.
-The archive is mode 0600, including while it is being written. The final worker
-still waits for bootstrap, so its `passed: false` waiting status is not a failed
-test or evidence of completion. Production scheduling remains stopped.
-
-The preinstall, recovery-verifier and storage-probe regression suite passed
-five tests. Recovery-verifier tests use mocks; the all-role live verification
-must still run after independent copies are deployed. The usable free capacity
-reported by the CPFS mount is about 105 TiB; this does not diagnose per-account
-quotas, but the bounded actual writes show no current capacity error.
-
-The queued per-role conda reinstall loop was replaced, before it acquired the
-install lock, by `bootstrap_role_environments.py`. The current author-03
-transaction was left untouched. All chroots use the same internal environment
-prefix, so a verified donor can be archived once and extracted into independent
-role-owned files without prefix relocation. Extraction runs as the destination
-UID inside its chroot; previous environments are retained and restored on
-validation failure. Each copy must pass the complete import/tool/C++ probe.
-The NumPy inode is checked against the donor as an additional independence
-check. Only the environment is archived, excluding the donor's success marker;
-Git credentials and role HOME are not copied. No mutable files are hard-linked
-between roles. This reduces repeated solver/download/cache-extraction work.
-
-The final verifier now waits for the new bootstrap process identity. Inspect
-`bootstrap-status.json`, `bootstrap.log` and `recovery-verification.json` in
-`.state/storage-investigation` for actual results; startup is not completion.
-
-`verify_storage_recovery.py` is resident waiting for the identified serial
-recovery process. It checks the process start identity to avoid PID reuse,
-acquires the installation lock after recovery ends, rejects missing or invalid
-role markers, and runs the all-role persistence and real session-preparation
-checks. `.state/storage-investigation/recovery-verification.json` records
-waiting/verifying/verified/failed explicitly. Its unit tests mock subprocesses
-and are not live recovery results. Do not infer completion from worker startup.
-
-Storage is usable but CPFS metadata latency remains high. This investigation
-does not claim a CPFS service repair. Continue serial preinstallation and
-in-chroot validation for author-03..author-10, evaluator-01..evaluator-03 and
-curator. Confirm every role marker and run role isolation plus the complete
-code regression before restarting the Universe. Keep the Universe stopped
-until that verification is complete.
-
-## Latest live checkpoint (2026-10-30)
-
-The donor archive has finished with SHA-256
-`b25797ba2a814e4fbd8a2e11a380852aa068bfdcd4d3ef043e6f842146f3c573`.
-Independent extraction and complete role verification are now running for
-author-04; do not interpret the older “packing” checkpoints above as current.
-The extracted data is being written to its private staging directory and is
-approximately 2.4 GB at the latest I/O check.
-
-Live no-model `RealSpawner::prepare` checks passed for author-03, author-05..10,
-evaluator-01..03 and curator. Each had two preparations, private repository
-reuse and a subsequent fetch. author-01/02 had passed earlier. Thus 13/14
-actual session paths have passed; author-04 is excluded while its UID runs the
-environment extraction. Logs are in workspace state under
+Actual no-model `RealSpawner::prepare` checks passed for author-01..03,
+author-05..10, evaluator-01..03 and curator: two preparations, private
+repository reuse and a subsequent Git fetch. author-04 was omitted while its
+UID was extracting the software environment. Logs:
 `.state/storage-investigation/*session-prepare.log`.
 
-The all-role persistence verifier has passed for 14 roles and all five
-locations (`/workspace`, `/cache`, `/runs`, `/tmp`, `/home/role`) per role.
-The expanded author-01/02 isolation test also passes after fixing its shell
-failure handling. CPFS reports 114 TiB available. The final automatic worker
-continues waiting for the recovery process, then will require valid role
-markers and run the persistence and all-role session checks. The scheduler
-remains stopped pending that result.
+author-02's validated environment was archived once (2.61 GB; archive SHA-256
+`b25797ba2a814e4fbd8a2e11a380852aa068bfdcd4d3ef043e6f842146f3c573`) and is
+being extracted into independent role-owned prefixes. CPFS does not support
+reflink cloning, so role environments are copied serially rather than sharing
+mutable files. The bootstrap process verifies each copy before publishing its
+marker and preserves/restores the old environment on failure. Current progress
+is authoritative in `.state/storage-investigation/bootstrap-status.json`;
+`bootstrap.log` records completed roles. Do not infer completion from a live
+process or a partial staging directory.
+
+At the latest checkpoint, author-01..04 had verified environments and author-05
+was extracting. The final verifier waits for the bootstrap process, then checks
+all 14 role markers, reruns storage persistence, and prepares every actual
+session. Its state is `.state/storage-investigation/recovery-verification.json`.
+No scheduler or model calls are part of these checks. Production scheduling
+remains stopped until the final verifier reports `passed: true`.
+
+## Code and remaining gate
+
+The repair code and test updates are pushed to the backup branch
+`terminal-bench-science-backup-20261029T015224Z`, including commits `4e830b5`,
+`eef5285` and `e265e99`. The preinstall, recovery-verifier and storage-probe
+regression suite passed five tests; recovery-verifier unit tests are mocked and
+are not a substitute for its pending live run.
+
+Remaining: finish independent environment copies for author-05..10,
+evaluator-01..03 and curator; require each full per-role probe; run the final
+14-role live session and persistence verifier; check all reports and process
+exit states. Keep the Universe scheduler stopped until these checks pass.
