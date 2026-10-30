@@ -1,4 +1,5 @@
 import copy
+import os
 import hashlib
 import tempfile
 import unittest
@@ -51,3 +52,11 @@ class AuthorGateTests(unittest.TestCase):
     def test_missing_receipt_blocks(self):
         with patch.object(gate,'W',Path(self.temp.name)):
             self.assertFalse(gate.approved('a'*40,'tasks/science/example'))
+
+    def test_special_files_links_and_size_are_rejected_without_blocking(self):
+        root=Path(self.temp.name);fifo=root/'fifo';os.mkfifo(fifo)
+        link=root/'link';link.symlink_to(self.path)
+        for path in (fifo,link):
+            with self.subTest(path=path),self.assertRaises((OSError,ValueError)):
+                gate.read_operator_file(path)
+        with self.assertRaises(ValueError):gate.read_operator_file(self.path,1)

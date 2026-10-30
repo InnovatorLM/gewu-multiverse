@@ -106,3 +106,9 @@ watchdog新增作者账本会话状态核对：校验真实runner的controller U
 损坏／失效的单个作者凭证不再中断整轮PR reconciliation；对应PR进入waiting_author并记录安全错误类型，不复制私有异常文本，不分配evaluator，后续PR仍继续检查。派单和作者门检12项回归通过，其中新增双PR一份凭证损坏的隔离测试。
 
 监控API为各评审角色附带最新派单state／stage／reason，网页卡片渲染并转义、脱敏这些内容。监控和派单10项回归通过，内嵌JavaScript经Node语法检查通过。尚未将源码更新等同实际监控部署或浏览器渲染验收。
+
+### 证据读取和上下文边界加强
+
+正式提交门检按打开的文件描述符核对普通文件、root所有权、非外部可写、大小、读取前后mtime／ctime，拒绝链接／FIFO及读取时变化，避免证据读取阻塞或检查后换文件。门检和派单13项回归通过。
+
+上下文摘要新增真正双tool_call／双tool_result配对的边界回归，4项conversation测试全部通过，不再只依赖空tool_calls的合成测试。新增显式运维science-context-check示例，使用指定dawnfm模型和Rust正式客户端验证大上下文摘要及后续恢复，保留脱敏请求／回复；该live作业仍在编译／执行中，尚不写通过。示例历史是合成fixture，不是生产角色轨迹。

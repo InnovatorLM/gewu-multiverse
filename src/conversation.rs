@@ -56,6 +56,25 @@ pub fn apply_summary(messages: &mut Vec<Message>, boundary: usize, summary: Stri
 mod tests {
     use super::*;
     #[test]
+    fn summary_keeps_multi_tool_exchanges_whole() {
+        use crate::model::{ToolCall, FunctionCall};
+        let mut messages=vec![Message::system("policy"),Message::user("task")];
+        for i in 0..30 {
+            let calls:Vec<_>=(0..2).map(|j|ToolCall{id:format!("{i}-{j}"),kind:"function".into(),function:FunctionCall{name:"shell".into(),arguments:"{}".into()}}).collect();
+            messages.push(Message::assistant(None,calls.clone()));
+            for call in calls {messages.push(Message::tool(call.id,"x".repeat(6000)));}
+        }
+        let boundary=summary_boundary(&messages,DEFAULT_CONTEXT_BYTES).unwrap();
+        let original=messages.clone();
+        apply_summary(&mut messages,boundary,"verified facts".into()).unwrap();
+        assert_eq!(&messages[3..],&original[boundary..]);
+        for group in messages[3..].chunks(3) {
+            let calls=group[0].tool_calls.as_ref().unwrap();
+            assert_eq!(group[1].tool_call_id.as_ref(),Some(&calls[0].id));
+            assert_eq!(group[2].tool_call_id.as_ref(),Some(&calls[1].id));
+        }
+    }
+    #[test]
     fn request_delta_preserves_new_messages_and_resets_on_summary() {
         let mut previous=None;
         let first=serde_json::json!({"model":"test","messages":[{"role":"system","content":"old"},{"role":"user","content":"task"}]});
