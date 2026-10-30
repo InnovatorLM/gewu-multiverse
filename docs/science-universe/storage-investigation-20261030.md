@@ -101,6 +101,36 @@ This verifies persistence and isolation without touching installation processes.
 
 ## Remaining work
 
+Current checkpoint: author-03 has completed its conda transaction and passed
+the import/tool/C++ probe. Author-01, author-02 and author-03 now have verified
+environments. The bootstrap worker has acquired the installation lock and is
+packing author-02's verified environment; no new role copy has passed yet.
+The archive is mode 0600, including while it is being written. The final worker
+still waits for bootstrap, so its `passed: false` waiting status is not a failed
+test or evidence of completion. Production scheduling remains stopped.
+
+The preinstall, recovery-verifier and storage-probe regression suite passed
+five tests. Recovery-verifier tests use mocks; the all-role live verification
+must still run after independent copies are deployed. The usable free capacity
+reported by the CPFS mount is about 105 TiB; this does not diagnose per-account
+quotas, but the bounded actual writes show no current capacity error.
+
+The queued per-role conda reinstall loop was replaced, before it acquired the
+install lock, by `bootstrap_role_environments.py`. The current author-03
+transaction was left untouched. All chroots use the same internal environment
+prefix, so a verified donor can be archived once and extracted into independent
+role-owned files without prefix relocation. Extraction runs as the destination
+UID inside its chroot; previous environments are retained and restored on
+validation failure. Each copy must pass the complete import/tool/C++ probe.
+The NumPy inode is checked against the donor as an additional independence
+check. Only the environment is archived, excluding the donor's success marker;
+Git credentials and role HOME are not copied. No mutable files are hard-linked
+between roles. This reduces repeated solver/download/cache-extraction work.
+
+The final verifier now waits for the new bootstrap process identity. Inspect
+`bootstrap-status.json`, `bootstrap.log` and `recovery-verification.json` in
+`.state/storage-investigation` for actual results; startup is not completion.
+
 `verify_storage_recovery.py` is resident waiting for the identified serial
 recovery process. It checks the process start identity to avoid PID reuse,
 acquires the installation lock after recovery ends, rejects missing or invalid
