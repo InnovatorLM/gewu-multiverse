@@ -122,6 +122,9 @@ def validated_template(entry, request):
         env = agent.get('env',{})
         if env.get('CODEX_MODEL_PROVIDER') != 'dawnfm' or env.get('CODEX_WIRE_API') != 'responses':
             raise ValueError('Explicit Codex provider and Responses protocol required')
+    if codex:
+        from acs_helpers.run_guard import check_config
+        check_config(config)
     options = agent.get('kwargs', {})
     if 'private_trajectory_dir' in options or type(options.get('retain_private_trajectory', False)) is not bool:
         raise ValueError('Private trajectory destinations are assigned only by the worker')
@@ -234,7 +237,7 @@ def process(config, request_path, mock=False):
     if mock:
         answer.update(status='mock_complete', quality_acceptance=False, live_model_calls=0, cleanup_confirmed=True)
     else:
-        template.update(job_name='science-queue-' + request['job_id'][:12], jobs_dir=str(job / 'runs'))
+        template.update(job_name='tbs-universe-linfeng-queue-' + request['job_id'], jobs_dir=str(job / 'runs'))
         def relabel(value):
             if isinstance(value, dict):
                 for key, item in value.items():

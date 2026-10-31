@@ -1,5 +1,13 @@
 # 本轮宇宙问题总表（2026-10-30）
 
+## 已有简单题五路云端验收进行中（2026-10-31）
+
+- 已按冻结上游版本构建并发布 openssl-selfsigned-cert 的 Codex runtime 和 verifier，源版本 f64efc6cdf097edd5df306fb16be544d08e384e6；完整源绑定构建回执位于工作区私有 platform-openssl-parallel-v1/build/receipt.json。
+- 修复队列生成 science-queue 前缀而 guard 要求 tbs-universe-linfeng 前缀的实际接口缺陷；新 run ID 使用完整32位 job ID，避免截短碰撞。
+- 新增 Codex 配置生成器，覆盖历史600秒／40步设置，显式四小时、4c/8g、节点 i、固定镜像、模型和 provider；Codex登记时提前调用实际 guard 校验，不将错误配置留到云端执行才发现。
+- 相关联合离线17项通过。真实五路队列已启动，云端观察到五个独立Pod同时存在，后续一次检查四个Running、一个ContainerCreating，均调度到 virtual-kubelet-cn-beijing-i。尚无完整五次最终结果或轨迹验收声明。
+- 本轮仅启动隔离平台回归worker，正式宇宙保持停机。云端结果、清理和轨迹验收继续进行；新题难度评审不是启动门槛。
+
 ## 并行队列与新题质量要求（2026-10-31，继续）
 
 - 队列默认同时执行最多五个独立子进程，各自拥有信号处理和 guard 清理；预约加锁保证并发下每日预算检查不竞争。只允许可核验活跃队列 worker 的未结束 claim 并行共存；已结束但清理未确认、失联历史任务仍阻止新增云执行。该源码尚未上线。
