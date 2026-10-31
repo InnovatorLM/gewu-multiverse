@@ -145,6 +145,21 @@ pub struct EngineOptions {
     forgejo_starter: Option<Arc<dyn ForgejoStarter>>,
 }
 
+/// Only configured agents can be scheduled. Retained directories from removed
+/// agents must not invalidate the boundary of the current configured set.
+fn configured_workspaces(layout: &Layout, settings: &Settings) -> Result<Vec<PathBuf>, String> {
+    settings
+        .agents
+        .iter()
+        .map(|agent| {
+            layout
+                .agent(&agent.name)
+                .map(|paths| paths.workspace().to_path_buf())
+                .map_err(|error| error.to_string())
+        })
+        .collect()
+}
+
 impl EngineOptions {
     /// Options for one installation, with the product executable found now.
     pub fn new(layout: Layout, data_root: impl Into<PathBuf>) -> Result<Self, String> {
@@ -156,14 +171,15 @@ impl EngineOptions {
         // workspace symlinked over a parent of the configuration root cannot be
         // confined, and `detect` must see that before the board claims anything
         // (B9-R-R).
-        let workspaces = crate::confinement::agent_workspaces(&layout.agents_dir());
+        let configured = Settings::load(&settings::path_in(layout.root()))?;
+        let workspaces = configured_workspaces(&layout, &configured)?;
         let confinement =
             crate::confinement::detect(layout.root(), layout.state_root(), &data_root, &workspaces);
         Ok(Self {
             layout,
             data_root,
             product_binary,
-            session_timeout: DEFAULT_SESSION_TIMEOUT,
+            session_timeout: std::env::var("GEWU_SESSION_TIMEOUT_SECS").ok().and_then(|v| v.parse::<u64>().ok()).filter(|v| (60..=14400).contains(v)).map(Duration::from_secs).unwrap_or(DEFAULT_SESSION_TIMEOUT),
             stop_grace: DEFAULT_STOP_GRACE,
             ready_timeout: DEFAULT_READY_TIMEOUT,
             auto_start_forgejo: true,
@@ -743,7 +759,14 @@ impl Inner {
     /// workspace that cannot be confined takes the board's claim away now, instead of
     /// waiting for a run to refuse it (B9-R-R).
     fn refresh_confinement(&mut self) {
-        let workspaces = crate::confinement::agent_workspaces(&self.options.layout.agents_dir());
+        let workspaces = match configured_workspaces(&self.options.layout, &self.settings) {
+            Ok(workspaces) => workspaces,
+            Err(reason) => {
+                self.options.confinement = crate::confinement::Method::None;
+                self.note(reason);
+                return;
+            }
+        };
         let method = crate::confinement::detect(
             self.options.layout.root(),
             self.options.layout.state_root(),
@@ -1335,21 +1358,8 @@ impl Inner {
     fn block_reason(&self, index: usize) -> Option<String> {
         let agent = &self.agents[index];
         if std::env::var_os(crate::role_broker::CONFIG_ENV).is_some() {
-            let allowance = match std::env::var("GEWU_DAILY_ROLE_SESSIONS")
-                .ok()
-                .and_then(|value| value.parse::<usize>().ok())
-            {
-                Some(limit @ 1..=10) => limit,
-                _ => return Some("daily role session budget is not configured".into()),
-            };
-            let path = match self.options.layout.agent(&agent.name) {
-                Ok(path) => path,
-                Err(_) => return Some("daily role budget path is unavailable".into()),
-            };
-            match crate::role_broker::daily_session_count(path.state_dir(), SystemTime::now()) {
-                Ok(count) if count < allowance => {}
-                Ok(_) => return Some("daily role session budget exhausted".into()),
-                Err(reason) => return Some(reason),
+            if self.options.confinement != crate::confinement::Method::RoleBroker {
+                return Some("configured role broker is unavailable; unconfined runs refused".into());
             }
             if self.settings.endpoint.turns() > 24 {
                 return Some("role model turn budget must not exceed 24".into());
@@ -1502,6 +1512,12 @@ impl Inner {
                 continue;
             }
             if self.block_reason(index).is_some() {
+                continue;
+            }
+            if std::env::var_os(crate::role_broker::CONFIG_ENV).is_some()
+                && name.starts_with("evaluator-")
+                && !review_assignment_ready(&self.options.layout.agents_dir().join(&name))
+            {
                 continue;
             }
             if let Some(request) = self.session_request(index) {
@@ -3074,6 +3090,37 @@ fn provision_agent_job(inner: Arc<Mutex<Inner>>, name: String) {
     }
 }
 
+/// Park deployed evaluators before model invocation until a new review generation exists.
+fn review_assignment_ready(root: &Path) -> bool {
+    // Dispatcher publishes no credentials here; private role home stays 0700.
+    let Ok(bytes) = fs::read(root.join("review-dispatch.json")) else { return false; };
+    let Ok(assignment) = serde_json::from_slice::<serde_json::Value>(&bytes) else { return false; };
+    assignment["state"] == "reviewing"
+        && assignment["key"].is_string()
+        && assignment["generation"].is_u64()
+}
+
+#[cfg(test)]
+mod review_assignment_tests {
+    use super::*;
+    #[test]
+    fn waiting_evaluators_need_a_new_assignment_generation() {
+        let root = crate::test_support::scratch_root("review-idle-gate");
+        let home = root.join("home/role");
+        fs::create_dir_all(&home).unwrap();
+        assert!(!review_assignment_ready(&root));
+        fs::write(root.join("review-dispatch.json"), r#"{"key":"30:abc","generation":0,"state":"reviewing"}"#).unwrap();
+        assert!(review_assignment_ready(&root));
+        for state in ["waiting_author", "waiting_platform", "completed"] {
+            fs::write(root.join("review-dispatch.json"), serde_json::json!({"key":"30:abc","generation":0,"state":state}).to_string()).unwrap();
+            assert!(!review_assignment_ready(&root));
+        }
+        fs::write(root.join("review-dispatch.json"), r#"{"key":"30:abc","generation":1,"state":"reviewing"}"#).unwrap();
+        assert!(review_assignment_ready(&root));
+        let _ = fs::remove_dir_all(root);
+    }
+}
+
 fn session_job(
     inner: Arc<Mutex<Inner>>,
     request: SessionRequest,
@@ -3102,6 +3149,13 @@ fn session_job(
     let prepared = match prepared {
         Ok(prepared) => prepared,
         Err(reason) => {
+            // Preserve preparation failures in the run directory. Without this,
+            // a failed pre-plan session appears as an unexplained empty run.
+            let _ = std::fs::create_dir_all(&request.run_dir);
+            let _ = std::fs::write(
+                request.run_dir.join("startup-error.txt"),
+                format!("{}\n", reason),
+            );
             let now = clock.now();
             let mut guard = lock_inner(&inner);
             let Some(index) = guard.agent_index(&request.agent) else {
@@ -3406,6 +3460,20 @@ mod tests {
     use crate::board::Board;
     use crate::engine::clock::FakeClock;
     use crate::test_support::scratch_root;
+
+    #[test]
+    fn confinement_workspace_set_ignores_retired_roles_but_keeps_configured_paths() {
+        let root = scratch_root("configured-confinement-workspaces");
+        let layout = Layout::rooted_at(root.clone()).unwrap();
+        fs::create_dir_all(layout.agents_dir().join("retired/workspace")).unwrap();
+        let mut settings = Settings::default();
+        settings.add_agent("author-01", Desired::Started).unwrap();
+        let paths = configured_workspaces(&layout, &settings).unwrap();
+        assert_eq!(paths, vec![layout.agents_dir().join("author-01/workspace")]);
+        // Missing configured paths remain in the probe set, so they cannot be
+        // silently skipped and misrepresented as confined.
+        assert!(!paths[0].exists());
+    }
 
     fn test_options(root: &Path) -> EngineOptions {
         let layout = Layout::rooted_at(root.to_path_buf()).expect("the test layout is absolute");

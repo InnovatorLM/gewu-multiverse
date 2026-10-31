@@ -52,9 +52,10 @@ it does not erase the curator's findings or retroactively change its verdict.
 ## Current stop conditions
 
 1. Obtain evaluator's independent procedural review of the exact runs, images,
-   manifests and original private traces. Its existing daily session allowance
-   is exhausted. The three-session setting was introduced by deployment code,
-   not established as a user requirement; its disposition is awaiting preference.
+   manifests and original private traces. The user has requested removal of the
+   deployment-added daily role-session limit. That limit and its startup guard
+   have been removed; historical plans remain intact for audit. Per-run timeout,
+   turn limits, process cleanup and concurrency controls remain in effect.
 2. Resolve or explicitly retain the curator's findings in a version-bound final
    review. Full-budget difficulty calibration is required only for a later
    scientific difficulty claim; no such claim is needed or granted here.

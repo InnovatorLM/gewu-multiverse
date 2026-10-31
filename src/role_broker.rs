@@ -16,41 +16,6 @@ use serde::Deserialize;
 /// Explicitly supplied, non-secret, root-owned broker configuration.
 pub const CONFIG_ENV: &str = "GEWU_ROLE_BROKER_CONFIG";
 
-/// Persisted UTC-day run count; reopening the board cannot reset the allowance.
-/// Count every prepared plan, including failed/cancelled runs, conservatively.
-pub fn daily_session_count(state: &Path, now: std::time::SystemTime) -> Result<usize, String> {
-    let day = now
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_err(|_| "invalid budget clock")?
-        .as_secs()
-        / 86400;
-    if !state.exists() {
-        return Ok(0);
-    }
-    let entries = fs::read_dir(state).map_err(|_| "daily role budget cannot be read")?;
-    let mut count = 0;
-    for entry in entries {
-        let plan = entry
-            .map_err(|_| "daily role budget cannot be read")?
-            .path()
-            .join("plan.json");
-        if plan.exists() {
-            let stamp = fs::metadata(plan)
-                .and_then(|m| m.modified())
-                .map_err(|_| "daily role budget timestamp unavailable")?;
-            let stamp_day = stamp
-                .duration_since(std::time::UNIX_EPOCH)
-                .map_err(|_| "invalid budget timestamp")?
-                .as_secs()
-                / 86400;
-            if stamp_day >= day {
-                count += 1;
-            }
-        }
-    }
-    Ok(count)
-}
-
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Config {
@@ -104,11 +69,32 @@ fn role_for<'a>(config: &'a Config, cwd: &Path) -> Result<(&'a str, PathBuf), St
     let resolved = cwd
         .canonicalize()
         .map_err(|_| "role working directory is unavailable")?;
+    // A path that was presented under one registered workspace must not resolve
+    // into another role's workspace. This preserves the original symlink escape
+    // defense; the canonical comparison below is only for an explicitly
+    // unregistered local-runtime alias.
+    for role in config.roles.values() {
+        let raw_workspace = role.root.join("workspace");
+        if cwd.starts_with(&raw_workspace) {
+            let raw = raw_workspace
+                .canonicalize()
+                .map_err(|_| "role workspace is unavailable")?;
+            if !resolved.starts_with(&raw) {
+                return Err("working-directory symlink escaped its original role".into());
+            }
+        }
+    }
     for (name, role) in &config.roles {
         let workspace = role.root.join("workspace");
-        if cwd.starts_with(&workspace) {
+        // The local-runtime launcher may expose the registered chroot workspace
+        // through a symlink. Compare canonical paths so the broker preserves the
+        // registered role identity while rejecting links that escape it.
+        let resolved_workspace = workspace
+            .canonicalize()
+            .map_err(|_| "role workspace is unavailable")?;
+        if resolved.starts_with(&resolved_workspace) {
             let relative = resolved
-                .strip_prefix(&workspace)
+                .strip_prefix(&resolved_workspace)
                 .map_err(|_| "working-directory symlink escaped its original role")?;
             return Ok((name, Path::new("/workspace").join(relative)));
         }
@@ -119,25 +105,6 @@ fn role_for<'a>(config: &'a Config, cwd: &Path) -> Result<(&'a str, PathBuf), St
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn persisted_budget_counts_failed_or_prepared_plans_after_reopen() {
-        let root = std::env::temp_dir().join(format!(
-            "role-budget-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        fs::create_dir_all(root.join("failed")).unwrap();
-        fs::create_dir_all(root.join("prepared")).unwrap();
-        fs::write(root.join("failed/plan.json"), "{}").unwrap();
-        fs::write(root.join("prepared/plan.json"), "{}").unwrap();
-        let now = std::time::SystemTime::now();
-        assert_eq!(daily_session_count(&root, now).unwrap(), 2);
-        assert_eq!(daily_session_count(&root, now).unwrap(), 2);
-        fs::remove_dir_all(root).unwrap();
-    }
     #[test]
     fn directory_symlink_cannot_switch_role_identity() {
         let root = std::env::temp_dir().join(format!(
@@ -225,14 +192,16 @@ pub fn execute(cwd: &Path, argv: &[&str], timeout: u64) -> Result<Output, String
     }
     .map_err(|_| "role broker is unavailable")?;
     stream
-        .set_read_timeout(Some(Duration::from_secs(timeout.min(1800) + 5)))
+        .set_read_timeout(Some(Duration::from_secs(timeout.min(14400) + 5)))
         .map_err(|_| "broker timeout cannot be set")?;
     stream
-        .set_write_timeout(Some(Duration::from_secs(5)))
+        .set_write_timeout(Some(Duration::from_secs(120)))
         .map_err(|_| "broker timeout cannot be set")?;
-    let request = serde_json::json!({"role": role, "cwd": inside, "argv": argv, "timeout": timeout.clamp(1,1800)});
+    let request = serde_json::json!({"role": role, "cwd": inside, "argv": argv, "timeout": timeout.clamp(1,14400)});
     let mut bytes = serde_json::to_vec(&request).map_err(|_| "broker request cannot be encoded")?;
-    if bytes.len() > 131070 {
+    // Role instructions and Forgejo context can exceed the old 128 KiB cap.
+    // Keep the request bounded while allowing the full assigned instruction.
+    if bytes.len() > 16 * 1024 * 1024 {
         return Err("role command exceeds request limit".into());
     }
     bytes.push(b'\n');

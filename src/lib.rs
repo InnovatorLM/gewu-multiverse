@@ -41,6 +41,7 @@ pub mod bundled_forgejo;
 pub mod cli;
 pub mod confinement;
 pub mod credentials;
+pub mod conversation;
 pub mod editor;
 pub mod engine;
 pub mod engine_api;

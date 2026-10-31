@@ -1,7 +1,7 @@
 import importlib.util,json,os,socket,subprocess,sys,time,uuid
 from pathlib import Path
 w=Path('/mnt/data/zhanglinfeng/workspace');module_path=w/'gewu-multiverse/deploy/science/evaluation_queue.py';spec=importlib.util.spec_from_file_location('queue',module_path);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
-config=json.loads((w/'.config/science-evaluation/queue.json').read_text());state=w/('.state/science-evaluation-queue-mock-test-'+str(time.time_ns()));state.mkdir(mode=0o700,exist_ok=True);config['state']=str(state);config['max_jobs_per_day']=3
+config=json.loads((w/'.config/science-evaluation/queue.json').read_text());state=w/('.state/science-evaluation-queue-mock-test-'+str(time.time_ns()));state.mkdir(mode=0o700,exist_ok=True);config['state']=str(state);config['max_jobs_per_day']=3;config.update(config['role_queues'][0]);evaluator_role=config['role'];evaluator_uid=config['evaluator_uid']
 broker_config=w/'.state/science-role-broker/config.json';broker_data=json.loads(broker_config.read_text());broker=subprocess.Popen([sys.executable,str(module_path.with_name('role_exec.py')),str(broker_config)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 try:
  deadline=time.monotonic()+20
@@ -16,15 +16,15 @@ try:
   with socket.socket(socket.AF_UNIX) as s:
    s.connect('\0'+broker_data['socket'][1:]);s.sendall(json.dumps({'role':role,'cwd':'/workspace','argv':['python3','-c',code],'timeout':20}).encode()+b'\n');return json.loads(s.makefile().readline())
  code="import json,uuid,os;from pathlib import Path;c=json.load(open('/evaluation/catalog.json'))['evaluations'][0];j=uuid.uuid4().hex;p=Path('/evaluation/inbox')/(j+'.json');p.write_text(json.dumps(dict(job_id=j,evaluation_id=c['evaluation_id'],snapshot_sha256=c['snapshot_sha256'])));p.chmod(0o600);print(j)"
- response=command('evaluator',code);assert response['returncode']==0 and response['cleanup_confirmed'];jobid=response['stdout'].strip();answer=m.process(config,Path(config['inbox'])/(jobid+'.json'),mock=True);assert answer['status']=='mock_complete' and not answer['quality_acceptance']
- response=command('evaluator',"import json;print(json.load(open('/evaluation/results/"+jobid+".json'))['status']);assert not __import__('os').environ.get('OPENAI_API_KEY')");assert response['returncode']==0 and 'mock_complete' in response['stdout']
- for role in ['author','curator']:
+ response=command(evaluator_role,code);assert response['returncode']==0 and response['cleanup_confirmed'];jobid=response['stdout'].strip();answer=m.process(config,Path(config['inbox'])/(jobid+'.json'),mock=True);assert answer['status']=='mock_complete' and not answer['quality_acceptance']
+ response=command(evaluator_role,"import json;print(json.load(open('/evaluation/results/"+jobid+".json'))['status']);assert not __import__('os').environ.get('OPENAI_API_KEY')");assert response['returncode']==0 and 'mock_complete' in response['stdout']
+ for role in ['author-02','curator']:
   response=command(role,"open('/evaluation/catalog.json')");assert response['returncode']!=0
  report={'real_evaluator_submission_and_result_read':True,'author_curator_queue_unavailable':True,'no_provider_key_in_role_env':True,'mock_model_calls':0,'quality_acceptance':False}
  registry=json.loads(Path(config['registry']).read_text());entry=registry['calibration-v1']
- def request(uid=21002,**extra):
+ def request(uid=evaluator_uid,**extra):
   j=uuid.uuid4().hex;p=Path(config['inbox'])/(j+'.json');p.write_text(json.dumps(dict(job_id=j,evaluation_id='calibration-v1',snapshot_sha256=entry['snapshot_sha256'],**extra)));os.chown(p,uid,uid);p.chmod(0o600);return p
- for label,uid,extra in [('foreign_uid_refused',21001,{}),('command_injection_field_refused',21002,{'argv':['id']}),('model_override_refused',21002,{'model':'another-model'})]:
+ for label,uid,extra in [('foreign_uid_refused',21001,{}),('command_injection_field_refused',evaluator_uid,{'argv':['id']}),('model_override_refused',evaluator_uid,{'model':'another-model'})]:
   p=request(uid,**extra)
   try:m.process(config,p,mock=True);raise AssertionError(label)
   except ValueError:report[label]=True
@@ -34,7 +34,7 @@ try:
  except ValueError:report['snapshot_mismatch_refused']=True
  p.unlink()
  p=Path(config['inbox'])/(uuid.uuid4().hex+'.json');p.symlink_to('/home/role/git-credential.json')
- try:m.read_request(p,21002);raise AssertionError('symlink')
+ try:m.read_request(p,evaluator_uid);raise AssertionError('symlink')
  except OSError:report['request_symlink_refused']=True
  p.unlink()
  for _ in range(2):

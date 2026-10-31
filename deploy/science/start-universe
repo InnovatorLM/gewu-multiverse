@@ -3,30 +3,90 @@
 set -euo pipefail
 set +x
 W=/mnt/data/zhanglinfeng/workspace
-U="$W/universes/my-terminal-bench-science"
+PY="$W/acs-harbor-test/.venv/bin/python"
+# Validate deployment identity before changing HOME or creating runtime paths.
+U=$(PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$W/gewu-multiverse/deploy/science" \
+    "$PY" -c 'from deployment_paths import universe_root,require_isolated_service_config; u=universe_root(); require_isolated_service_config(u); print(u)')
+export GEWU_UNIVERSE_ROOT="$U"
 export TMPDIR="$U/.tmp" PYTHONDONTWRITEBYTECODE=1
 export XDG_CONFIG_HOME="$U/.config" XDG_STATE_HOME="$U/.state"
 export XDG_DATA_HOME="$U/.local/share" XDG_CACHE_HOME="$U/.cache"
 export HOME="$U/.local/home" GIT_CONFIG_GLOBAL="$U/.config/gitconfig"
 export GEWU_HARNESS=native
-export GEWU_DAILY_ROLE_SESSIONS=3
+export GEWU_SESSION_TIMEOUT_SECS=14400
 export GEWU_RESPONSE_TOKENS=8192
 export GEWU_CHAT_THINKING=disabled
 export GEWU_FORGEJO_TIMEOUT_SECS=120
-export GEWU_ROLE_BROKER_CONFIG="$W/.state/science-role-broker/config.json"
-PY="$W/acs-harbor-test/.venv/bin/python"
+export GEWU_ROLE_BROKER_CONFIG="$U/.state/gewu-multiverse/role-broker/config.json"
+# Use the workspace-designated DawnFM account for every live model request.
+# Load quietly; the key remains only in this process environment, never in the
+# universe's persisted credentials or logs.
+LLM_ENV="$W/.config/llm/dawnfm.env"
+[[ -f "$LLM_ENV" && ! -L "$LLM_ENV" && $(stat -c '%a' "$LLM_ENV") == 600 ]] || {
+    echo 'Designated model credential file is missing or has unsafe permissions.' >&2; exit 1;
+}
+[[ $(stat -c '%a' "$(dirname "$LLM_ENV")") == 700 ]] || {
+    echo 'Designated model credential directory has unsafe permissions.' >&2; exit 1;
+}
+set -a
+source "$LLM_ENV"
+set +a
+export GEWU_LIVE_MODEL_TEST=1
+[[ "$LLM_PROVIDER" == dawnfm && "$OPENAI_BASE_URL" == https://dawnfm.gravarc.cn/v1 && \
+   "$OPENAI_MODEL" == deepseek-v4.1-flash-1017 && -n "$OPENAI_API_KEY" ]] || {
+    echo 'Designated live model account configuration is invalid.' >&2; exit 1;
+}
+# All operator services and role-side Forgejo tools use the port recorded in
+# this universe's instance.  The local-runtime launcher may choose a free
+# loopback port, so no service may assume 3000.
+FORGEJO_PORT=$("$PY" - "$U/.local/share/gewu-multiverse/forgejo/instance/app.ini" <<'PY'
+import re,sys
+text=open(sys.argv[1]).read()
+m=re.search(r'^HTTP_PORT\s*=\s*(\d+)\s*$',text,re.M)
+if not m: raise SystemExit('Forgejo HTTP_PORT is missing')
+print(m.group(1))
+PY
+)
+export GEWU_FORGEJO_URL="http://127.0.0.1:${FORGEJO_PORT}"
+SERVICE_STATE="$U/.state/gewu-multiverse"
+QUEUE_CONFIG="$U/.config/science-evaluation/queue.json"
+QUEUE_STATE="$SERVICE_STATE/evaluation-queue"
 PRODUCT="$W/.local/libexec/gewu-multiverse"
 if [[ $(id -u) != 0 ]]; then
     echo 'Start this deployment as the root operator; its controller drops privileges.' >&2
     exit 1
 fi
 [[ -f "$GEWU_ROLE_BROKER_CONFIG" && -x "$PRODUCT" ]]
-mkdir -p "$W/.state/science-role-broker"
+# Keep this descriptor for the whole launcher lifetime, including owned children.
+# An operator reset holds the exclusive side and startup must fail closed.
+mkdir -p "$SERVICE_STATE/role-reset"
+exec 9>>"$SERVICE_STATE/role-reset/lifecycle.lock"
+chmod 600 "$SERVICE_STATE/role-reset/lifecycle.lock"
+flock -s -n 9 || { echo 'Operator maintenance/reset is active; deployment not started.' >&2; exit 1; }
+# Run import/tool probes as each enabled role before any controller can schedule it.
+"$PY" "$W/gewu-multiverse/deploy/science/role_capabilities.py" \
+    --config "$GEWU_ROLE_BROKER_CONFIG" --settings "$U/.config/gewu-multiverse/multiverse.toml"
+mkdir -p "$(dirname "$GEWU_ROLE_BROKER_CONFIG")"
 "$PY" "$W/gewu-multiverse/deploy/science/role_exec.py" "$GEWU_ROLE_BROKER_CONFIG" \
-    > "$W/.state/science-role-broker/production-broker.log" 2>&1 &
+    > "$SERVICE_STATE/role-broker/production-broker.log" 2>&1 &
 broker_pid=$!
 evaluation_pid=''
+review_dispatch_pid=''
+selftest_pid=''
+watchdog_pid=''
 finish() {
+    if [[ -n "$watchdog_pid" ]]; then
+        kill -TERM "$watchdog_pid" 2>/dev/null || true
+        wait "$watchdog_pid" 2>/dev/null || true
+    fi
+    if [[ -n "$selftest_pid" ]]; then
+        kill -TERM "$selftest_pid" 2>/dev/null || true
+        wait "$selftest_pid" 2>/dev/null || true
+    fi
+    if [[ -n "$review_dispatch_pid" ]]; then
+        kill -TERM "$review_dispatch_pid" 2>/dev/null || true
+        wait "$review_dispatch_pid" 2>/dev/null || true
+    fi
     if [[ -n "$evaluation_pid" ]]; then
         kill -TERM "$evaluation_pid" 2>/dev/null || true
         wait "$evaluation_pid" 2>/dev/null || true
@@ -60,11 +120,11 @@ while True:
             raise SystemExit('Role broker failed startup; controller not started')
         time.sleep(0.1)
 PY_CHECK
-QUEUE_CONFIG="$W/.config/science-evaluation/queue.json"
-QUEUE_READY="$W/.state/science-evaluation-queue/ready.json"
+QUEUE_READY="$QUEUE_STATE/ready.json"
+mkdir -p "$QUEUE_STATE"
 "$PY" "$W/gewu-multiverse/deploy/science/evaluation_queue.py" \
     --config "$QUEUE_CONFIG" --ready-file "$QUEUE_READY" \
-    > "$W/.state/science-evaluation-queue/production-worker.log" 2>&1 &
+    > "$QUEUE_STATE/production-worker.log" 2>&1 &
 evaluation_pid=$!
 "$PY" - "$evaluation_pid" "$QUEUE_READY" <<'PY_QUEUE_CHECK'
 import errno, json, os, stat, sys, time
@@ -87,5 +147,22 @@ while True:
         raise SystemExit('Evaluation worker failed startup; controller not started')
     time.sleep(0.1)
 PY_QUEUE_CHECK
+"$PY" "$W/gewu-multiverse/deploy/science/review_dispatcher.py" \
+    --config "$GEWU_ROLE_BROKER_CONFIG" --state "$SERVICE_STATE/review-dispatcher" \
+    > "$SERVICE_STATE/review-dispatcher/production.log" 2>&1 &
+review_dispatch_pid=$!
+"$PY" "$W/gewu-multiverse/deploy/science/author_selftest_worker.py" \
+    --broker-config "$GEWU_ROLE_BROKER_CONFIG" --state "$SERVICE_STATE/author-selftest" \
+    > "$SERVICE_STATE/author-selftest/production-worker.log" 2>&1 &
+selftest_pid=$!
+mkdir -p "$SERVICE_STATE/command-watchdog"
+"$PY" "$W/gewu-multiverse/deploy/science/command_watchdog.py" \
+    --config "$GEWU_ROLE_BROKER_CONFIG" --state "$SERVICE_STATE/command-watchdog" \
+    > "$SERVICE_STATE/command-watchdog/production.log" 2>&1 &
+watchdog_pid=$!
+# Refuse a controller start if any owned background service already failed.
+for service_pid in "$broker_pid" "$evaluation_pid" "$review_dispatch_pid" "$selftest_pid" "$watchdog_pid"; do
+    kill -0 "$service_pid" || { echo 'A required deployment service exited during startup.' >&2; exit 1; }
+done
 export USER=nobody LOGNAME=nobody
 setpriv --reuid=65534 --regid=65534 --clear-groups "$PRODUCT" "$@"

@@ -3,6 +3,7 @@ import http.server
 import json
 import os
 from pathlib import Path
+from install_role_skills import selected
 import socket
 import subprocess
 import sys
@@ -16,7 +17,7 @@ config = json.loads(config_path.read_text())
 binary = w / '.state/cargo-target/debug/gewu-multiverse'
 requests = []
 live = '--live' in sys.argv
-check_command = 'set -e; id -u; git --version; git -c credential.helper= ls-remote http://127.0.0.1:3000/team/terminal-bench-science.git HEAD; python3 -I -c "import json,statistics; print(123)"; test ! -e /proc/1/root; test ! -e /mnt/data/zhanglinfeng/workspace/.config/llm/dawnfm.env; test -z "${OPENAI_API_KEY-}"; printf role-runtime-ok'
+check_command = 'set -e; id -u; git --version; runtime_check=$(mktemp -d ./.gewu-runtime-check.XXXXXX); git -C "$runtime_check" init --quiet; git -C "$runtime_check" -c user.name=Role -c user.email=role@example.invalid commit --allow-empty -m runtime-check --quiet; git -C "$runtime_check" rev-parse --is-inside-work-tree; rm -rf -- "$runtime_check"; python3 -I -c "import json,statistics; print(123)"; test ! -e /proc/1/root; test ! -e /mnt/data/zhanglinfeng/workspace/.config/llm/dawnfm.env; test -z "${OPENAI_API_KEY-}"; printf role-runtime-ok'
 if live:
     assert os.environ.get('LLM_PROVIDER') == 'dawnfm'
     assert os.environ.get('OPENAI_MODEL') == 'deepseek-v4.1-flash-1017'
@@ -67,7 +68,7 @@ try:
     state.chmod(0o700)
     report = {'model': os.environ['OPENAI_MODEL'] if live else 'mock-only', 'live_model_calls': 0, 'roles': {}, 'state': str(state)}
     for role, entry in config['roles'].items():
-        if live and role != 'author':
+        if live and role != 'author-01':
             continue
         run = state / role
         run.mkdir(exist_ok=True)
@@ -86,18 +87,46 @@ try:
         if live:
             plan.update(endpoint=os.environ['OPENAI_BASE_URL']+'/chat/completions', model=os.environ['OPENAI_MODEL'], timeout_secs=240)
         (run / 'plan.json').write_text(json.dumps(plan))
+        request_start = len(requests)
         env = os.environ.copy()
         env.update(GEWU_HARNESS='native', GEWU_ROLE_BROKER_CONFIG=str(config_path), HOME=str(state), TMPDIR=str(w/'.tmp'), NO_PROXY='127.0.0.1,localhost', no_proxy='127.0.0.1,localhost')
         env.pop('OPENAI_API_KEY', None)
-        result = subprocess.run(['/usr/bin/setpriv','--reuid=65534','--regid=65534','--clear-groups',str(binary),'--run-agent',str(run)], env=env, text=True, capture_output=True, timeout=270 if live else 90)
+        try:
+            result = subprocess.run(['/usr/bin/setpriv','--reuid=65534','--regid=65534','--clear-groups',str(binary),'--run-agent',str(run)], env=env, text=True, capture_output=True, timeout=270 if live else 90)
+        finally:
+            credential.unlink(missing_ok=True)
         logs = (run / 'run.log').read_text()
         assert result.returncode == 0, logs[-2500:]
         assert key not in logs and role_credential['token'] not in logs
         events = [json.loads(line) for line in (run/'transcript.jsonl').read_text().splitlines()]
         assert any(event['event'] == 'tool_result' and event.get('exit_code') == 0 and 'role-runtime-ok' in event.get('output','') for event in events)
+        model_requests = requests[request_start:]
+        system_parts = [message.get('content', '') for request in model_requests
+                        for message in request.get('messages', []) if message['role'] == 'system']
+        # Live calls are recorded by the real model loop rather than the mock HTTP handler.
+        for event in events:
+            if event.get('event') != 'model_request':
+                continue
+            try:
+                payload = json.loads(event.get('body', '{}'))
+            except (TypeError, json.JSONDecodeError):
+                continue
+            system = payload.get('system')
+            if isinstance(system, dict):
+                system_parts.append(system.get('content', ''))
+            for message in payload.get('messages', []):
+                if message.get('role') == 'system':
+                    system_parts.append(message.get('content', ''))
+        assert system_parts, 'the role model request was not captured for skill inspection'
+        system_text = '\n'.join(part for part in system_parts if isinstance(part, str))
+        for skill in selected(role):
+            body = (root/'skills'/skill/'SKILL.md').read_text()
+            assert body.strip() in system_text, f'{role} model request omitted skill {skill}'
         if live:
             report['live_model_calls'] += sum(event['event'] == 'model_request_sent' for event in events)
         report['roles'][role] = dict(supervisor_exit_code=result.returncode, shell_and_model_loop_passed=True, credential_redaction_passed=True)
+    if live and report['live_model_calls'] < 1:
+        raise AssertionError('live model endpoint was not called')
     (w/'.state/harbor-eval'/ ('multiverse-role-runtime-live.json' if live else 'multiverse-role-runtime-mock.json')).write_text(json.dumps(report,indent=2))
     print(json.dumps(report))
 finally:

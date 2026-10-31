@@ -390,3 +390,11 @@ Licensed under either of
 - MIT license ([LICENSE-MIT](LICENSE-MIT))
 
 at your option.
+
+### Independent science author storage
+
+For multiple science author instances, use separate names such as `author-01` and
+`author-02`. The engine already derives workspaces and run records from each name.
+The science deployment also provisions separate Unix identities, HOME and temporary
+data. See [agent storage](docs/science-universe/agent-storage.md) for provisioning,
+read-only public references, collaboration and activation requirements.

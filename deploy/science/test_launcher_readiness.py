@@ -9,9 +9,17 @@ from unittest.mock import patch
 
 
 SOURCE = (Path(__file__).parent / 'start-universe').read_text().split("<<'PY_QUEUE_CHECK'\n", 1)[1].split('\nPY_QUEUE_CHECK', 1)[0]
+LAUNCHER = (Path(__file__).parent / 'start-universe').read_text()
 
 
 class ReadyFileTests(unittest.TestCase):
+    def test_watchdog_is_owned_and_stopped_with_launcher(self):
+        self.assertIn('command_watchdog.py',LAUNCHER)
+        self.assertIn('watchdog_pid=$!',LAUNCHER)
+        self.assertIn('kill -TERM "$watchdog_pid"',LAUNCHER)
+        self.assertIn('wait "$watchdog_pid"',LAUNCHER)
+        self.assertLess(LAUNCHER.index('watchdog_pid=$!'),LAUNCHER.index('export USER=nobody'))
+
     def run_check(self, reads, times):
         with patch('pathlib.Path') as constructor, patch('os.kill'), patch('time.sleep'), patch('time.monotonic', side_effect=times), patch.object(sys, 'argv', ['check', '42', '/ready']):
             path = constructor.return_value
