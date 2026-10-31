@@ -15,6 +15,31 @@ LAUNCHER = (Path(__file__).parent / 'start-universe').read_text()
 
 
 class ReadyFileTests(unittest.TestCase):
+    def test_start_refreshes_both_skill_views_from_tracked_source(self):
+        import json
+        from evaluation_queue import W
+        from install_role_skills import SOURCE as skills_source, selected
+        block=LAUNCHER.split("<<'PY_TASK_POLICY'\n",1)[1].split('\nPY_TASK_POLICY',1)[0]
+        with tempfile.TemporaryDirectory(dir=W/'.tmp') as raw:
+            root=Path(raw);roles={}
+            for role in ['author-01','evaluator-01','curator']:
+                isolated=root/'isolated'/role
+                controller=root/'universe/.config/gewu-multiverse/agents'/role
+                for view in [isolated,controller]:
+                    view.mkdir(parents=True)
+                    (view/'instruction.md').write_text('Detailed existing '+role)
+                    for name in selected(role):
+                        skill=view/'skills'/name;skill.mkdir(parents=True)
+                        (skill/'SKILL.md').write_text('STALE DONOR SKILL')
+                roles[role]={'root':str(isolated)}
+            config=root/'config.json';config.write_text(json.dumps({'roles':roles}))
+            subprocess.run([sys.executable,'-B','-c',block,str(config),str(root/'universe')],check=True)
+            for role,entry in roles.items():
+                for view in [Path(entry['root']),root/'universe/.config/gewu-multiverse/agents'/role]:
+                    self.assertIn('Detailed existing '+role,(view/'instruction.md').read_text())
+                    for name in selected(role):
+                        self.assertEqual((view/'skills'/name/'SKILL.md').read_bytes(),(skills_source/name/'SKILL.md').read_bytes())
+
     def test_restart_keeps_controller_plans_readable_and_operator_evidence_private(self):
         import os
         if os.geteuid() != 0:

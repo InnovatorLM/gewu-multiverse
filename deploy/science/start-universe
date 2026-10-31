@@ -87,8 +87,16 @@ setpriv --reuid=65534 --regid=65534 --clear-groups "$PY" \
 # Run import/tool probes as each enabled role before any controller can schedule it.
 PYTHONPATH="$W/gewu-multiverse/deploy/science" "$PY" - "$GEWU_ROLE_BROKER_CONFIG" "$U" <<'PY_TASK_POLICY'
 import json, sys
+from pathlib import Path
+from install_role_skills import install as install_skills
 from task_quality_policy import install
-install(json.load(open(sys.argv[1])), sys.argv[2])
+config=json.load(open(sys.argv[1]))
+# Refresh both views from tracked source, not the donor's historical copies.
+# This runs under the lifecycle lock before any role or broker starts.
+for role, entry in config['roles'].items():
+    install_skills(entry['root'], role)
+    install_skills(Path(sys.argv[2])/'.config/gewu-multiverse/agents'/role, role)
+install(config, sys.argv[2])
 PY_TASK_POLICY
 "$PY" "$W/gewu-multiverse/deploy/science/role_capabilities.py" \
     --config "$GEWU_ROLE_BROKER_CONFIG" --settings "$U/.config/gewu-multiverse/multiverse.toml"
