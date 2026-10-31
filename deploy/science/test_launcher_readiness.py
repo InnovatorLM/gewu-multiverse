@@ -30,6 +30,31 @@ class ReadyFileTests(unittest.TestCase):
             self.assertEqual(stat.S_IMODE(archives[0].stat().st_mode),0o600)
             self.assertEqual(stat.S_IMODE(directory.stat().st_mode),0o700)
 
+    def test_backup_does_not_overlap_or_publish_failed_archive(self):
+        from evaluation_queue import W
+        import fcntl,os
+        launcher=Path(__file__).with_name('start-universe-local-runtime').read_text()
+        backup=launcher.split('backup() {',1)[1].split('\n}\nbackup_pid=',1)[0]
+        with tempfile.TemporaryDirectory(dir=W/'.tmp') as raw:
+            root=Path(raw);runtime=root/'runtime';runtime.mkdir();directory=root/'backups';directory.mkdir()
+            script='RUNTIME="$1"\nBACKUP_DIR="$2"\nbackup() {'+backup+'\n}\nbackup\n'
+            with (directory/'archive.lock').open('a') as lock:
+                fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+                subprocess.run(['bash','-ec',script,'test',str(runtime),str(directory)],check=True)
+                self.assertEqual(list(directory.glob('*.tar.gz')),[])
+            tools=root/'bin';tools.mkdir();tar=tools/'tar'
+            tar.write_text('#!/bin/bash\nprintf incomplete > "$4"\nexit 2\n');tar.chmod(0o755)
+            env=dict(os.environ,PATH=str(tools)+':'+os.environ['PATH'])
+            subprocess.run(['bash','-ec',script,'test',str(runtime),str(directory)],check=True,env=env)
+            self.assertEqual(list(directory.glob('*.tar.gz')),[])
+            partial=list(directory.glob('*.partial'));self.assertEqual(len(partial),1)
+            self.assertIn('failed-partial-not-published',Path(str(partial[0])+'.status').read_text())
+            tar.write_text('#!/bin/bash\nprintf live-archive > "$4"\nexit 1\n')
+            subprocess.run(['bash','-ec',script,'test',str(runtime),str(directory)],check=True,env=env)
+            archives=list(directory.glob('*.tar.gz'));self.assertEqual(len(archives),1)
+            self.assertIn('tar_exit_code=1',Path(str(archives[0])+'.status').read_text())
+            self.assertIn('not-transactional',Path(str(archives[0])+'.status').read_text())
+
     def test_start_refreshes_both_skill_views_from_tracked_source(self):
         import json
         from evaluation_queue import W

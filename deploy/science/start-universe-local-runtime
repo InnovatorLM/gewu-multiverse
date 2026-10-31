@@ -300,9 +300,25 @@ backup() {
   # Do not inherit an interactive shell's world-readable umask.
   umask 077
   chmod 700 "$BACKUP_DIR"
-  local stamp
-  stamp=$(date -u +%Y%m%dT%H%M%SZ)
-  tar --exclude='*.sock' --exclude='*.pid' -czf "$BACKUP_DIR/runtime-$stamp.tar.gz" -C "$(dirname "$RUNTIME")" "$(basename "$RUNTIME")" || true
+  (
+    # First, periodic and exit requests share one writer. A slow CPFS backup
+    # must not overlap another archive or block controller startup.
+    flock -n 8 || exit 0
+    local stamp archive pending code
+    stamp=$(date -u +%Y%m%dT%H%M%S%N)-${BASHPID}
+    archive="$BACKUP_DIR/runtime-$stamp.tar.gz"
+    pending="$archive.partial"
+    code=0
+    tar --exclude='*.sock' --exclude='*.pid' -czf "$pending" -C "$(dirname "$RUNTIME")" "$(basename "$RUNTIME")" || code=$?
+    # tar 1 means files changed during a live read. Retain it with an explicit
+    # receipt, never advertise this as a transactional SQLite snapshot.
+    if [[ "$code" -le 1 ]]; then
+      mv -- "$pending" "$archive"
+      printf 'archive=%s\ntar_exit_code=%s\nconsistency=live-best-effort-not-transactional\n' "$(basename "$archive")" "$code" > "$archive.status"
+    else
+      printf 'tar_exit_code=%s\nstatus=failed-partial-not-published\n' "$code" > "$pending.status"
+    fi
+  ) 8>>"$BACKUP_DIR/archive.lock"
 }
 backup_pid=''
 monitor_pid=''
