@@ -13,6 +13,8 @@ description: Prepare a Harbor task for real ACS container execution, request pla
 5. 等待返回 commit、镜像 digest、run ID、日志、verifier 输出、轨迹和清理记录。只接受与本次版本一致的实际证据；缺证据标为 incomplete/waiting_platform，不能写“容器通过”。ACS 运行时间不计入五小时主动迭代预算，但必须有真实 run ID 才可扣除。
 6. 完成作者自解、反思修改及复跑后，再主动申请独立审核。作者自测不能替代 evaluator 五次独立评测。
 
+结果驱动的复跑应显式关联已完成的同题自测：`role-acs-selftest submit --task /workspace/<repo>/<task-path> --commit <新完整commit> --previous-job <上次job_id> --iteration-note '<根据上次执行结果作出的实际修改，20至4000字符>'`。先确认客户端 `submit --help` 支持这两个参数；旧部署不支持时记录 waiting_platform。平台核对同作者、同仓库／题目、先后顺序、上次清理、提交和题包确实变化。修改说明是作者陈述，不能替代独立审核，也不会自动证明难度。没有完成记录或清理未知的作业不能作为复跑依据。
+
 评测者已有入口为 /evaluation/catalog.json、/evaluation/inbox 和 /evaluation/results，只允许使用已登记 evaluation_id 与 snapshot_sha256；不能把旧题登记项用于新题。需要注册新版本时明确请求平台注册。
 
 任何角色都不得读取宿主 kubeconfig、ACR/模型密钥，或把密钥写进题包、镜像、issue、日志。保留工作区原始证据；清理只针对本次 run 的资源。
