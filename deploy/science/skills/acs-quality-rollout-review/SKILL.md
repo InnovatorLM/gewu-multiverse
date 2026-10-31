@@ -8,6 +8,8 @@ description: Independently evaluate a frozen Harbor task with five ACS rollouts 
 
 使用 /evaluation/catalog.json 中对应本次版本的已注册项；向 /evaluation/inbox 写请求，通过 /evaluation/results 读取结果。请求 schema 为 job_id、evaluation_id、snapshot_sha256，job_id 为32位小写十六进制。注册目录没有本次版本时报告 waiting_platform，请求注册，不猜测 ID，不伪造结果。
 
+已部署 `role-evaluation-batch` 时，完成完整性检查后用 `role-evaluation-batch submit` 一次提交本次派单的五个独立job，再用 `role-evaluation-batch status` 查看汇总。重复submit沿用相同批次，不生成额外作业；不得手改generation以绕过失败。只有五份有效solver_complete、无错误且清理确认的结果才显示通过率。无效结果先诊断并请求平台补跑；汇总阈值不等于科学质量接收。旧部署缺少命令时报告waiting_platform，不自行安装凭证或猜测执行ID。
+
 先做完整性与 runtime/工具调用 smoke。之后用指定 dawnfm / deepseek-v4.1-flash-1017 独立运行五次，默认4c/8Gi、资源不足最高8c/16Gi、不限解题步数、每次4小时。检查实际返回配置，不能只因本文件写了就认为生效。
 
 保存每次 result、agent轨迹、verifier输出、镜像digest、run ID及清理证据。基础设施/适配器失败或无verifier结果不能算模型答错；先修复补跑。四小时超时先查题目缺失与环境缺陷；排除后确属难题才计模型失败。有效通过率<=60%可接收，但必须结合科学正确性、题意/测试一致性、捷径检查和轨迹审查，不能用五次全错自动证明高质量。

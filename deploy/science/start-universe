@@ -69,6 +69,13 @@ mkdir -p "$SERVICE_STATE/role-reset"
 exec 9>>"$SERVICE_STATE/role-reset/lifecycle.lock"
 chmod 600 "$SERVICE_STATE/role-reset/lifecycle.lock"
 flock -s -n 9 || { echo 'Operator maintenance/reset is active; deployment not started.' >&2; exit 1; }
+# Install only while holding the deployment lifecycle lock, before roles run.
+PYTHONPATH="$W/gewu-multiverse/deploy/science${PYTHONPATH:+:$PYTHONPATH}" \
+"$PY" - "$GEWU_ROLE_BROKER_CONFIG" <<'PY_BATCH_CLIENT'
+import json,sys
+from role_evaluation_batch import install_clients
+install_clients(json.load(open(sys.argv[1])))
+PY_BATCH_CLIENT
 # Check existing recovery records under the same UID as the controller. A root
 # maintenance rewrite must not leave private root-owned plans and silently
 # block only those roles after the board starts.
