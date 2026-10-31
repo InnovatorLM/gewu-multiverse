@@ -2,6 +2,19 @@ import json,tempfile,unittest
 from pathlib import Path
 import universe_monitor as m
 class ArchiveTests(unittest.TestCase):
+    def test_brief_recovers_durable_history_after_interrupted_latest_write(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory(dir=m.W/'.tmp') as d:
+            root=Path(d);latest=root/'latest.json'
+            latest.write_text('{partial')
+            (root/'history.jsonl').write_text(json.dumps(dict(text='previous',generated_at=1))+'\n')
+            with patch.object(m,'BRIEF_DIR',root),patch.object(m,'BRIEF_FILE',latest),patch.object(m,'snapshot',return_value={'roles':[]}):
+                m.write_brief()
+            result=json.loads(latest.read_text())
+            self.assertEqual(result['periods'][0]['text'],'previous')
+            self.assertEqual(len(result['periods']),2)
+            self.assertFalse((root/'latest.json.pending').exists())
+
     def test_monitor_lifecycle_follows_exact_owner_identity(self):
         from unittest.mock import patch,Mock
         server=Mock()
