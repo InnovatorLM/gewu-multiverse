@@ -318,3 +318,10 @@ role_progress_review.py：读取最新轨迹，对反复失败、大上下文、
 - 审计启动器发现首次后台归档、十分钟周期归档和退出归档无共同锁，可能重叠；旧tar失败被忽略，完整扩展名不能证明归档完成。新增共同非阻塞writer锁，慢备份不阻塞控制器启动；先写.partial，完成后rename发布，纳秒+进程标识避免同秒重名。
 - tar=0/1的归档保留显式status回执，注明运行中best-effort且非事务快照；tar=1标明文件在读取期间变化。tar>=2只保留partial及失败回执，不发布正常归档。文件保持0600、目录0700。
 - 实际launcher函数与启动就绪联合11项通过，包括外部锁占用不启动tar、失败不发布、变动归档标注、原有真实tar及权限验证。没有把live tar称作SQLite一致性恢复证明。正式宇宙仍停止。
+
+### 2026-10-31：停机核心快照恢复与46项范围复核
+
+- 在独占生命周期锁内确认控制器/Forgejo停止，对v8实际.config和Forgejo instance生成0600归档，922644108字节。解包到独立私有目录后，原/恢复数据库integrity_check均ok，18用户、4仓库、35 issue、4 PR及仓库ID/名称一致；四个恢复Git仓库均git fsck --full成功。
+- 该证据证明停止状态下核心配置/Forgejo打包、解包和SQLite/Git完整性；外部角色根、环境及历史轨迹保留原处，未宣称整套环境恢复或恢复服务已启动。私有证据`stopped-snapshot-v1/verified-evidence.json`，归档及恢复副本不提交Git。
+- 在线reset三个实际会话六份原始日志/轨迹按workspace controller/model/role已知凭证值扫描，匹配0；不声称检测全部未知秘密或实际恶意泄露测试。证据`online-reset-v1/raw-log-secret-scan.json`。
+- 新增逐项范围复核文档`repair-completion-audit-20261031.md`，明确CPFS位置、真实行为验收边界、网页未输出完整引擎阻塞原因及正常交接refused归因等仍待处理，不把历史未完成记录或累计测试数当作完成证书。正式宇宙仍停止。
