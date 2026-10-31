@@ -79,6 +79,7 @@ def summary(assignment, results):
     return dict(jobs=rows,valid_trials=len(valid),invalid_jobs=failures,complete=complete,
                 pass_rate=sum(valid)/5 if complete else None,
                 difficulty_threshold_met=sum(valid)<=3 if complete else None,
+                difficulty_strict_reject=sum(valid)>=4 if complete else None,
                 quality_acceptance=False,
                 note='Timeouts and infrastructure failures require diagnosis; no automatic acceptance or replacement jobs.')
 

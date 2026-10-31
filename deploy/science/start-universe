@@ -82,6 +82,11 @@ PY_BATCH_CLIENT
 setpriv --reuid=65534 --regid=65534 --clear-groups "$PY" \
     "$W/gewu-multiverse/deploy/science/controller_readability.py" "$SERVICE_STATE"
 # Run import/tool probes as each enabled role before any controller can schedule it.
+PYTHONPATH="$W/gewu-multiverse/deploy/science" "$PY" - "$GEWU_ROLE_BROKER_CONFIG" "$U" <<'PY_TASK_POLICY'
+import json, sys
+from task_quality_policy import install
+install(json.load(open(sys.argv[1])), sys.argv[2])
+PY_TASK_POLICY
 "$PY" "$W/gewu-multiverse/deploy/science/role_capabilities.py" \
     --config "$GEWU_ROLE_BROKER_CONFIG" --settings "$U/.config/gewu-multiverse/multiverse.toml"
 mkdir -p "$(dirname "$GEWU_ROLE_BROKER_CONFIG")"

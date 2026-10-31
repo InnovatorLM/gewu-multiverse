@@ -15,6 +15,7 @@ import re
 import signal
 import stat
 import subprocess
+import sys
 
 W = Path('/mnt/data/zhanglinfeng/workspace')
 ID = re.compile(r'^[a-f0-9]{32}$')
@@ -208,16 +209,25 @@ def process(config, request_path, mock=False):
     if dispatch == 'semantic_diagnostic':
         from register_semantic_diagnostic import registered_corpus
         corpus = registered_corpus(entry)
-    for claim in state.glob('*/claim.json'):
-        retained = claim.parent / 'result.json'
-        if not retained.exists() or json.loads(retained.read_text()).get('cleanup_confirmed') is not True:
-            raise ValueError('Prior job cleanup is not confirmed')
-    day = datetime.now(timezone.utc).date().isoformat()
-    count = sum(json.loads(path.read_text()).get('day') == day for path in state.glob('*/claim.json'))
-    if config['max_jobs_per_day'] and count >= config['max_jobs_per_day']:
-        raise ValueError('Daily dispatch budget exhausted')
-    job.mkdir(mode=0o700)
-    atomic_json(job / 'claim.json', {'day': day, **request, 'mock': mock})
+    # Serialize reservations, not execution. Active sibling workers are allowed;
+    # abandoned or completed-but-unclean jobs still block further cloud work.
+    with (state / 'reservation.lock').open('a') as reservation:
+        fcntl.flock(reservation, fcntl.LOCK_EX)
+        for claim_path in state.glob('*/claim.json'):
+            retained = claim_path.parent / 'result.json'
+            if retained.exists():
+                if json.loads(retained.read_text()).get('cleanup_confirmed') is True:
+                    continue
+                raise ValueError('Prior job cleanup is not confirmed')
+            claim = json.loads(root_file(claim_path).read_text())
+            if not active_queue_worker(claim, claim_path.parent.name):
+                raise ValueError('Prior job cleanup is not confirmed')
+        day = datetime.now(timezone.utc).date().isoformat()
+        count = sum(json.loads(path.read_text()).get('day') == day for path in state.glob('*/claim.json'))
+        if config['max_jobs_per_day'] and count >= config['max_jobs_per_day']:
+            raise ValueError('Daily dispatch budget exhausted')
+        job.mkdir(mode=0o700)
+        atomic_json(job / 'claim.json', {'day': day, **request, 'mock': mock, 'queue_worker_pid': os.getpid()})
     answer = {**request, 'provider': 'dawnfm', 'model': 'deepseek-v4.1-flash-1017'}
     stop_requested = False
     private = None
@@ -270,7 +280,7 @@ def process(config, request_path, mock=False):
             previous = signal.signal(signal.SIGTERM, stop)
             try:
                 child = subprocess.Popen(command, stdout=log, stderr=log, env=env, start_new_session=True)
-                atomic_json(job / 'claim.json', {'day': day, **request, 'mock': False, 'controller_pid': child.pid})
+                atomic_json(job / 'claim.json', {'day': day, **request, 'mock': False, 'controller_pid': child.pid, 'queue_worker_pid': os.getpid()})
                 if stop_requested:
                     stop(None, None)
                 try:
@@ -328,12 +338,36 @@ def process(config, request_path, mock=False):
     return answer
 
 
+def active_queue_worker(claim, job_id):
+    pid = claim.get('queue_worker_pid')
+    if type(pid) is not int or pid <= 1:
+        return False
+    try:
+        argv = Path(f'/proc/{pid}/cmdline').read_bytes().split(b'\0')
+        script = os.fsencode(str(Path(__file__).resolve()))
+        flag = argv.index(b'--single-request')
+        request = Path(os.fsdecode(argv[flag + 1]))
+        return script in argv and request.stem == job_id and '--queue-index'.encode() in argv
+    except (OSError, ValueError, IndexError):
+        return False
+
+
+def handle_request(config, path, mock):
+    try:
+        process(config, path, mock)
+    except (ValueError, OSError, KeyError, TypeError, json.JSONDecodeError):
+        atomic_json(Path(config['results']) / path.name,
+                    {'job_id': path.stem, 'status': 'rejected', 'quality_acceptance': False}, 0o644)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', required=True, type=Path)
     parser.add_argument('--once', action='store_true')
     parser.add_argument('--ready-file', type=Path)
     parser.add_argument('--mock', action='store_true', help='No LLM/container; report explicitly mock')
+    parser.add_argument('--single-request', type=Path, help=argparse.SUPPRESS)
+    parser.add_argument('--queue-index', type=int, default=0, help=argparse.SUPPRESS)
     args = parser.parse_args()
     config = json.loads(root_file(args.config).read_text())
     registry = json.loads(root_file(config['registry']).read_text())
@@ -356,32 +390,56 @@ def main():
             expected = uid if key == 'inbox' else 0
             if path.is_symlink() or not path.is_relative_to(W) or not path.is_dir() or info.st_uid != expected or info.st_mode & 0o022:
                 raise SystemExit('Queue directory ownership/type/mode refused')
+    if args.single_request is not None:
+        if not 0 <= args.queue_index < len(queues):
+            raise SystemExit('Invalid role queue')
+        selected = {**config, **queues[args.queue_index]}
+        path = args.single_request
+        if path.parent.resolve() != Path(selected['inbox']).resolve() or not ID.fullmatch(path.stem):
+            raise SystemExit('Request outside selected inbox')
+        handle_request(selected, path, args.mock)
+        return
+    from queue_parallel import ActiveJobs
+    parallel = config.get('max_parallel_jobs', 5)
+    if type(parallel) is not int or not 1 <= parallel <= 15:
+        raise SystemExit('max_parallel_jobs must be between 1 and 15')
     with (Path(config['state']) / 'worker.lock').open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        if args.ready_file is not None:
-            if args.ready_file.parent.resolve() != Path(config['state']).resolve():
-                raise SystemExit('Readiness file must be in the private worker state directory')
-            atomic_json(args.ready_file, {'pid': os.getpid(), 'evaluator_uids': sorted(identities)})
-        while True:
-            handled = 0
-            for queue in queues:
-                role_config = {**config, **queue}
-                for request_path in sorted(Path(role_config['inbox']).glob('*.json')):
-                    if not ID.fullmatch(request_path.stem):
-                        continue
-                    if (Path(role_config['results']) / request_path.name).exists():
-                        continue
-                    if handled >= 10:
-                        break
-                    handled += 1
-                    try:
-                        process(role_config, request_path, args.mock)
-                    except (ValueError, OSError, KeyError, TypeError, json.JSONDecodeError):
-                        atomic_json(Path(role_config['results']) / request_path.name, {'job_id': request_path.stem, 'status': 'rejected', 'quality_acceptance': False}, 0o644)
-            if args.once:
-                return
-            import time
-            time.sleep(1)
+        active = ActiveJobs(parallel)
+        stopping = False
+        def stop(_signum, _frame):
+            nonlocal stopping
+            stopping = True
+        previous = signal.signal(signal.SIGTERM, stop)
+        try:
+            if args.ready_file is not None:
+                if args.ready_file.parent.resolve() != Path(config['state']).resolve():
+                    raise SystemExit('Readiness file must be in the private worker state directory')
+                atomic_json(args.ready_file, {'pid': os.getpid(), 'evaluator_uids': sorted(identities), 'max_parallel_jobs': parallel})
+            while not stopping:
+                active.reap()
+                for index, queue in enumerate(queues):
+                    for path in sorted(Path(queue['inbox']).glob('*.json')):
+                        if not ID.fullmatch(path.stem) or (Path(queue['results']) / path.name).exists():
+                            continue
+                        command = [sys.executable, str(Path(__file__).resolve()), '--config', str(args.config.resolve()),
+                                   '--single-request', str(path.resolve()), '--queue-index', str(index)]
+                        if args.mock:
+                            command.append('--mock')
+                        active.start(str(path), command)
+                if args.once:
+                    # One scan, then await its active children. Remaining requests
+                    # stay queued for the next invocation when capacity is full.
+                    while active.children and not stopping:
+                        active.reap()
+                        import time
+                        time.sleep(.1)
+                    return
+                import time
+                time.sleep(.2)
+        finally:
+            active.stop()
+            signal.signal(signal.SIGTERM, previous)
 
 
 if __name__ == '__main__':
