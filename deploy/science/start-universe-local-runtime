@@ -40,7 +40,7 @@ if [ ! -f "$LOCAL_FORGEJO/data/forgejo.db" ] && [ -f "$SOURCE_FORGEJO/data/forge
   cp -a "$SOURCE_FORGEJO/secrets" "$seed/secrets"
   cp -a "$SOURCE_FORGEJO/home" "$seed/home" 2>/dev/null || true
   cp -a "$SOURCE_FORGEJO/app.ini" "$seed/app.ini"
-  python3 - "$seed/app.ini" "$SOURCE_FORGEJO" "$RUNTIME" <<'PY'
+  python3 - "$seed/app.ini" "$SOURCE_FORGEJO" "$LOCAL_FORGEJO" <<'PY'
 from pathlib import Path
 import sys
 p, old, new = Path(sys.argv[1]), sys.argv[2], sys.argv[3]
