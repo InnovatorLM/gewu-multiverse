@@ -264,21 +264,38 @@ pub fn execute(cwd: &Path, argv: &[&str], timeout: u64) -> Result<Output, String
 /// Translate controller-side absolute workspace arguments into role-side paths.
 pub fn translate_args(cwd: &Path, args: &[&str]) -> Result<Vec<String>, String> {
     let config = config()?;
-    let (role, _) = role_for(&config, cwd)?;
+    let (role, inside) = role_for(&config, cwd)?;
     let root = &config.roles[role].root;
     args.iter()
-        .map(|arg| {
-            if Path::new(arg).is_absolute() && Path::new(arg).starts_with(root) {
-                Ok(format!(
-                    "/{}",
-                    Path::new(arg)
-                        .strip_prefix(root)
-                        .map_err(|_| "invalid role path")?
-                        .display()
-                ))
-            } else {
-                Ok((*arg).to_owned())
-            }
-        })
+        .map(|arg| Ok(translate_arg(root, cwd, &inside, arg)))
         .collect()
+}
+
+fn translate_arg(root: &Path, cwd: &Path, inside: &Path, arg: &str) -> String {
+    let path = Path::new(arg);
+    if !path.is_absolute() { return arg.to_owned(); }
+    if let Ok(relative) = path.strip_prefix(root) {
+        return Path::new("/").join(relative).display().to_string();
+    }
+    // A runtime workspace may be an authorized symlink to the registered root.
+    // New clone destinations do not exist yet, so canonicalize() cannot map
+    // them. role_for() has already verified cwd's boundary and identity.
+    if let Ok(relative) = path.strip_prefix(cwd) {
+        return inside.join(relative).display().to_string();
+    }
+    arg.to_owned()
+}
+
+#[cfg(test)]
+mod argument_tests {
+    use super::*;
+    #[test]
+    fn new_clone_under_runtime_alias_uses_verified_inside_cwd() {
+        let root=Path::new("/registered/author-01");
+        let alias=Path::new("/runtime/agents/author-01/workspace");
+        assert_eq!(translate_arg(root,alias,Path::new("/workspace"),"/runtime/agents/author-01/workspace/new.gewu-clone-pending"),"/workspace/new.gewu-clone-pending");
+        assert_eq!(translate_arg(root,alias,Path::new("/workspace"),"/registered/author-01/workspace/repo"),"/workspace/repo");
+        assert_eq!(translate_arg(root,alias,Path::new("/workspace"),"/runtime/agents/author-02/workspace/repo"),"/runtime/agents/author-02/workspace/repo");
+        assert_eq!(translate_arg(root,alias,Path::new("/workspace"),"https://host/team/repo.git"),"https://host/team/repo.git");
+    }
 }

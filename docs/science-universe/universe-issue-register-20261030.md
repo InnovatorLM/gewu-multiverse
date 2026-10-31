@@ -1,5 +1,11 @@
 # 本轮宇宙问题总表（2026-10-30）
 
+## 新仓库克隆阻塞定位与源码修复（2026-10-31，继续）
+
+- 真实PR已独占派单，但控制器多次产生的run目录只有startup-error.txt，不能当作模型新会话。具体错误是克隆目标仍为runtime/workspace别名的宿主机绝对路径，进入角色chroot后无法创建；已有仓库复用流程未触发该错误。14个身份的正确broker空命令均exit=0且cleanup=true，排除了broker整体失效。
+- 已修复role_broker参数转换：通过role_for校验cwd后，位于此cwd下的未创建绝对路径按对应隔离cwd转换，保留其它角色路径及URL原样；不要求新clone目标先存在。新增回归覆盖runtime别名、新staging路径、原注册根及其它角色路径。
+- 克隆完成后的staging发布改为同一broker内执行mv，避免以宿主controller身份操作角色拥有的目录。完整Rust lib回归351 passed、0 failed、1 ignored；release构建进行中，尚未部署新二进制或宣称真实克隆与reset恢复成功。隔离实例已为修复停机，正式宇宙仍停止。
+
 ## 真实PR派单与完整身份配置门检（2026-10-31，继续）
 
 - 在隔离Forgejo创建私有测试仓库与真实PR，复用已有简单题两轮真实自测产生的准确作者commit、operator证据和冻结登记；作者资格与执行登记均使用实际实现，无mock。重复reconcile只生成一张独占审核issue，负责人evaluator-02，commit及snapshot绑定正确。

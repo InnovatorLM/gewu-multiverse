@@ -234,14 +234,27 @@ pub fn prepare(
     let destination_text = clone_target.display().to_string();
     run_git(&["clone", &url, &destination_text], workspace, credential)?;
     if staging.is_some() {
-        std::fs::rename(clone_target, destination).map_err(|source| WorkspaceError::Workspace {
-            path: destination.to_path_buf(),
-            source,
-        })?;
+        if std::env::var_os(crate::role_broker::CONFIG_ENV).is_some() {
+            // The clone belongs to the isolated role UID. The controller must
+            // publish it through the same boundary, never rename it as host UID.
+            let final_destination_text=destination.display().to_string();
+            let arguments=crate::role_broker::translate_args(workspace,&[&destination_text,&final_destination_text])
+                .map_err(|message| WorkspaceError::Git { command: "isolated clone publish".into(), message })?;
+            let output=crate::role_broker::execute(workspace,&["/usr/bin/mv","-T","--",&arguments[0],&arguments[1]],30)
+                .map_err(|message| WorkspaceError::Git { command: "isolated clone publish".into(), message })?;
+            if output.returncode!=0 {
+                return Err(WorkspaceError::Git { command: "isolated clone publish".into(), message:crate::model::excerpt(&output.stderr,300) });
+            }
+        } else {
+            std::fs::rename(clone_target, destination).map_err(|source| WorkspaceError::Workspace {
+                path: destination.to_path_buf(), source,
+            })?;
+        }
     }
     set_identity(destination, identity)?;
     Ok((destination.to_path_buf(), Prepared::Cloned))
 }
+
 
 /// Set the repository's local git identity, so a commit is authored by the agent.
 pub fn set_identity(repository: &Path, identity: &GitIdentity) -> Result<(), WorkspaceError> {
