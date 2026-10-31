@@ -47,6 +47,19 @@ class ArchiveTests(unittest.TestCase):
             (run/'session.pid').write_text('999999999')
             self.assertFalse(m.live_run(run))
 
+    def test_controller_status_uses_owned_pid_marker(self):
+        import subprocess
+        with tempfile.TemporaryDirectory(dir=m.W/'.tmp') as d:
+            old=m.ROOT;m.ROOT=Path(d)/'.state/gewu-multiverse';m.ROOT.mkdir(parents=True)
+            child=subprocess.Popen(['/bin/bash','-c','exec -a gewu-multiverse sleep 10'])
+            try:
+                (m.ROOT/'controller.pid').write_text(str(child.pid))
+                self.assertTrue(m.controller_live())
+                (m.ROOT/'controller.pid').write_text('999999999')
+                self.assertFalse(m.controller_live())
+            finally:
+                child.terminate();child.wait(timeout=5);m.ROOT=old
+
     def test_selection_is_read_from_agent_settings(self):
         with tempfile.TemporaryDirectory(dir=m.W/'.tmp') as d:
             old=m.SETTINGS;m.SETTINGS=Path(d)/'settings.toml'

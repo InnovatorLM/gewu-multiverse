@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import json, re, time, threading
+import json, re, time, threading, os
 from datetime import datetime
 from urllib.parse import urlsplit, parse_qs
 from pathlib import Path
@@ -11,7 +11,7 @@ UNIVERSE=universe_root(W)
 ROOT=UNIVERSE/'.state/gewu-multiverse'
 MODEL='deepseek-v4.1-flash-1017'
 SECRET=re.compile(r'(?i)(api[_-]?key|token|password|authorization|secret)\s*[:=]\s*["\']?[^\s,"\'}]+')
-BRIEF_DIR=W/'.state/universe-monitor-briefs'
+BRIEF_DIR=UNIVERSE/'.state/gewu-multiverse/monitor-briefs'
 BRIEF_DIR.mkdir(parents=True, exist_ok=True)
 BRIEF_FILE=BRIEF_DIR/'latest.json'
 SETTINGS=UNIVERSE/'.config/gewu-multiverse/multiverse.toml'
@@ -30,6 +30,16 @@ def review_waits():
 
 def controller_live():
     """Verify an actual deployment controller, rather than desired role settings."""
+    marker=ROOT/'controller.pid'
+    try:
+        pid=int(marker.read_text().strip())
+        entry=Path('/proc')/str(pid)
+        cmdline=entry.joinpath('cmdline').read_bytes()
+        state=entry.joinpath('stat').read_text().split(') ',1)[1].split()[0]
+        if state!='Z' and b'gewu-multiverse' in cmdline:
+            return True
+    except (OSError,ValueError,IndexError):
+        pass
     universe=str(ROOT.parent.parent).encode()
     for entry in Path('/proc').iterdir():
         if not entry.name.isdigit():continue
@@ -37,7 +47,30 @@ def controller_live():
             argv=(entry/'cmdline').read_bytes().split(bytes([0]))
             if not argv or b'--run-agent' in argv:continue
             if b'gewu-multiverse' not in Path(argv[0].decode(errors='replace')).name.encode():continue
-            if universe not in argv and (entry/'cwd').resolve()!=ROOT.parent.parent:continue
+            if universe not in argv and (entry/'cwd').resolve()!=ROOT.parent.parent:
+                matched=False
+                # The board is launched by the universe-specific shell. Walk
+                # its parent chain because a dropped user may not expose its
+                # environment through /proc to the monitor process.
+                current=entry
+                for _ in range(8):
+                    try:
+                        stat=(current/'stat').read_text()
+                        parent=int(stat.rsplit(') ',1)[1].split()[1])
+                        parent_path=Path('/proc')/str(parent)
+                        parent_cmd=parent_path.joinpath('cmdline').read_bytes()
+                        if universe in parent_cmd:
+                            matched=True; break
+                        current=parent_path
+                    except (OSError,ValueError):
+                        break
+                if not matched:
+                    try:
+                        env=(entry/'environ').read_bytes().split(bytes([0]))
+                        matched=(b'GEWU_UNIVERSE_ROOT='+universe in env)
+                    except OSError:
+                        matched=False
+                if not matched:continue
             if (entry/'stat').read_text().split()[2]!='Z':return True
         except (OSError,ValueError):continue
     return False
@@ -239,4 +272,4 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self,*args): pass
 if __name__=='__main__':
     threading.Thread(target=brief_loop,daemon=True).start()
-    ThreadingHTTPServer(('127.0.0.1',8765),Handler).serve_forever()
+    ThreadingHTTPServer(('127.0.0.1',int(os.environ.get('GEWU_MONITOR_PORT','8765'))),Handler).serve_forever()

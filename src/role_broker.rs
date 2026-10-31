@@ -22,6 +22,8 @@ struct Config {
     controller_uid: u32,
     socket: PathBuf,
     roles: BTreeMap<String, Role>,
+    #[serde(default)]
+    _lock_dir: Option<PathBuf>,
 }
 
 #[derive(Deserialize)]
@@ -105,6 +107,16 @@ fn role_for<'a>(config: &'a Config, cwd: &Path) -> Result<(&'a str, PathBuf), St
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn operator_lock_directory_is_accepted_by_the_controller() {
+        let config: Config = serde_json::from_str(
+            r#"{"controller_uid":65534,"socket":"@gewu-test","roles":{},"_lock_dir":"/tmp/gewu-locks"}"#,
+        )
+        .expect("operator lock directory is part of the broker contract");
+        assert_eq!(config._lock_dir, Some(PathBuf::from("/tmp/gewu-locks")));
+    }
+
     #[test]
     fn directory_symlink_cannot_switch_role_identity() {
         let root = std::env::temp_dir().join(format!(
@@ -121,6 +133,7 @@ mod tests {
         let config = Config {
             controller_uid: 65534,
             socket: root.join("socket"),
+            _lock_dir: None,
             roles: ["author", "evaluator"]
                 .into_iter()
                 .enumerate()
@@ -201,7 +214,7 @@ pub fn execute(cwd: &Path, argv: &[&str], timeout: u64) -> Result<Output, String
     let mut bytes = serde_json::to_vec(&request).map_err(|_| "broker request cannot be encoded")?;
     // Role instructions and Forgejo context can exceed the old 128 KiB cap.
     // Keep the request bounded while allowing the full assigned instruction.
-    if bytes.len() > 16 * 1024 * 1024 {
+    if bytes.len() > 4 * 1024 * 1024 {
         return Err("role command exceeds request limit".into());
     }
     bytes.push(b'\n');

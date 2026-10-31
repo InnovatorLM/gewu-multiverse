@@ -36,6 +36,7 @@ path = base / 'config.json'
 path.write_text(json.dumps(config))
 path.chmod(0o600)
 log = (base / 'broker.log').open('w')
+(base / 'production-broker.log').write_text('')
 broker = subprocess.Popen([sys.executable, str(script), str(path)], stdout=log, stderr=log)
 try:
     deadline = time.monotonic() + 60
@@ -50,6 +51,8 @@ try:
         if broker.poll() is not None or time.monotonic() > deadline:
             raise RuntimeError('Broker did not start')
         time.sleep(0.1)
+    time.sleep(0.1)
+    assert 'broker refusal' not in (base / 'production-broker.log').read_text(), 'empty readiness probe should not be logged as a refused request'
     def connect(request, disconnect=False):
         with socket.socket(socket.AF_UNIX) as sock:
             sock.connect(address)

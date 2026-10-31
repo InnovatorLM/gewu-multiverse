@@ -74,7 +74,12 @@ evaluation_pid=''
 review_dispatch_pid=''
 selftest_pid=''
 watchdog_pid=''
+controller_pid=''
 finish() {
+    if [[ -n "$controller_pid" ]]; then
+        kill -TERM "$controller_pid" 2>/dev/null || true
+        wait "$controller_pid" 2>/dev/null || true
+    fi
     if [[ -n "$watchdog_pid" ]]; then
         kill -TERM "$watchdog_pid" 2>/dev/null || true
         wait "$watchdog_pid" 2>/dev/null || true
@@ -93,6 +98,7 @@ finish() {
     fi
     kill -TERM "$broker_pid" 2>/dev/null || true
     wait "$broker_pid" 2>/dev/null || true
+    rm -f "$SERVICE_STATE/controller.pid"
 }
 trap finish EXIT
 trap 'exit 130' INT
@@ -165,4 +171,12 @@ for service_pid in "$broker_pid" "$evaluation_pid" "$review_dispatch_pid" "$self
     kill -0 "$service_pid" || { echo 'A required deployment service exited during startup.' >&2; exit 1; }
 done
 export USER=nobody LOGNAME=nobody
-setpriv --reuid=65534 --regid=65534 --clear-groups "$PRODUCT" "$@"
+if [[ -t 0 && -t 1 ]]; then
+    setpriv --reuid=65534 --regid=65534 --clear-groups "$PRODUCT" "$@" </dev/tty >/dev/tty &
+else
+    echo 'The universe controller requires a terminal; start it from an interactive shell.' >&2
+    exit 2
+fi
+controller_pid=$!
+printf '%s\n' "$controller_pid" > "$SERVICE_STATE/controller.pid"
+wait "$controller_pid"

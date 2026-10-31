@@ -40,7 +40,7 @@ def trusted(path, directory=False, owner=0):
 def load_config(path):
     path = trusted(path)
     config = json.loads(path.read_text())
-    if set(config) != {'controller_uid', 'socket', 'roles'}:
+    if set(config) - {'controller_uid', 'socket', 'roles', '_lock_dir', '_forgejo_url'} or not {'controller_uid', 'socket', 'roles'} <= set(config):
         raise ValueError('Unexpected broker configuration fields')
     if not isinstance(config['controller_uid'], int) or config['controller_uid'] <= 0:
         raise ValueError('Controller must be nonroot')
@@ -278,6 +278,10 @@ class Handler(socketserver.StreamRequestHandler):
                 raise ValueError('Controller UID required')
             self.request.settimeout(120)
             line = self.rfile.readline(MAX_REQUEST + 1)
+            # Startup readiness probes authenticate SO_PEERCRED, then close
+            # without sending a command. Treat that EOF as a normal probe.
+            if not line:
+                return
             if len(line) > MAX_REQUEST or not line.endswith(b'\n'):
                 try:
                     log_path=self.server.config.get('_log_path', BROKER_LOG)
@@ -294,7 +298,13 @@ class Handler(socketserver.StreamRequestHandler):
                 raise ValueError('Unknown role')
             # A UID is exclusive while a command runs and while descendants are
             # cleaned, including requests arriving on different connections.
-            lock = Path(self.server.config['socket'].removeprefix('@')).parent / (role + '.lock')
+            lock_dir = self.server.config.get('_lock_dir')
+            if lock_dir:
+                lock_base = Path(lock_dir)
+                lock_base.mkdir(parents=True, exist_ok=True)
+            else:
+                lock_base = Path(self.server.config['socket'].removeprefix('@')).parent
+            lock = lock_base / (role + '.lock')
             with lock.open('a') as stream:
                 fcntl.flock(stream, fcntl.LOCK_EX)
                 response = execute(self.server.config, request, self.request)
@@ -332,7 +342,8 @@ def main():
         raise SystemExit('Broker must be launched by root')
     config = load_config(args.config)
     config['_log_path'] = str(Path(args.config).resolve().parent / 'production-broker.log')
-    config['_forgejo_url'] = os.environ.get('GEWU_FORGEJO_URL', 'http://127.0.0.1:3000')
+    config.setdefault('_lock_dir', None)
+    config['_forgejo_url'] = os.environ.get('GEWU_FORGEJO_URL', config.get('_forgejo_url', 'http://127.0.0.1:3000'))
     abstract = config['socket'].startswith('@')
     path = Path(config['socket'].removeprefix('@'))
     if not abstract and path.exists():

@@ -5,7 +5,9 @@
 # runtime discoverable during backup and recovery.
 set -euo pipefail
 W=/mnt/data/zhanglinfeng/workspace
+PY="$W/acs-harbor-test/.venv/bin/python"
 export PYTHONPATH="$W/gewu-multiverse/deploy/science${PYTHONPATH:+:$PYTHONPATH}"
+export GEWU_FORGEJO_PORT
 SOURCE=${GEWU_UNIVERSE_SOURCE:-$W/universes/my-terminal-bench-science-v2}
 DONOR=${GEWU_EXTERNAL_ROLE_ROOTS:-$W/universes/my-terminal-bench-science}
 RUNTIME=${GEWU_LOCAL_RUNTIME_ROOT:-$W/.tmp/gewu-terminal-bench-science-runtime}
@@ -18,10 +20,17 @@ if [ -n "${GEWU_FORGEJO_PORT:-}" ]; then
 else
   LOCAL_PORT=$(python3 - <<'PY'
 import socket
-s = socket.socket()
-s.bind(('127.0.0.1', 0))
-print(s.getsockname()[1])
-s.close()
+for port in range(3000, 3100):
+    s = socket.socket()
+    try:
+        s.bind(('127.0.0.1', port))
+        print(port)
+        s.close()
+        break
+    except OSError:
+        s.close()
+else:
+    raise SystemExit('no free Forgejo port in supported range 3000-3099')
 PY
 )
 fi
@@ -29,6 +38,16 @@ fi
 mkdir -p "$RUNTIME/.config/gewu-multiverse" "$RUNTIME/.config/science-evaluation" "$RUNTIME/workspaces"
 mkdir -p "$RUNTIME/.config/gewu-multiverse/agents"
 mkdir -p "$RUNTIME/.state/gewu-multiverse"
+# CPFS may briefly expose a stale handle after another process rewrites a small
+# control file. Retry bounded copies before declaring the deployment broken.
+copy_control() {
+  local src="$1" dst="$2" attempt
+  for attempt in 1 2 3 4 5 6 7 8; do
+    if timeout 10 cp "$src" "$dst" 2>/dev/null; then return 0; fi
+    sleep "0.$((attempt + 1))"
+  done
+  return 1
+}
 # Avoid recursive CPFS directory walks. These are the only configuration files
 # required by the launcher; each copy is bounded independently.
 for f in "$DONOR/.config/gewu-multiverse/credentials.toml" \
@@ -37,7 +56,7 @@ for f in "$DONOR/.config/gewu-multiverse/credentials.toml" \
          "$SOURCE/.config/gewu-multiverse/import-terminal-bench-science.repo-id" \
          "$SOURCE/.config/science-evaluation/queue.json" \
          "$SOURCE/.config/science-evaluation/registry.json"; do
-  [ -f "$f" ] && timeout 10 cp "$f" "$RUNTIME/.config/${f#*/.config/}" || true
+  [ -f "$f" ] && copy_control "$f" "$RUNTIME/.config/${f#*/.config/}" || true
 done
 
 # Copy and rewrite the small service descriptors.  The old implementation
@@ -46,19 +65,22 @@ done
 # therefore failed before the controller could start.  Mutable state and
 # service descriptors belong to this runtime; role roots remain explicit,
 # identity-isolated external roots under DONOR.
-python3 - "$SOURCE" "$RUNTIME" "$DONOR" <<'PY'
+python3 - "$SOURCE" "$RUNTIME" "$DONOR" "$LOCAL_PORT" <<'PY'
 import json
 import sys
 from pathlib import Path
 from deployment_paths import broker_socket_name
 
-source, runtime, donor = map(Path, sys.argv[1:])
+source, runtime, donor = map(Path, sys.argv[1:4])
+forgejo_url = 'http://127.0.0.1:' + sys.argv[4]
 src_state = source / '.state/gewu-multiverse'
 dst_state = runtime / '.state/gewu-multiverse'
 dst_state.mkdir(parents=True, exist_ok=True)
 
 broker = json.loads((src_state / 'role-broker/config.json').read_text())
 broker['socket'] = broker_socket_name(runtime)
+broker['_lock_dir'] = str(runtime / '.state/gewu-multiverse/role-broker/locks')
+broker['_forgejo_url'] = forgejo_url
 # The source descriptor may still refer to a retired donor universe.  Resolve
 # each registered role by its name inside SOURCE, never by trusting that stale
 # absolute path.  This keeps a hot runtime independent of the stopped
@@ -227,15 +249,25 @@ chown -R nobody:nogroup "$RUNTIME/.config" "$RUNTIME/workspaces" "$RUNTIME/.loca
 # Operator service descriptors and their parent directories must remain
 # root-owned; role roots are deliberately owned by the controller/role UIDs.
 # The recursive ownership step above is only for Forgejo and controller data.
-chown root:root "$RUNTIME/.state" "$RUNTIME/.state/gewu-multiverse" \
+chown root:root "$RUNTIME/.state" \
   "$RUNTIME/.state/gewu-multiverse/role-broker" \
   "$RUNTIME/.state/gewu-multiverse/review-dispatcher" \
   "$RUNTIME/.state/gewu-multiverse/author-selftest" \
   "$RUNTIME/.state/gewu-multiverse/command-watchdog"
+# The controller creates one private state directory and run records per role.
+# Keep the service descriptors root-owned, but leave the shared state root
+# writable by the dropped controller UID; otherwise every session fails before
+# its transcript can be created.
+chown nobody:nogroup "$RUNTIME/.state/gewu-multiverse"
+chmod 700 "$RUNTIME/.state/gewu-multiverse"
 find "$RUNTIME/.state/gewu-multiverse" -type f -name '*.json' -exec chown root:root {} +
 chmod 755 "$RUNTIME/.state" "$RUNTIME/.state/gewu-multiverse"
 find "$RUNTIME/.state/gewu-multiverse" -type d -exec chmod 755 {} +
 find "$RUNTIME/.state/gewu-multiverse" -type f -name '*.json' -exec chmod 600 {} +
+# The controller runs as nobody and must read the non-secret broker descriptor
+# to route its commands. Keep it root-owned/non-writable, but searchable by the
+# designated controller; mode 0600 makes every run silently look unconfined.
+chmod 644 "$RUNTIME/.state/gewu-multiverse/role-broker/config.json"
 chown root:root "$RUNTIME/.config/science-evaluation/queue.json" \
   "$RUNTIME/.config/science-evaluation/registry.json"
 chmod 600 "$RUNTIME/.config/science-evaluation/queue.json" \
@@ -255,10 +287,58 @@ backup() {
   stamp=$(date -u +%Y%m%dT%H%M%SZ)
   tar --exclude='*.sock' --exclude='*.pid' -czf "$BACKUP_DIR/runtime-$stamp.tar.gz" -C "$(dirname "$RUNTIME")" "$(basename "$RUNTIME")" || true
 }
+backup_pid=''
+monitor_pid=''
+universe_pid=''
+cleanup() {
+  if [ -n "$universe_pid" ]; then
+    kill -TERM "$universe_pid" 2>/dev/null || true
+    wait "$universe_pid" 2>/dev/null || true
+  fi
+  if [ -n "$monitor_pid" ]; then
+    kill -TERM "$monitor_pid" 2>/dev/null || true
+    wait "$monitor_pid" 2>/dev/null || true
+  fi
+  if [ -n "$backup_pid" ]; then kill "$backup_pid" 2>/dev/null || true; fi
+  backup &
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+MONITOR_PORT=${GEWU_MONITOR_PORT:-8765}
+GEWU_UNIVERSE_ROOT="$RUNTIME" GEWU_MONITOR_PORT="$MONITOR_PORT" \
+  "$PY" "$W/gewu-multiverse/deploy/science/universe_monitor.py" \
+  > "$RUNTIME/.state/gewu-multiverse/universe-monitor.log" 2>&1 &
+monitor_pid=$!
+"$PY" - "$MONITOR_PORT" "$monitor_pid" <<'PY_MONITOR_CHECK'
+import json, os, sys, time, urllib.request
+port, pid = sys.argv[1], int(sys.argv[2])
+url = 'http://127.0.0.1:' + port + '/api/state'
+deadline = time.monotonic() + 10
+while True:
+    try:
+        with urllib.request.urlopen(url, timeout=1) as response:
+            if response.status == 200 and isinstance(json.load(response).get('roles'), list):
+                break
+    except Exception:
+        pass
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        raise SystemExit('Universe monitor exited before readiness')
+    if time.monotonic() >= deadline:
+        raise SystemExit('Universe monitor did not become ready')
+    time.sleep(0.1)
+PY_MONITOR_CHECK
 # Never delay controller startup on a CPFS archive. The local runtime is the
 # authoritative live copy; an archive is best-effort and independently timed.
 backup &
 ( while sleep 600; do backup; done ) & backup_pid=$!
-cleanup() { kill "$backup_pid" 2>/dev/null || true; backup & }
-trap cleanup EXIT INT TERM
-"$RUNTIME/start" "$@"
+if [ -t 0 ] && [ -t 1 ]; then
+  "$RUNTIME/start" "$@" </dev/tty >/dev/tty &
+else
+  echo 'The universe controller requires a terminal; start it from an interactive shell.' >&2
+  exit 2
+fi
+universe_pid=$!
+wait "$universe_pid"

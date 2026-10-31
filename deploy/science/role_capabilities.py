@@ -6,9 +6,30 @@ import os
 from pathlib import Path
 import subprocess
 import time
+import errno
 
 from evaluation_queue import W, atomic_json
 from install_role_skills import selected
+
+
+def read_text_retry(path, attempts=8):
+    """Read CPFS-backed control files through transient stale handles.
+
+    CPFS can return ESTALE/EIO for a recently replaced small file.  Capability
+    probing is a startup gate, so one transient metadata failure must not make
+    the whole universe appear unstartable.
+    """
+    last = None
+    for attempt in range(attempts):
+        try:
+            with open(path, 'rb') as stream:
+                return stream.read().decode()
+        except OSError as error:
+            last = error
+            if error.errno not in (errno.ESTALE, errno.EIO, errno.EINTR):
+                raise
+            time.sleep(0.25 * (attempt + 1))
+    raise last
 
 MODULES = ('numpy','scipy','pytest','pydantic','yaml')
 TOOLS = ('bash','git','tar','gzip','seq','nohup','curl','role-install','role-forgejo')
@@ -62,11 +83,11 @@ def inspect(role, entry, runner=subprocess.run):
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--config',type=Path,default=W/'.state/science-role-broker/config.json');p.add_argument('--role');p.add_argument('--settings',type=Path,help='Check only roles configured desired=started');args=p.parse_args()
     if os.geteuid()!=0: raise ValueError('Operator required')
-    config=json.loads(args.config.read_text());failed=[]
+    config=json.loads(read_text_retry(args.config));failed=[]
     enabled=None
     if args.settings:
         import tomllib
-        settings=tomllib.loads(args.settings.read_text())
+        settings=tomllib.loads(read_text_retry(args.settings))
         enabled={row['name'] for row in settings['agents'] if row.get('desired')=='started'}
         if enabled-set(config['roles']):raise ValueError('Enabled role absent from broker configuration')
     for role,entry in config['roles'].items():

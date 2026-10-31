@@ -16,9 +16,9 @@ def fingerprint(pr,comments):
     return hashlib.sha256(json.dumps([pr['head']['sha'],relevant],sort_keys=True).encode()).hexdigest()
 
 class Api:
-    def __init__(self,token):self.token=token
+    def __init__(self,token,base_url=None):self.token=token;self.base_url=base_url
     def call(self,method,path,data=None):
-        base=os.environ.get('GEWU_FORGEJO_URL','http://127.0.0.1:3000').rstrip('/')
+        base=(self.base_url or os.environ.get('GEWU_FORGEJO_URL','http://127.0.0.1:3000')).rstrip('/')
         req=urllib.request.Request(base+'/api/v1'+REPO+path,data=json.dumps(data).encode() if data is not None else None,method=method,headers={'Authorization':'token '+self.token,'Content-Type':'application/json'})
         with urllib.request.urlopen(req,timeout=30) as response:return json.load(response)
     def pages(self,path):
@@ -110,7 +110,8 @@ def main():
     STATE.mkdir(mode=0o700,exist_ok=True)
     with (STATE/'dispatcher.lock').open('a') as lock:
         fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
-        api=Api(load_controller_credentials()['forgejo_admin_token']);config=json.loads(a.config.read_text())
+        config=json.loads(a.config.read_text())
+        api=Api(load_controller_credentials()['forgejo_admin_token'],config.get('_forgejo_url'))
         while True:
             ledger=json.loads((STATE/'ledger.json').read_text()) if (STATE/'ledger.json').exists() else {}
             try:reconcile(api,config,ledger)
