@@ -9,6 +9,7 @@ def prepare(base, receipt):
     c=deepcopy(base)
     c.update(job_name='tbs-universe-linfeng-template',n_attempts=1,n_concurrent_trials=1)
     c['retry']={'max_retries':0}
+    c.setdefault('verifier',{}).update(include_logs=[],exclude_logs=[])
     c['agents']=[dict(name='codex-preinstall',model_name='openai/deepseek-v4.1-flash-1017',
         override_timeout_sec=14400,kwargs={'version':receipt['harness_versions']['codex']},
         env=dict(OPENAI_API_KEY='${OPENAI_API_KEY}',OPENAI_BASE_URL='https://dawnfm.gravarc.cn/v1',

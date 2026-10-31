@@ -263,7 +263,7 @@ def process(config, request_path, mock=False):
             options['private_trajectory_dir'] = str(private)
         atomic_json(job / 'config.json', template)
         env = os.environ.copy()
-        env.update(PYTHONDONTWRITEBYTECODE='1', PYTHONPATH=str(W / '.local/harbor-extensions') + ':' + str(W / 'acs-harbor-test/harbor/src'))
+        env.update(PYTHONDONTWRITEBYTECODE='1', PYTHONPATH=str(Path(__file__).parent / 'harbor-extensions') + ':' + str(Path(__file__).parent) + ':' + str(W / '.local/harbor-extensions'))
         if dispatch == 'quality_diagnostic':
             if quality_backend == 'acs':
                 command = [str(W / 'gewu-multiverse/deploy/science/run-acs-quality'), '--settings', str(quality_settings), '--summary-output', str(job / 'quality-summary.json')]

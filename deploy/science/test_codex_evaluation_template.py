@@ -18,6 +18,8 @@ class TemplateTests(unittest.TestCase):
         self.assertEqual(c['environment']['override_cpus'],4)
         self.assertEqual(c['environment']['override_memory_mb'],8192)
         self.assertNotIn('export_traces',c)
+        self.assertEqual(c['verifier']['include_logs'],[])
+        self.assertEqual(c['verifier']['exclude_logs'],[])
         c['job_name']='tbs-universe-linfeng-queue-'+'f'*32
         kw['pod_overrides']['metadata']['labels']['evaluation-run']=c['job_name']
         check_config(c)

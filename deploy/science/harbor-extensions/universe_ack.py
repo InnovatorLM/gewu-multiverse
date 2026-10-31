@@ -9,6 +9,8 @@ from harbor.environments.ack import ACKEnvironment
 class UniverseACK(ACKEnvironment):
     def __init__(self, *, runtime_image, verifier_image, environment_dir, pod_overrides=None, **kwargs):
         overrides = deepcopy(pod_overrides or {})
+        from acs_scheduling import enforce
+        overrides['spec'] = enforce(overrides.get('spec', {}))
         role = 'verifier' if Path(environment_dir).name == 'tests' else 'runtime'
         image = verifier_image if role == 'verifier' else runtime_image
         if '@sha256:' not in image:

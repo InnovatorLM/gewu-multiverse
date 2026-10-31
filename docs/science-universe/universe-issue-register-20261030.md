@@ -1,5 +1,13 @@
 # 本轮宇宙问题总表（2026-10-30）
 
+## 五路真实评分与证据下载缺口（2026-10-31，继续）
+
+- 第一批已有简单题真实五次均 solver_complete、reward=1、n_errors=0、cleanup_confirmed=true，Codex标准轨迹均已生成。此为平台回归，不作为科学题接收。
+- 文件级验收发现 verifier 目录只有 reward.txt，没有 test-stdout.txt。定位到两个问题叠加：队列优先加载 `.local/harbor-extensions` 的旧安装副本，其下载方法只保留reward；历史模板 include_logs 又只包含reward文件。不能以评分成功代替证据完整。
+- 已将执行入口改为优先加载版本控制下的适配器；两个仓库适配器统一为完整的文本安全 verifier 下载，保留调度避让。Codex配置生成器清空历史 verifier include/exclude过滤，保留全部日志。
+- 16项联合离线回归通过，包含完整stdout/CTRf下载、非法路径/缺reward拒绝、两个源副本一致、执行入口加载优先级、原网络及调度检查。
+- 第二批使用相同冻结题目和已发布镜像复验完整证据，登记ID platform-openssl-parallel-v2；正在运行，尚无最终五次证据验收结论。正式宇宙仍停止。
+
 ## 已有简单题五路云端验收进行中（2026-10-31）
 
 - 已按冻结上游版本构建并发布 openssl-selfsigned-cert 的 Codex runtime 和 verifier，源版本 f64efc6cdf097edd5df306fb16be544d08e384e6；完整源绑定构建回执位于工作区私有 platform-openssl-parallel-v1/build/receipt.json。
