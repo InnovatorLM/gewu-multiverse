@@ -15,6 +15,21 @@ LAUNCHER = (Path(__file__).parent / 'start-universe').read_text()
 
 
 class ReadyFileTests(unittest.TestCase):
+    def test_runtime_archives_are_private_even_with_permissive_parent_umask(self):
+        from evaluation_queue import W
+        launcher=Path(__file__).with_name('start-universe-local-runtime').read_text()
+        backup=launcher.split('backup() {',1)[1].split('\n}\nbackup_pid=',1)[0]
+        with tempfile.TemporaryDirectory(dir=W/'.tmp') as raw:
+            root=Path(raw);runtime=root/'runtime';runtime.mkdir()
+            (runtime/'credentials-fixture').write_text('non-secret fixture')
+            directory=root/'backups';directory.mkdir(mode=0o755)
+            script='umask 022\nRUNTIME="$1"\nBACKUP_DIR="$2"\nbackup() {'+backup+'\n}\nbackup\n'
+            subprocess.run(['bash','-ec',script,'test',str(runtime),str(directory)],check=True)
+            archives=list(directory.glob('runtime-*.tar.gz'))
+            self.assertEqual(len(archives),1)
+            self.assertEqual(stat.S_IMODE(archives[0].stat().st_mode),0o600)
+            self.assertEqual(stat.S_IMODE(directory.stat().st_mode),0o700)
+
     def test_start_refreshes_both_skill_views_from_tracked_source(self):
         import json
         from evaluation_queue import W

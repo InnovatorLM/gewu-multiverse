@@ -296,6 +296,10 @@ find "$RUNTIME/.config/gewu-multiverse" "$RUNTIME/.config/science-evaluation" \
 find "$RUNTIME/.config/gewu-multiverse" "$RUNTIME/.config/science-evaluation" \
   -type f -exec chmod 600 {} + 2>/dev/null || true
 backup() {
+  # Archives contain controller credentials as well as public trajectories.
+  # Do not inherit an interactive shell's world-readable umask.
+  umask 077
+  chmod 700 "$BACKUP_DIR"
   local stamp
   stamp=$(date -u +%Y%m%dT%H%M%SZ)
   tar --exclude='*.sock' --exclude='*.pid' -czf "$BACKUP_DIR/runtime-$stamp.tar.gz" -C "$(dirname "$RUNTIME")" "$(basename "$RUNTIME")" || true

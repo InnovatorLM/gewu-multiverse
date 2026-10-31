@@ -1,5 +1,12 @@
 # 本轮宇宙问题总表（2026-10-30）
 
+## 新仓库克隆及维护reset真实恢复通过（2026-10-31，继续）
+
+- 新二进制7917eb5部署后，真实控制器自动克隆新的私有fixture仓库，完成隔离staging发布；随后自动启动evaluator-02，产生7次指定DeepSeek真实模型请求。实际首请求包含准确reset ID及转向要求，模型写出reset_nonce与准确assignment key/commit/snapshot回执，最终exit=0。模型无步数上限；这是平台回归，不是科学接收。
+- 已核验真实PR独占派单、真实作者门检及登记、新克隆和维护重启后指令读取，私有证据`.state/universe-repair-20261031/reset-controller-v1/verified-evidence.json`。本次是停机维护reset后的控制器管理重启，不宣称在线单角色原子reset。
+- fixture PR和独占issue已关闭，隔离监督器与控制器停止，3000/8765不再监听；原始两份详细角色指令与settings恢复，fixture wake标为completed防止误重派，历史轨迹保留。正式新宇宙尚未创建。
+- 发现运行归档包含凭证却可能继承022 umask生成0644文件；启动器backup现强制077及备份目录0700。已收紧76份历史tar.gz为0600、目录0700。实际归档权限回归与启动器联合10项通过。
+
 ## 新仓库克隆阻塞定位与源码修复（2026-10-31，继续）
 
 - 真实PR已独占派单，但控制器多次产生的run目录只有startup-error.txt，不能当作模型新会话。具体错误是克隆目标仍为runtime/workspace别名的宿主机绝对路径，进入角色chroot后无法创建；已有仓库复用流程未触发该错误。14个身份的正确broker空命令均exit=0且cleanup=true，排除了broker整体失效。
