@@ -1,7 +1,7 @@
 import json,os,tempfile,unittest
 from pathlib import Path
 from prepare_universe_services import apply_plan,plan
-from deployment_paths import WORKSPACE,require_isolated_service_config
+from deployment_paths import WORKSPACE,broker_socket_name,require_isolated_service_config
 
 
 class PrepareUniverseServicesTests(unittest.TestCase):
@@ -36,7 +36,7 @@ class PrepareUniverseServicesTests(unittest.TestCase):
         self.assertEqual(result['status'],'service_config_prepared')
         self.assertEqual(require_isolated_service_config(root),root/'.state/gewu-multiverse')
         config=json.loads((root/'.state/gewu-multiverse/role-broker/config.json').read_text())
-        self.assertTrue(config['socket'].startswith('@'+str(root)))
+        self.assertEqual(config['socket'],broker_socket_name(root))
         self.assertEqual(json.loads((root/'.config/science-evaluation/registry.json').read_text())['calibration']['snapshot'],str(raw/'snapshot'))
 
     def test_existing_service_files_are_never_overwritten(self):
