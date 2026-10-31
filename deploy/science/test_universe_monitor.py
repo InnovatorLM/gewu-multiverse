@@ -2,6 +2,15 @@ import json,tempfile,unittest
 from pathlib import Path
 import universe_monitor as m
 class ArchiveTests(unittest.TestCase):
+    def test_monitor_lifecycle_follows_exact_owner_identity(self):
+        from unittest.mock import patch,Mock
+        server=Mock()
+        with patch.object(m,'owner_identity',side_effect=['original','replacement']),patch.object(m.time,'sleep'):
+            m.watch_owner(server,123,'original')
+        server.shutdown.assert_called_once()
+        self.assertIsNotNone(m.owner_identity(__import__('os').getpid()))
+        self.assertIsNone(m.owner_identity(999999999))
+
     def test_cold_start_roles_are_visible_and_stale_brief_is_refreshed(self):
         from unittest.mock import patch
         with tempfile.TemporaryDirectory(dir=m.W/'.tmp') as d:

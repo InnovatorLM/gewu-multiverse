@@ -339,6 +339,27 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(200);self.send_header('Content-Type','application/json; charset=utf-8');self.send_header('Cache-Control','no-store');self.end_headers();self.wfile.write(body)
         except (ValueError,KeyError,FileNotFoundError): self.send_error(400)
     def log_message(self,*args): pass
+def owner_identity(pid):
+    # starttime disambiguates PID reuse; a zombie has already left its lifecycle.
+    try:
+        tail=(Path('/proc')/str(pid)/'stat').read_text().rsplit(')',1)[1].split()
+        return None if tail[0]=='Z' else tail[19]
+    except (OSError,IndexError):return None
+
+
+def watch_owner(server,pid,identity):
+    while owner_identity(pid)==identity:
+        time.sleep(1)
+    server.shutdown()
+
+
 if __name__=='__main__':
+    server=ThreadingHTTPServer(('127.0.0.1',int(os.environ.get('GEWU_MONITOR_PORT','8765'))),Handler)
+    owner=os.environ.get('GEWU_MONITOR_OWNER_PID')
+    if owner:
+        pid=int(owner);identity=owner_identity(pid)
+        if identity is None:raise SystemExit('Monitor lifecycle owner is not alive')
+        threading.Thread(target=watch_owner,args=(server,pid,identity),daemon=True).start()
     threading.Thread(target=brief_loop,daemon=True).start()
-    ThreadingHTTPServer(('127.0.0.1',int(os.environ.get('GEWU_MONITOR_PORT','8765'))),Handler).serve_forever()
+    try:server.serve_forever()
+    finally:server.server_close()

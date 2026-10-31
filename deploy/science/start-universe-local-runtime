@@ -339,7 +339,7 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 MONITOR_PORT=${GEWU_MONITOR_PORT:-8765}
-GEWU_UNIVERSE_ROOT="$RUNTIME" GEWU_MONITOR_PORT="$MONITOR_PORT" \
+GEWU_UNIVERSE_ROOT="$RUNTIME" GEWU_MONITOR_PORT="$MONITOR_PORT" GEWU_MONITOR_OWNER_PID="$$" \
   "$PY" "$W/gewu-multiverse/deploy/science/universe_monitor.py" \
   > "$RUNTIME/.state/gewu-multiverse/universe-monitor.log" 2>&1 &
 monitor_pid=$!
