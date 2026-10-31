@@ -581,9 +581,22 @@ struct Inner {
     sequence: u64,
     stopping: bool,
     generation: u64,
+    confinement_recheck_inflight: bool,
+    confinement_recheck_at: Option<Instant>,
 }
 
 impl Inner {
+    fn schedule_confinement_recheck(&mut self, configured: bool, now: Instant, jobs: &mut Vec<Job>) {
+        if configured && self.options.confinement != crate::confinement::Method::RoleBroker
+            && !self.confinement_recheck_inflight
+            && self.confinement_recheck_at.is_none_or(|at| now >= at)
+            && self.agents.iter().all(|agent| agent.running.is_none() && !agent.starting)
+        {
+            self.confinement_recheck_inflight = true;
+            jobs.push(Job::ConfinementRecheck);
+        }
+    }
+
     fn new(
         options: EngineOptions,
         settings_path: PathBuf,
@@ -679,6 +692,8 @@ impl Inner {
             sequence: 0,
             stopping: false,
             generation: 0,
+            confinement_recheck_inflight: false,
+            confinement_recheck_at: None,
         };
         // A number this installation has ever used is never reused, even when the
         // agent is gone from the settings. The names on disk are the floor for an
@@ -1083,6 +1098,7 @@ fn backoff_for_quick_failure(failures: u32) -> Duration {
 
 /// One piece of slow work to run outside the state lock.
 enum Job {
+    ConfinementRecheck,
     ForgejoStart,
     ForgejoProvision,
     RepositoryRefresh,
@@ -1143,6 +1159,27 @@ impl Engine {
             .map(|inner| inner.generation)
             .unwrap_or_default();
         match job {
+            Job::ConfinementRecheck => {
+                std::thread::spawn(move || {
+                    let (options, workspaces) = {
+                        let guard = lock_inner(&inner);
+                        (guard.options.clone(), configured_workspaces(&guard.options.layout, &guard.settings))
+                    };
+                    let method = workspaces.as_ref().map(|paths| crate::confinement::detect(
+                        options.layout.root(), options.layout.state_root(), &options.data_root, paths,
+                    ));
+                    let mut guard = lock_inner(&inner);
+                    guard.confinement_recheck_inflight = false;
+                    guard.confinement_recheck_at = Some(clock.now() + Duration::from_secs(30));
+                    if !guard.stopping && guard.generation == generation
+                        && workspaces == configured_workspaces(&guard.options.layout, &guard.settings)
+                        && matches!(method, Ok(crate::confinement::Method::RoleBroker))
+                    {
+                        guard.options.confinement = crate::confinement::Method::RoleBroker;
+                        guard.note("role broker recovered; isolated scheduling resumed");
+                    }
+                });
+            }
             Job::ForgejoStart => {
                 let options = self.options.clone();
                 std::thread::spawn(move || forgejo_start_job(inner, options, generation));
@@ -1413,6 +1450,9 @@ impl Inner {
         if self.stopping {
             return jobs;
         }
+        self.schedule_confinement_recheck(
+            std::env::var_os(crate::role_broker::CONFIG_ENV).is_some(), now, &mut jobs,
+        );
         #[cfg(test)]
         let simulated_ready = self.options.forgejo_ready;
         #[cfg(not(test))]
@@ -3534,6 +3574,37 @@ mod tests {
             std::thread::sleep(Duration::from_millis(2));
         }
         assert_eq!(fake.counts().1, count, "the session did not start");
+    }
+
+    #[test]
+    fn unavailable_broker_rechecks_without_duplicate_or_live_role_probes() {
+        use crate::engine::clock::Clock;
+        let root = scratch_root("engine-broker-recheck");
+        let settings = write_ready(&root, &[("agent-1", Desired::Started)]);
+        let clock = Arc::new(FakeClock::new());
+        let fake = Arc::new(FakeSpawner::new());
+        let engine = open_test_engine(&root, settings, Arc::clone(&clock), fake);
+        let mut inner = lock_inner(&engine.inner);
+        inner.options.confinement = crate::confinement::Method::None;
+        let now = clock.now();
+        let mut jobs = Vec::new();
+        inner.schedule_confinement_recheck(false, now, &mut jobs);
+        assert!(jobs.is_empty());
+        inner.agents[0].starting = true;
+        inner.schedule_confinement_recheck(true, now, &mut jobs);
+        assert!(jobs.is_empty(), "must not queue a probe behind live role work");
+        inner.agents[0].starting = false;
+        inner.schedule_confinement_recheck(true, now, &mut jobs);
+        inner.schedule_confinement_recheck(true, now, &mut jobs);
+        assert_eq!(jobs.len(), 1);
+        assert!(matches!(jobs[0], Job::ConfinementRecheck));
+        jobs.clear();
+        inner.confinement_recheck_inflight = false;
+        inner.confinement_recheck_at = Some(now + Duration::from_secs(30));
+        inner.schedule_confinement_recheck(true, now, &mut jobs);
+        assert!(jobs.is_empty());
+        inner.schedule_confinement_recheck(true, now + Duration::from_secs(30), &mut jobs);
+        assert_eq!(jobs.len(), 1);
     }
 
     #[test]
