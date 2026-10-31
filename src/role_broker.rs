@@ -69,11 +69,32 @@ fn role_for<'a>(config: &'a Config, cwd: &Path) -> Result<(&'a str, PathBuf), St
     let resolved = cwd
         .canonicalize()
         .map_err(|_| "role working directory is unavailable")?;
+    // A path that was presented under one registered workspace must not resolve
+    // into another role's workspace. This preserves the original symlink escape
+    // defense; the canonical comparison below is only for an explicitly
+    // unregistered local-runtime alias.
+    for role in config.roles.values() {
+        let raw_workspace = role.root.join("workspace");
+        if cwd.starts_with(&raw_workspace) {
+            let raw = raw_workspace
+                .canonicalize()
+                .map_err(|_| "role workspace is unavailable")?;
+            if !resolved.starts_with(&raw) {
+                return Err("working-directory symlink escaped its original role".into());
+            }
+        }
+    }
     for (name, role) in &config.roles {
         let workspace = role.root.join("workspace");
-        if cwd.starts_with(&workspace) {
+        // The local-runtime launcher may expose the registered chroot workspace
+        // through a symlink. Compare canonical paths so the broker preserves the
+        // registered role identity while rejecting links that escape it.
+        let resolved_workspace = workspace
+            .canonicalize()
+            .map_err(|_| "role workspace is unavailable")?;
+        if resolved.starts_with(&resolved_workspace) {
             let relative = resolved
-                .strip_prefix(&workspace)
+                .strip_prefix(&resolved_workspace)
                 .map_err(|_| "working-directory symlink escaped its original role")?;
             return Ok((name, Path::new("/workspace").join(relative)));
         }

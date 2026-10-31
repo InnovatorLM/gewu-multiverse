@@ -26,6 +26,23 @@ for role in curator author-01 author-02 author-03 author-04 evaluator-01 evaluat
   [ -n "${src:-}" ] && mkdir -p "$RUNTIME/.config/gewu-multiverse/agents/$role" && cp "$src" "$RUNTIME/.config/gewu-multiverse/agents/$role/instruction.md" 2>/dev/null || true
   unset src
 done
+# Keep the controller's local layout connected to the already provisioned,
+# identity-isolated chroot workspaces. The broker resolves these links before
+# authorizing a command; no role can select another registered root.
+python3 - "$RUNTIME/.config/gewu-multiverse/agents" "$W/.state/science-role-broker/config.json" <<'PY'
+import json, os, sys
+from pathlib import Path
+agents, config = Path(sys.argv[1]), json.loads(Path(sys.argv[2]).read_text())
+for name, entry in config['roles'].items():
+    target = Path(entry['root']) / 'workspace'
+    if not target.is_dir():
+        continue
+    link = agents / name / 'workspace'
+    link.parent.mkdir(parents=True, exist_ok=True)
+    if link.exists() or link.is_symlink():
+        continue
+    link.symlink_to(target)
+PY
 cp "$SOURCE/README.md" "$RUNTIME/README.md" 2>/dev/null || true
 ln -sfn "$SOURCE/import" "$RUNTIME/import"
 cp "$SOURCE/start" "$RUNTIME/start"
