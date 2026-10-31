@@ -13,27 +13,14 @@ DONOR=${GEWU_EXTERNAL_ROLE_ROOTS:-$W/universes/my-terminal-bench-science}
 RUNTIME=${GEWU_LOCAL_RUNTIME_ROOT:-$W/.tmp/gewu-terminal-bench-science-runtime}
 BACKUP_DIR=${GEWU_BACKUP_DIR:-$W/.state/backups/live}
 mkdir -p "$RUNTIME" "$BACKUP_DIR"
-# Pick a free loopback port for this runtime. Existing test instances must not
-# make Forgejo fail after its database has already been copied.
-if [ -n "${GEWU_FORGEJO_PORT:-}" ]; then
-  LOCAL_PORT="$GEWU_FORGEJO_PORT"
-else
-  LOCAL_PORT=$(python3 - <<'PY'
-import socket
-for port in range(3000, 3100):
-    s = socket.socket()
-    try:
-        s.bind(('127.0.0.1', port))
-        print(port)
-        s.close()
-        break
-    except OSError:
-        s.close()
-else:
-    raise SystemExit('no free Forgejo port in supported range 3000-3099')
+LOCAL_PORT=$(python3 - "$RUNTIME" "${GEWU_FORGEJO_PORT:-}" <<'PY'
+import sys
+from deployment_paths import ensure_runtime_forgejo_port,select_forgejo_port
+port=select_forgejo_port(sys.argv[1],sys.argv[2] or None)
+ensure_runtime_forgejo_port(sys.argv[1],port)
+print(port)
 PY
 )
-fi
 # Copy only small, authoritative configuration and role workspace metadata.
 mkdir -p "$RUNTIME/.config/gewu-multiverse" "$RUNTIME/.config/science-evaluation" "$RUNTIME/workspaces"
 mkdir -p "$RUNTIME/.config/gewu-multiverse/agents"

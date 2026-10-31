@@ -5,7 +5,7 @@ import tempfile
 import unittest
 import json
 from unittest.mock import patch
-from deployment_paths import universe_root,WORKSPACE,deployment_state_root,require_isolated_service_config
+from deployment_paths import universe_root,WORKSPACE,deployment_state_root,require_isolated_service_config,select_forgejo_port,ensure_runtime_forgejo_port
 
 class DeploymentTests(unittest.TestCase):
     def test_launcher_rejects_invalid_root_before_starting_services(self):
@@ -40,6 +40,37 @@ class DeploymentTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(dir=WORKSPACE/'.tmp') as raw:
             root=Path(raw)/'universes/test-world'
             self.assertEqual(deployment_state_root(root),root/'.state/gewu-multiverse')
+
+    def test_forgejo_port_reuses_existing_runtime_configuration(self):
+        with tempfile.TemporaryDirectory(dir=WORKSPACE/'.tmp') as raw:
+            runtime=Path(raw)
+            app_ini=runtime/'.local/share/gewu-multiverse/forgejo/instance/app.ini'
+            app_ini.parent.mkdir(parents=True)
+            app_ini.write_text('[server]\nHTTP_PORT = 3001\n')
+            self.assertEqual(select_forgejo_port(runtime),3001)
+
+    def test_explicit_forgejo_port_overrides_existing_runtime(self):
+        with tempfile.TemporaryDirectory(dir=WORKSPACE/'.tmp') as raw:
+            runtime=Path(raw)
+            app_ini=runtime/'.local/share/gewu-multiverse/forgejo/instance/app.ini'
+            app_ini.parent.mkdir(parents=True)
+            app_ini.write_text('[server]\nHTTP_PORT = 3001\n')
+            self.assertEqual(select_forgejo_port(runtime,'3012'),3012)
+
+    def test_invalid_forgejo_port_is_rejected(self):
+        with tempfile.TemporaryDirectory(dir=WORKSPACE/'.tmp') as raw:
+            with self.assertRaisesRegex(ValueError,'port must be an integer'):
+                select_forgejo_port(raw,'not-a-port')
+
+    def test_explicit_port_synchronizes_existing_forgejo_instance(self):
+        with tempfile.TemporaryDirectory(dir=WORKSPACE/'.tmp') as raw:
+            app_ini=Path(raw)/'.local/share/gewu-multiverse/forgejo/instance/app.ini'
+            app_ini.parent.mkdir(parents=True)
+            app_ini.write_text('[server]\nHTTP_PORT = 3001\nROOT_URL = http://127.0.0.1:3001/\n')
+            ensure_runtime_forgejo_port(raw,3012)
+            text=app_ini.read_text()
+            self.assertIn('HTTP_PORT = 3012',text)
+            self.assertIn('ROOT_URL = http://127.0.0.1:3012/',text)
 
     def test_replacement_refuses_shared_or_missing_service_configuration(self):
         with tempfile.TemporaryDirectory(dir=WORKSPACE/'.tmp') as raw:

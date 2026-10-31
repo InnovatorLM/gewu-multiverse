@@ -2,6 +2,8 @@
 import json
 import hashlib
 import os
+import re
+import socket
 from pathlib import Path
 WORKSPACE=Path('/mnt/data/zhanglinfeng/workspace')
 
@@ -31,6 +33,46 @@ def deployment_state_root(root=None):
     if not root.is_relative_to(WORKSPACE.resolve()) or root==WORKSPACE.resolve():
         raise ValueError('Deployment state root must be inside workspace')
     return root/'.state/gewu-multiverse'
+
+def select_forgejo_port(runtime, explicit=None):
+    """Keep a seeded Forgejo database and all clients on the same port."""
+    if explicit:
+        return _valid_forgejo_port(explicit)
+    app_ini=Path(runtime)/'.local/share/gewu-multiverse/forgejo/instance/app.ini'
+    if app_ini.is_file():
+        match=re.search(r'^HTTP_PORT\s*=\s*(\d+)\s*$',app_ini.read_text(),re.M)
+        if not match:
+            raise ValueError('Forgejo app.ini is missing HTTP_PORT')
+        return _valid_forgejo_port(match.group(1))
+    for port in range(3000,3100):
+        with socket.socket() as sock:
+            try:
+                sock.bind(('127.0.0.1',port))
+                return port
+            except OSError:
+                pass
+    raise ValueError('no free Forgejo port in supported range 3000-3099')
+
+def ensure_runtime_forgejo_port(runtime, selected):
+    """Synchronize the seeded instance with the port chosen for this launch."""
+    app_ini=Path(runtime)/'.local/share/gewu-multiverse/forgejo/instance/app.ini'
+    if not app_ini.is_file():
+        return
+    text=app_ini.read_text()
+    if not re.search(r'^HTTP_PORT\s*=\s*\d+\s*$',text,re.M):
+        raise ValueError('Forgejo app.ini is missing HTTP_PORT')
+    text=re.sub(r'^(HTTP_PORT\s*=\s*)\d+\s*$',lambda m:m.group(1)+str(_valid_forgejo_port(selected)),text,flags=re.M)
+    text=re.sub(r'^(ROOT_URL\s*=\s*http://127\.0\.0\.1:)\d+(/?)\s*$',lambda m:m.group(1)+str(selected)+m.group(2),text,flags=re.M)
+    app_ini.write_text(text)
+
+def _valid_forgejo_port(value):
+    try:
+        port=int(value)
+    except (TypeError,ValueError):
+        raise ValueError('Forgejo port must be an integer in range 1-65535') from None
+    if not 1<=port<=65535:
+        raise ValueError('Forgejo port must be an integer in range 1-65535')
+    return port
 
 def _allowed_external_root():
     """Optional stopped role-root donor used by the /tmp hot-runtime.
