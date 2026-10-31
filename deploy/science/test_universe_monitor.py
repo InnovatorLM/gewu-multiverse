@@ -64,6 +64,32 @@ class ArchiveTests(unittest.TestCase):
                 row['controller_pid']=124;p.write_text(json.dumps(row))
                 self.assertIsNone(m.scheduling_state('author-01'))
 
+    def test_evaluator_assignment_gate_matches_controller_schema(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory(dir=m.W/'.tmp') as d:
+            root=Path(d);home=root/'.config/gewu-multiverse/agents/evaluator-01';home.mkdir(parents=True)
+            with patch.object(m,'UNIVERSE',root):
+                self.assertFalse(m.evaluator_assignment_ready('evaluator-01'))
+                p=home/'review-dispatch.json'
+                for generation in [-1,True,'1',None]:
+                    p.write_text(json.dumps(dict(state='reviewing',key='30:abc',generation=generation)))
+                    self.assertFalse(m.evaluator_assignment_ready('evaluator-01'))
+                p.write_text(json.dumps(dict(state='reviewing',key='30:abc',generation=0)))
+                self.assertTrue(m.evaluator_assignment_ready('evaluator-01'))
+                p.write_text(json.dumps(dict(state='waiting_author',key='30:abc',generation=0)))
+                self.assertFalse(m.evaluator_assignment_ready('evaluator-01'))
+
+    def test_evaluator_without_assignment_waits_without_implying_a_scheduled_session(self):
+        from unittest.mock import patch
+        with patch.object(m,'evaluator_assignment_ready',return_value=False):
+            row=dict(state='restarting')
+            self.assertEqual(m.scheduling_status('等待调度',row,'evaluator-01'),'等待评测派单')
+            self.assertEqual(m.scheduling_status('等待调度',row,'author-01'),'等待下次会话')
+            self.assertEqual(m.scheduling_status('等待作者修复',row,'evaluator-01'),'等待作者修复')
+            self.assertEqual(m.scheduling_status('运行中',row,'evaluator-01'),'运行中')
+        with patch.object(m,'evaluator_assignment_ready',return_value=True):
+            self.assertEqual(m.scheduling_status('等待调度',row,'evaluator-01'),'等待下次会话')
+
     def test_review_wait_is_distinguished_without_overriding_process_facts(self):
         for state,label in [('waiting_author','等待作者修复'),('waiting_platform','等待平台处理'),('completed','审核完成，等待新任务')]:
             self.assertEqual(m.review_role_status('等待调度',{'state':state}),label)
