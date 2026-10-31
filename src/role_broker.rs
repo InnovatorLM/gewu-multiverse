@@ -24,6 +24,8 @@ struct Config {
     roles: BTreeMap<String, Role>,
     #[serde(default)]
     _lock_dir: Option<PathBuf>,
+    #[serde(default)]
+    _forgejo_url: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -118,6 +120,15 @@ mod tests {
     }
 
     #[test]
+    fn forgejo_url_in_operator_descriptor_is_accepted() {
+        let config: Config = serde_json::from_str(
+            r#"{"controller_uid":65534,"socket":"@gewu-test","roles":{},"_forgejo_url":"http://127.0.0.1:3000"}"#,
+        )
+        .expect("runtime broker descriptor may carry its Forgejo endpoint");
+        assert_eq!(config._forgejo_url.as_deref(), Some("http://127.0.0.1:3000"));
+    }
+
+    #[test]
     fn directory_symlink_cannot_switch_role_identity() {
         let root = std::env::temp_dir().join(format!(
             "role-route-{}-{}",
@@ -158,6 +169,17 @@ mod tests {
         std::os::unix::fs::symlink(root.join("evaluator/workspace/repo"), &escape).unwrap();
         assert!(role_for(&config, &escape).is_err());
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    #[ignore = "requires a live operator broker and runtime workspace alias"]
+    fn live_runtime_workspace_alias_is_available_to_the_controller() {
+        let config_path = std::env::var_os(CONFIG_ENV).expect("broker config path");
+        let workspace = std::env::var_os("GEWU_TEST_ROLE_WORKSPACE")
+            .expect("runtime role workspace alias");
+        let config: Config = serde_json::from_slice(&fs::read(config_path).unwrap()).unwrap();
+        assert_eq!(rustix::process::geteuid().as_raw(), config.controller_uid);
+        assert!(available(&[PathBuf::from(workspace)]));
     }
 }
 
