@@ -7,9 +7,17 @@ RUNTIME=${GEWU_LOCAL_RUNTIME_ROOT:-/tmp/gewu-terminal-bench-science-runtime}
 BACKUP_DIR=${GEWU_BACKUP_DIR:-$W/.state/backups/live}
 mkdir -p "$RUNTIME" "$BACKUP_DIR"
 # Copy only small, authoritative configuration and role workspace metadata.
-mkdir -p "$RUNTIME/.config" "$RUNTIME/workspaces"
-cp -a "$SOURCE/.config/." "$RUNTIME/.config/"
-cp -a "$SOURCE/workspaces/." "$RUNTIME/workspaces/" 2>/dev/null || true
+mkdir -p "$RUNTIME/.config/gewu-multiverse" "$RUNTIME/.config/science-evaluation" "$RUNTIME/workspaces"
+# Avoid recursive CPFS directory walks. These are the only configuration files
+# required by the launcher; each copy is bounded independently.
+for f in "$SOURCE/.config/gewu-multiverse/credentials.toml" \
+         "$SOURCE/.config/gewu-multiverse/multiverse.toml" \
+         "$SOURCE/.config/gewu-multiverse/last-seen.toml" \
+         "$SOURCE/.config/gewu-multiverse/import-terminal-bench-science.repo-id" \
+         "$SOURCE/.config/science-evaluation/queue.json" \
+         "$SOURCE/.config/science-evaluation/registry.json"; do
+  [ -f "$f" ] && timeout 10 cp "$f" "$RUNTIME/.config/${f#*/.config/}" || true
+done
 cp "$SOURCE/README.md" "$RUNTIME/README.md" 2>/dev/null || true
 ln -sfn "$SOURCE/import" "$RUNTIME/import"
 cp "$SOURCE/start" "$RUNTIME/start"
