@@ -1,5 +1,7 @@
 """Operator capability probes run as the actual isolated role, without secrets."""
 import argparse
+import contextlib
+import fcntl
 import hashlib
 import json
 import os
@@ -95,6 +97,25 @@ def inspect(role, entry, runner=subprocess.run):
                 scope='Executable local capability check; cloud queue liveness and model skill use require separate verification')
 
 
+@contextlib.contextmanager
+def probe_lock(config,role,wait_seconds=30):
+    # Broker command cleanup owns the entire role UID. An operator probe must
+    # use the same lock or normal command completion can kill its interpreter.
+    base=Path(config['_lock_dir']) if config.get('_lock_dir') else Path(config['socket'].removeprefix('@')).parent
+    if not base.resolve().is_relative_to(W.resolve()):raise ValueError('Probe lock outside workspace')
+    base.mkdir(parents=True,exist_ok=True)
+    with (base/(role+'.lock')).open('a') as stream:
+        deadline=time.monotonic()+wait_seconds
+        while True:
+            try:
+                fcntl.flock(stream,fcntl.LOCK_EX|fcntl.LOCK_NB);break
+            except BlockingIOError:
+                if time.monotonic()>=deadline:raise TimeoutError('Role is busy; capability probe deferred')
+                time.sleep(.1)
+        try:yield
+        finally:fcntl.flock(stream,fcntl.LOCK_UN)
+
+
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--config',type=Path,default=W/'.state/science-role-broker/config.json');p.add_argument('--role');p.add_argument('--settings',type=Path,help='Check only roles configured desired=started');args=p.parse_args()
     if os.geteuid()!=0: raise ValueError('Operator required')
@@ -108,7 +129,11 @@ def main():
         if args.role and role!=args.role:continue
         if enabled is not None and role not in enabled:continue
         try:
-            receipt=inspect(role,entry)
+            with probe_lock(config,role):
+                receipt=inspect(role,entry)
+        except TimeoutError:
+            print(json.dumps(dict(role=role,deferred=True,reason='Role command is active; prior capability receipt retained')))
+            failed.append(role);continue
         except (ValueError,OSError,subprocess.SubprocessError,json.JSONDecodeError) as error:
             receipt=dict(role=role,ready=False,observed_at=time.time(),error_type=type(error).__name__,
                          reason='Capability probe did not complete; inspect operator evidence before scheduling')

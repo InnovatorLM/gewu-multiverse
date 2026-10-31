@@ -69,3 +69,20 @@ class CapabilityTests(unittest.TestCase):
             self.assertFalse(result['entrypoints']['selftest_client_current'])
 
 if __name__=='__main__':unittest.main()
+
+
+class ProbeLockTests(unittest.TestCase):
+    def test_probe_uses_broker_lock_and_defers_without_running_when_busy(self):
+        import fcntl
+        from role_capabilities import probe_lock
+        with tempfile.TemporaryDirectory(dir=W/'.tmp') as raw:
+            root=Path(raw);cfg={'_lock_dir':str(root),'socket':'@fixture'}
+            with (root/'author-01.lock').open('a') as broker:
+                fcntl.flock(broker,fcntl.LOCK_EX)
+                with self.assertRaises(TimeoutError):
+                    with probe_lock(cfg,'author-01',wait_seconds=0):self.fail('Probe entered a busy role')
+            with probe_lock(cfg,'author-01'):
+                with (root/'author-01.lock').open('a') as contender:
+                    with self.assertRaises(BlockingIOError):fcntl.flock(contender,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            with (root/'author-01.lock').open('a') as contender:
+                fcntl.flock(contender,fcntl.LOCK_EX|fcntl.LOCK_NB)
