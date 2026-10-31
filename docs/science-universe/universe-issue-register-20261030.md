@@ -1,5 +1,12 @@
 # 本轮宇宙问题总表（2026-10-30）
 
+## 真实PR派单与完整身份配置门检（2026-10-31，继续）
+
+- 在隔离Forgejo创建私有测试仓库与真实PR，复用已有简单题两轮真实自测产生的准确作者commit、operator证据和冻结登记；作者资格与执行登记均使用实际实现，无mock。重复reconcile只生成一张独占审核issue，负责人evaluator-02，commit及snapshot绑定正确。
+- 新私有仓库须先给审核账号协作权限，否则Forgejo拒绝指定负责人。已补齐该fixture权限，不把测试仓库初始化缺项误报为模型错误。临时Git鉴权配置为0600，push后删除；旧Git需要受信的独立global配置，未修改全局配置或仓库属主。
+- 隔离启动暴露配置缺口：settings保留14个角色而broker只注册1个，控制器会对所有configured角色（包括stopped）做边界检查，因此全局调度被拒绝。能力门检原只核对started角色，现提前拒绝任何configured角色缺少broker身份；不启动停止角色，也不放宽隔离。5项能力回归通过。
+- 已保持全部身份注册、只启用evaluator-02且队列仅连接其收件箱，正在验证reset后控制器新会话。旧evaluator-01收件箱34份历史请求保留原样，未接入本次回归；正式宇宙未重启。证据在工作区私有`.state/universe-repair-20261031/reset-controller-v1/dispatch-evidence.json`。
+
 ## 独立审核模型实际客户端与能力门检（2026-10-31，继续）
 
 - evaluator-02使用指定DeepSeek的真实新原生会话，六次模型请求；实际收到两份当前ACS技能，读取准确版本assignment/catalog，隔离工具成功一次提交五个独立稳定任务ID，并查询到0个有效结果、通过率为空、quality_acceptance=false。未追加云评测，fixture请求已归档核验并移除，原assignment/catalog恢复，临时凭证删除。

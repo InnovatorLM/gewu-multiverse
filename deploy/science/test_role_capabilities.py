@@ -1,9 +1,17 @@
 import json,os,subprocess,tempfile,unittest
 from pathlib import Path
-from role_capabilities import W,inspect,MODULES,TOOLS
+from role_capabilities import W,inspect,MODULES,TOOLS,enabled_roles
 from install_role_skills import selected
 
 class CapabilityTests(unittest.TestCase):
+    def test_stopped_configured_roles_still_require_registered_boundaries(self):
+        settings={'agents':[dict(name='author-01',desired='stopped'),dict(name='evaluator-02',desired='started')]}
+        config={'roles':{'evaluator-02':{}}}
+        with self.assertRaisesRegex(ValueError,'including stopped'):
+            enabled_roles(config,settings)
+        config['roles']['author-01']={}
+        self.assertEqual(enabled_roles(config,settings),{'evaluator-02'})
+
     def fixture(self,root):
         for name in selected('author-01'):
             path=root/'skills'/name/'SKILL.md';path.parent.mkdir(parents=True);path.write_text('skill')

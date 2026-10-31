@@ -45,6 +45,16 @@ print(json.dumps({'python':sys.executable,'uid':os.getuid(),'modules':modules,'t
 '''
 
 
+def enabled_roles(config, settings):
+    # The controller probes the boundary of every configured workspace,
+    # including stopped roles. Checking started roles alone permits a startup
+    # that can never acquire its required broker confinement.
+    configured={row['name'] for row in settings['agents']}
+    if configured-set(config['roles']):
+        raise ValueError('Configured role absent from broker configuration (including stopped roles)')
+    return {row['name'] for row in settings['agents'] if row.get('desired')=='started'}
+
+
 def inspect(role, entry, runner=subprocess.run):
     root = Path(entry['root']).resolve(strict=True)
     if not root.is_relative_to(W): raise ValueError('Role root outside workspace')
@@ -93,8 +103,7 @@ def main():
     if args.settings:
         import tomllib
         settings=tomllib.loads(read_text_retry(args.settings))
-        enabled={row['name'] for row in settings['agents'] if row.get('desired')=='started'}
-        if enabled-set(config['roles']):raise ValueError('Enabled role absent from broker configuration')
+        enabled=enabled_roles(config,settings)
     for role,entry in config['roles'].items():
         if args.role and role!=args.role:continue
         if enabled is not None and role not in enabled:continue
