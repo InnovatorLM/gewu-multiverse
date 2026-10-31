@@ -1,5 +1,13 @@
 # 本轮宇宙问题总表（2026-10-30）
 
+## 简单题并行平台回归已完成（2026-10-31）
+
+- 第二批 platform-openssl-parallel-v2 五次均 solver_complete、reward=1、n_errors=0、cleanup_confirmed=true；指定 DeepSeek／Codex模型身份经轨迹核对，五份session_id互不相同，五次执行起止区间共同重叠，确认不是顺序启动后拼成五份。
+- 每次均保留原始Codex会话JSONL、codex.txt、标准trajectory.json、verifier/test-stdout.txt、ctrf.json和reward.txt；标准轨迹步数分别7、13、12、10、12，已计算证据文件SHA256。指定运行时API key扫描未发现泄露；通用私钥标记不自动等同基础设施凭证，验收题本身就是生成TLS证书与测试私钥，不声称通过穷尽式秘密扫描。
+- 两批共十次run ID的云端资源统一复查：SandboxSet、SandboxClaim、Sandbox、Pod、Job、ConfigMap均为0残留。原评分成功却丢失verifier stdout的问题已有源码修复和真实复验。
+- 私有证据：`.state/universe-repair-20261031/platform-openssl-parallel-v1/verified-five-rollout-v2-evidence.json`及`final-cluster-cleanup.json`。本地回归16项通过，代码在main并持续同步备份分支。
+- **本项证明已有简单题的平台执行、并行、评分与证据回收闭环；不等同作者新题自解／迭代自动签发、独占evaluator新会话及reset等完整系统验收。** 新科学题的难度审核在运行中触发，正式宇宙仍未启动。
+
 ## 五路真实评分与证据下载缺口（2026-10-31，继续）
 
 - 第一批已有简单题真实五次均 solver_complete、reward=1、n_errors=0、cleanup_confirmed=true，Codex标准轨迹均已生成。此为平台回归，不作为科学题接收。
