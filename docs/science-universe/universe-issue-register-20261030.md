@@ -1,5 +1,13 @@
 # 本轮宇宙问题总表（2026-10-30）
 
+## 自测到登记的身份桥接（2026-10-31，继续）
+
+- 自测回执v2新增原始提交／冻结执行提交的分别记录、执行路径、题包哈希和接收／完成时间；没有将平台冻结commit改称作者commit。
+- 新增 `selftest_registration.py` 登记准备入口，核验源版本、oracle=1／nop=0、无异常、资源清理、未变化快照及原有镜像构建回执，并保留两种身份和证据哈希。输出明确 iteration_qualified=false／scientific_acceptance=false，不伪造作者迭代或正式评测通过。
+- 相关离线集合12项通过，包括实际文件哈希／标签验证、错误清理、错误负对照、旧版本、镜像不一致和冻结题包篡改拒绝；未新增真实云端成功声明。
+- 临时实例11个作者／协调角色持续有活动，evaluator等待资格派单。角色回执中发现author-04一次冻结构建失败，实际Docker第一步日志仅为 `Error response from daemon: unknown:`；目前没有足够信息判定网络、镜像地址或daemon根因。另一请求因上传与commit不一致被拒绝，符合提交边界。
+- 登记准备仍待接入自动登记及迭代资格签发；这部分未闭环，最终宇宙继续未验收。
+
 ## 重启权限根因修复（2026-10-31，继续）
 
 后续实机核验：固定启动脚本版本后冷启动成功，10位作者和curator均产生新会话、真实模型回复及工具调用，11个请求均确认技能注入。3位evaluator尚无合格独占任务，未产生新会话，不宣称其行为验收通过。loopback 3000／8765均监听。author-02的旧idea由自动session_paused恢复active，未清零累计预算。私有证据位于工作区 `.state/universe-repair-20261031/v8-all-role-restart-evidence.json` 和 `v8-clock-observation.json`。这仅是临时实例启动／技能／计时验证，不是最终宇宙验收或新题接收。

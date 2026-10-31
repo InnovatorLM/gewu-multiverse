@@ -1,7 +1,7 @@
 """Operator-owned author selftest queue: frozen upload -> ACR -> ACS oracle/nop."""
 import json,os,re,subprocess,tarfile,hashlib,time,fcntl
 from pathlib import Path,PurePosixPath
-from evaluation_queue import W,atomic_json
+from evaluation_queue import W,atomic_json,digest_tree
 from check_harbor_task import inspect_task
 from selftest_lifecycle import owned_run, recover_interrupted, install_stop_handlers
 from build_task_images import validate_dockerfile
@@ -40,7 +40,7 @@ def process(role,entry,request):
  def publish(payload):
   atomic_json(result,payload);os.chown(result,0,entry['gid']);result.chmod(0o640)
  if recover_interrupted(work,result,publish):return
- work.mkdir(mode=0o700);status={'job_id':job,'role':role,'status':'validating','quality_acceptance':False}
+ work.mkdir(mode=0o700);status={'schema_version':2,'job_id':job,'role':role,'status':'validating','quality_acceptance':False,'received_at':time.time()}
  secrets=credential_values(root)
  def save():
   status['diagnostics']=publish_logs(work,root,job,entry['gid'],secrets)
@@ -54,7 +54,7 @@ def process(role,entry,request):
   repo=work/'source';task=repo/name;unpack(frozen,task);atomic_json(work/'mechanical.json',inspect_task(task))
   status.update(verify_source(root/'workspace',q['source_repository'],q['source_task_path'],q['source_commit'],task));save()
   for args in [['init','-q'],['config','user.email','operator@localhost'],['config','user.name','operator'],['add','.'],['commit','-qm','Frozen author upload']]:subprocess.run(['git','-C',str(repo),*args],check=True,capture_output=True)
-  commit=subprocess.check_output(['git','-C',str(repo),'rev-parse','HEAD'],text=True).strip();status.update(status='building',source_commit=q['source_commit']);save()
+  commit=subprocess.check_output(['git','-C',str(repo),'rev-parse','HEAD'],text=True).strip();status.update(status='building',source_commit=q['source_commit'],execution_commit=commit,execution_task_path=name,snapshot_sha256=digest_tree(task));save()
   task_tmp=work/'tmp';task_home=work/'home';task_tmp.mkdir(mode=0o700,exist_ok=True);task_home.mkdir(mode=0o700,exist_ok=True)
   env=os.environ.copy();env.update(TMPDIR=str(task_tmp),PYTHONDONTWRITEBYTECODE='1',HOME=str(task_home))
   with (work/'build.log').open('w') as log:
@@ -84,6 +84,7 @@ def process(role,entry,request):
  except Exception as e:
   from selftest_logs import sanitize
   status.update(status='failed',error=sanitize(str(e),secrets)[:600])
+ status['completed_at']=time.time()
  save()
 def main():
  global STATE
