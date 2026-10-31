@@ -2,6 +2,8 @@
 
 ## 重启权限根因修复（2026-10-31，继续）
 
+后续实机核验：固定启动脚本版本后冷启动成功，10位作者和curator均产生新会话、真实模型回复及工具调用，11个请求均确认技能注入。3位evaluator尚无合格独占任务，未产生新会话，不宣称其行为验收通过。loopback 3000／8765均监听。author-02的旧idea由自动session_paused恢复active，未清零累计预算。私有证据位于工作区 `.state/universe-repair-20261031/v8-all-role-restart-evidence.json` 和 `v8-clock-observation.json`。这仅是临时实例启动／技能／计时验证，不是最终宇宙验收或新题接收。
+
 - v8 新会话 author-05～10 均记录实际 `harbor-acs-evaluation` 技能发现、模型回复和工具调用；抽检 author-06 的请求包含 `Installed skill ` 注入文本。旧五角色仍未恢复，不能报告全角色就绪。
 - 已定位重启权限缺陷：local-runtime 启动器递归把全部状态 JSON 改为 root:0600，包含旧会话 plan.json；非特权控制器恢复时无法读取，遂拒绝替代会话。这是启动器行为，不是已证实的人工维护失误。
 - 改为仅数字编号角色及 curator 的会话目录归控制器；平台服务及证据归 root，不再把整个状态树的 JSON 一律改属主。另避免 `author-*` 将 `author-selftest` 平台服务误认成作者目录。
