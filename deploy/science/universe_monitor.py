@@ -225,15 +225,15 @@ def write_brief():
     if stalled: text+=f" {', '.join(stalled[:8])} 最近活动较少，需继续观察。"
     brief={'text':text,'generated_at':now,'periods':[]}
     old=read_brief(); brief['periods']=(old.get('periods') or [])[-5:]
-    # Recover prior periods if an interrupted legacy write lost latest.json.
-    if not brief['periods']:
-        for line in tail_text(BRIEF_DIR/'history.jsonl',262144).splitlines():
-            try:
-                item=json.loads(line)
-                if isinstance(item.get('generated_at'),(int,float)) and isinstance(item.get('text'),str):
-                    brief['periods'].append(item)
-            except (ValueError,AttributeError):pass
-        brief['periods']=brief['periods'][-5:]
+    # Durable history also repairs a valid but shortened latest timeline.
+    recovered=[]
+    for line in tail_text(BRIEF_DIR/'history.jsonl',262144).splitlines():
+        try:
+            item=json.loads(line)
+            if isinstance(item.get('generated_at'),(int,float)) and isinstance(item.get('text'),str):
+                recovered.append(item)
+        except (ValueError,AttributeError):pass
+    if recovered:brief['periods']=recovered[-5:]
     brief['periods'].append({'text':text,'generated_at':now})
     with (BRIEF_DIR/'history.jsonl').open('a') as history:
         history.write(json.dumps({'text':text,'generated_at':now},ensure_ascii=False)+chr(10))

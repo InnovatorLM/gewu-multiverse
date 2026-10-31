@@ -14,6 +14,13 @@ class ArchiveTests(unittest.TestCase):
             self.assertEqual(result['periods'][0]['text'],'previous')
             self.assertEqual(len(result['periods']),2)
             self.assertFalse((root/'latest.json.pending').exists())
+            latest.write_text(json.dumps(dict(text='latest',generated_at=2,periods=[dict(text='latest',generated_at=2)])))
+            with (root/'history.jsonl').open('a') as f:f.write(json.dumps(dict(text='retained',generated_at=3))+'\n')
+            with patch.object(m,'BRIEF_DIR',root),patch.object(m,'BRIEF_FILE',latest),patch.object(m,'snapshot',return_value={'roles':[]}):
+                m.write_brief()
+            result=json.loads(latest.read_text())
+            self.assertEqual(result['periods'][0]['text'],'previous')
+            self.assertEqual(result['periods'][-2]['text'],'retained')
 
     def test_monitor_lifecycle_follows_exact_owner_identity(self):
         from unittest.mock import patch,Mock
