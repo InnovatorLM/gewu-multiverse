@@ -39,8 +39,17 @@ for name, entry in config['roles'].items():
         continue
     link = agents / name / 'workspace'
     link.parent.mkdir(parents=True, exist_ok=True)
-    if link.exists() or link.is_symlink():
-        continue
+    # A previous runtime may have created a real directory here.  It is not a
+    # valid broker alias: the controller would see mixed canonical roots and
+    # refuse confinement. Preserve it for recovery before creating the alias.
+    if link.is_symlink():
+        if link.resolve(strict=False) == target.resolve(strict=False):
+            continue
+        link.unlink()
+    elif link.exists():
+        import time
+        preserved = link.with_name('workspace.preserved-' + str(time.time_ns()))
+        link.rename(preserved)
     link.symlink_to(target)
 PY
 cp "$SOURCE/README.md" "$RUNTIME/README.md" 2>/dev/null || true
