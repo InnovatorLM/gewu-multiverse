@@ -247,7 +247,8 @@ def brief_loop():
             last=read_brief().get('generated_at')
             if not isinstance(last,(int,float)) or time.time()-last>=600:write_brief()
         except Exception: pass
-        time.sleep(600)
+        last=read_brief().get('generated_at')
+        time.sleep(max(1,min(600,600-(time.time()-last))) if isinstance(last,(int,float)) else 10)
 
 
 HTML='''<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Terminal-Bench Science Universe</title><style>
