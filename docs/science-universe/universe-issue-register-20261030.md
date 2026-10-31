@@ -1,5 +1,11 @@
 # 本轮宇宙问题总表（2026-10-30）
 
+## 独立审核模型实际客户端与能力门检（2026-10-31，继续）
+
+- evaluator-02使用指定DeepSeek的真实新原生会话，六次模型请求；实际收到两份当前ACS技能，读取准确版本assignment/catalog，隔离工具成功一次提交五个独立稳定任务ID，并查询到0个有效结果、通过率为空、quality_acceptance=false。未追加云评测，fixture请求已归档核验并移除，原assignment/catalog恢复，临时凭证删除。
+- 本次assignment来自operator平台fixture，不是正式PR派单或控制器自动重调度，不以此宣称该部分闭环。探针最初把未转义技能文本与JSON字符串比较导致验收脚本失败；复核实际解码system消息和准确工具回执后确认上述行为，保留失败日志。私有证据位于`.state/universe-repair-20261031/evaluator-native-handoff-v1/verified-evidence.json`。
+- 发现能力回执未检查evaluator批量客户端（entrypoints为空）。已补充文件可执行与当前源码哈希检查；缺失、无执行权限、旧版本均拒绝ready，四项能力门检回归通过。正式宇宙继续停止。
+
 ## 作者两轮真实容器自测与自动交接验收（2026-10-31，继续）
 
 - author-03实际隔离UID客户端提交已有上游openssl简单题；完成两轮实际ACR构建发布与ACS oracle/nop，每轮oracle=1、nop=0、exit=0、清理确认。第二轮使用第一轮回执后提交的实际修改，绑定同idea及previous-job。此为operator驱动平台回归，不是模型自主科学出题或科学接收。

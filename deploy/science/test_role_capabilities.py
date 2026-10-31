@@ -34,6 +34,23 @@ class CapabilityTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'no raw output'):
                 inspect('author-01',entry,lambda *a,**k:subprocess.CompletedProcess([],1,'secret','secret'))
 
+    def test_evaluator_requires_current_executable_batch_client(self):
+        with tempfile.TemporaryDirectory(dir=W/'.tmp') as raw:
+            root=Path(raw);entry=self.fixture(root)
+            extra=root/'skills/acs-quality-rollout-review/SKILL.md'
+            extra.parent.mkdir(parents=True);extra.write_text('skill')
+            payload=dict(uid=21001,modules={k:{'ok':True} for k in MODULES},tools={k:'/usr/bin/'+k for k in TOOLS})
+            runner=lambda *a,**k:subprocess.CompletedProcess([],0,json.dumps(payload),'')
+            self.assertFalse(inspect('evaluator-01',entry,runner)['ready'])
+            client=root/'usr/local/bin/role-evaluation-batch'
+            client.write_bytes(Path(__file__).with_name('role_evaluation_batch.py').read_bytes())
+            client.chmod(0o644)
+            self.assertFalse(inspect('evaluator-01',entry,runner)['ready'])
+            client.chmod(0o755)
+            self.assertTrue(inspect('evaluator-01',entry,runner)['ready'])
+            client.write_text('stale client')
+            self.assertFalse(inspect('evaluator-01',entry,runner)['ready'])
+
     def test_stale_client_blocks_startup_even_when_entrypoint_exists(self):
         with tempfile.TemporaryDirectory(dir=W/'.tmp') as raw:
             root=Path(raw);entry=self.fixture(root)
