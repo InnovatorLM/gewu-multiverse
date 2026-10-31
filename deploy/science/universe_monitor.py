@@ -117,9 +117,15 @@ def snapshot():
     controller=controller_live()
     waits=review_waits()
     allowed={'curator'} | {f'author-{i:02}' for i in range(1,11)} | {f'evaluator-{i:02}' for i in range(1,4)}
-    for role_dir in sorted((p for p in ROOT.iterdir() if p.is_dir() and p.name in allowed), key=lambda p:p.name):
+    names=set(desired) | {p.name for p in ROOT.iterdir() if p.is_dir()}
+    for name in sorted(names & allowed):
+        role_dir=ROOT/name
         runs=sorted(role_dir.glob('run-*'),key=lambda p:p.stat().st_mtime,reverse=True)
-        if not runs: continue
+        if not runs:
+            out.append({'status':role_status(desired.get(name),False,controller),
+                'desired':desired.get(name),'role':name,'run':'尚无会话','updated':0,
+                'model':MODEL,'log':'','events':[],'review':waits.get(name)})
+            continue
         run=runs[0]; log=run/'run.log'; tr=run/'transcript.jsonl'
         text=tail_text(log,8192)[-4000:] if log.exists() else ''
         events=[]

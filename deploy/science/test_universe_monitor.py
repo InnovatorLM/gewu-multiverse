@@ -2,6 +2,21 @@ import json,tempfile,unittest
 from pathlib import Path
 import universe_monitor as m
 class ArchiveTests(unittest.TestCase):
+    def test_cold_start_roles_are_visible_and_stale_brief_is_refreshed(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory(dir=m.W/'.tmp') as d:
+            with patch.object(m,'ROOT',Path(d)), \
+                 patch.object(m,'desired_roles',return_value={'author-01':'started','evaluator-01':'stopped'}), \
+                 patch.object(m,'controller_live',return_value=True), \
+                 patch.object(m,'review_waits',return_value={}), \
+                 patch.object(m,'read_brief',return_value={'text':'old','generated_at':0,'periods':[]}):
+                state=m.snapshot()
+            self.assertEqual(len(state['roles']),2)
+            self.assertEqual(state['roles'][0]['status'],'等待调度')
+            self.assertEqual(state['roles'][1]['status'],'已停用')
+            self.assertIn('当前启用 1 个角色',state['brief']['text'])
+            self.assertEqual(state['brief']['periods'],[])
+
     def test_review_wait_reason_is_latest_and_redacted(self):
         from unittest.mock import patch
         with tempfile.TemporaryDirectory(dir=m.W/'.tmp') as d,patch.object(m,'DISPATCH_STATE',Path(d)):
