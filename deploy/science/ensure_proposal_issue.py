@@ -9,7 +9,7 @@ import requests
 from evaluation_queue import W, atomic_json, root_file
 from controller_credentials import load_controller_credentials
 
-BASE = 'http://127.0.0.1:3000/api/v1'
+BASE = os.environ.get('GEWU_FORGEJO_URL', 'http://127.0.0.1:3000').rstrip('/') + '/api/v1'
 REPO = '/repos/team/terminal-bench-science'
 MARKER = '<!-- science-universe-author-proposal-bootstrap:v1 -->'
 

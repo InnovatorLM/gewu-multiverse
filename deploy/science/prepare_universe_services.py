@@ -8,7 +8,7 @@ import stat
 import tempfile
 import time
 
-from deployment_paths import WORKSPACE, universe_root
+from deployment_paths import WORKSPACE, broker_socket_name, universe_root
 
 DEFAULT_BROKER=WORKSPACE/'.state/science-role-broker/config.json'
 DEFAULT_QUEUE=WORKSPACE/'.config/science-evaluation/queue.json'
@@ -90,7 +90,10 @@ def plan(root, source_broker=DEFAULT_BROKER, source_queue=DEFAULT_QUEUE):
         snapshot=raw_snapshot.resolve()
         if not snapshot.is_relative_to(WORKSPACE.resolve()) or not snapshot.is_dir():
             raise ValueError('Registered snapshot is missing or outside workspace')
-    broker['socket']='@'+str(state/'role-broker.sock')
+    # Abstract AF_UNIX names have a 108-byte kernel limit.  The full workspace
+    # path is often longer than that on CPFS, so use the validated per-universe
+    # digest name instead of embedding the path.
+    broker['socket']=broker_socket_name(root)
     queue['state']=str(state/'evaluation-queue')
     queue['registry']=str(registry_out)
     queue['role_queues']=[configured[name] for name in sorted(configured)]

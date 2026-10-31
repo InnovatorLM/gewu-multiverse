@@ -2,9 +2,10 @@
 """Scoped Forgejo CLI inside role roots. Never prints authentication material."""
 import argparse
 import json
+import os
 import urllib.request
 
-BASE = 'http://127.0.0.1:3000/api/v1'
+BASE = os.environ.get('GEWU_FORGEJO_URL', 'http://127.0.0.1:3000').rstrip('/') + '/api/v1'
 
 def main():
     parser=argparse.ArgumentParser()

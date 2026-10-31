@@ -20,4 +20,20 @@ def load_controller_credentials():
             or parent.st_uid not in (0, 65534) or stat.S_IMODE(parent.st_mode) != 0o700
             or not path.resolve().is_relative_to(W)):
         raise ValueError('Controller credential ownership/type/mode refused')
-    return tomllib.loads(path.read_text())
+    credentials = tomllib.loads(path.read_text())
+    # Production universe launches opt in explicitly to the user-designated
+    # live model account.  This keeps the API key out of universe snapshots and
+    # prevents a stale per-universe key from silently selecting another account.
+    if os.environ.get('GEWU_LIVE_MODEL_TEST') == '1':
+        expected = {
+            'LLM_PROVIDER': 'dawnfm',
+            'OPENAI_BASE_URL': 'https://dawnfm.gravarc.cn/v1',
+            'OPENAI_MODEL': 'deepseek-v4.1-flash-1017',
+        }
+        if any(os.environ.get(name) != value for name, value in expected.items()):
+            raise ValueError('Designated live model account configuration is required')
+        key = os.environ.get('OPENAI_API_KEY')
+        if not key:
+            raise ValueError('Designated live model credential is unavailable')
+        credentials['model_key'] = key
+    return credentials

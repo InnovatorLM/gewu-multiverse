@@ -18,6 +18,36 @@ export GEWU_RESPONSE_TOKENS=8192
 export GEWU_CHAT_THINKING=disabled
 export GEWU_FORGEJO_TIMEOUT_SECS=120
 export GEWU_ROLE_BROKER_CONFIG="$U/.state/gewu-multiverse/role-broker/config.json"
+# Use the workspace-designated DawnFM account for every live model request.
+# Load quietly; the key remains only in this process environment, never in the
+# universe's persisted credentials or logs.
+LLM_ENV="$W/.config/llm/dawnfm.env"
+[[ -f "$LLM_ENV" && ! -L "$LLM_ENV" && $(stat -c '%a' "$LLM_ENV") == 600 ]] || {
+    echo 'Designated model credential file is missing or has unsafe permissions.' >&2; exit 1;
+}
+[[ $(stat -c '%a' "$(dirname "$LLM_ENV")") == 700 ]] || {
+    echo 'Designated model credential directory has unsafe permissions.' >&2; exit 1;
+}
+set -a
+source "$LLM_ENV"
+set +a
+export GEWU_LIVE_MODEL_TEST=1
+[[ "$LLM_PROVIDER" == dawnfm && "$OPENAI_BASE_URL" == https://dawnfm.gravarc.cn/v1 && \
+   "$OPENAI_MODEL" == deepseek-v4.1-flash-1017 && -n "$OPENAI_API_KEY" ]] || {
+    echo 'Designated live model account configuration is invalid.' >&2; exit 1;
+}
+# All operator services and role-side Forgejo tools use the port recorded in
+# this universe's instance.  The local-runtime launcher may choose a free
+# loopback port, so no service may assume 3000.
+FORGEJO_PORT=$("$PY" - "$U/.local/share/gewu-multiverse/forgejo/instance/app.ini" <<'PY'
+import re,sys
+text=open(sys.argv[1]).read()
+m=re.search(r'^HTTP_PORT\s*=\s*(\d+)\s*$',text,re.M)
+if not m: raise SystemExit('Forgejo HTTP_PORT is missing')
+print(m.group(1))
+PY
+)
+export GEWU_FORGEJO_URL="http://127.0.0.1:${FORGEJO_PORT}"
 SERVICE_STATE="$U/.state/gewu-multiverse"
 QUEUE_CONFIG="$U/.config/science-evaluation/queue.json"
 QUEUE_STATE="$SERVICE_STATE/evaluation-queue"

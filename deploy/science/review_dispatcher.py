@@ -18,7 +18,8 @@ def fingerprint(pr,comments):
 class Api:
     def __init__(self,token):self.token=token
     def call(self,method,path,data=None):
-        req=urllib.request.Request('http://127.0.0.1:3000/api/v1'+REPO+path,data=json.dumps(data).encode() if data is not None else None,method=method,headers={'Authorization':'token '+self.token,'Content-Type':'application/json'})
+        base=os.environ.get('GEWU_FORGEJO_URL','http://127.0.0.1:3000').rstrip('/')
+        req=urllib.request.Request(base+'/api/v1'+REPO+path,data=json.dumps(data).encode() if data is not None else None,method=method,headers={'Authorization':'token '+self.token,'Content-Type':'application/json'})
         with urllib.request.urlopen(req,timeout=30) as response:return json.load(response)
     def pages(self,path):
         out=[]

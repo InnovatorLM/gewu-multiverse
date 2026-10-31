@@ -6,7 +6,7 @@ import shutil
 import subprocess
 
 w = Path('/mnt/data/zhanglinfeng/workspace')
-from deployment_paths import universe_root
+from deployment_paths import broker_socket_name, deployment_state_root, universe_root
 universe = universe_root(w)
 source = w / '.state/role-chroot-proof'
 # Python package installation is role-local: vendor pip into the immutable
@@ -20,10 +20,10 @@ if host_pip_info.is_dir():
 pip_launcher = source / 'usr/local/bin/pip'
 pip_launcher.write_text('#!/bin/sh\nexec /usr/local/bin/python3 -m pip \"$@\"\n')
 pip_launcher.chmod(0o755)
-control = w / '.state/science-role-broker'
-control.mkdir(exist_ok=True)
-control.chmod(0o755)
-config = dict(controller_uid=65534, socket='@' + str(control / 'broker.sock'), roles={})
+control = deployment_state_root(universe) / 'role-broker'
+control.mkdir(mode=0o700, parents=True, exist_ok=True)
+control.chmod(0o700)
+config = dict(controller_uid=65534, socket=broker_socket_name(universe), roles={})
 config_root = universe / '.config/gewu-multiverse'
 agents = config_root / 'agents'
 agents.mkdir(exist_ok=True)
@@ -122,5 +122,5 @@ for index, role in enumerate(roles):
     config['roles'][role] = dict(root=str(root), uid=uid, gid=uid)
 path = control / 'config.json'
 path.write_text(json.dumps(config, indent=2))
-path.chmod(0o644)
+path.chmod(0o600)
 print(json.dumps({'config': str(path), 'roles': list(config['roles']), 'provider_key_staged': False}))

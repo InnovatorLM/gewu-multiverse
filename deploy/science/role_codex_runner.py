@@ -122,7 +122,7 @@ def run(request):
         raise ValueError('Invalid instruction')
     guidance = (
         'You are the ' + role + ' role in an isolated workspace. '
-        'Forgejo URL: http://127.0.0.1:3000. Use role-forgejo assigned to list assigned issues; '
+        'Forgejo URL: ' + os.environ.get('GEWU_FORGEJO_URL', 'http://127.0.0.1:3000') + '. Use role-forgejo assigned to list assigned issues; '
         'role-forgejo read --issue N to read an issue; role-forgejo comment --issue N --body-file PATH to post feedback. '
         'These commands replace forgejo_list_assigned_issues and forgejo_read_issue_or_pull named in role instructions. '
         'Use only assigned work; do not print credentials or private review material. '

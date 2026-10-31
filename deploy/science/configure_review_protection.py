@@ -6,6 +6,7 @@ print response bodies. This configures protection, not an approval or a merge.
 """
 import argparse
 import json
+import os
 from pathlib import Path
 import tomllib
 import requests
@@ -47,7 +48,8 @@ def main():
     session = requests.Session()
     session.trust_env = False
     session.headers['Authorization'] = 'token ' + credentials['forgejo_admin_token']
-    url = 'http://127.0.0.1:3000/api/v1/repos/team/terminal-bench-science/branch_protections/main'
+    base = os.environ.get('GEWU_FORGEJO_URL', 'http://127.0.0.1:3000').rstrip('/')
+    url = base + '/api/v1/repos/team/terminal-bench-science/branch_protections/main'
     if not args.check_only:
         response = session.patch(url, json=POLICY, timeout=15)
         if response.status_code != 200:

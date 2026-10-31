@@ -586,6 +586,23 @@ pub fn fetch(repository: &Path, credential: &GitCredential<'_>) -> Result<(), Wo
     Ok(())
 }
 
+/// Point an already provisioned clone at the Forgejo instance for this run.
+///
+/// Local hot runtimes may use a different loopback port from the stopped
+/// instance that created the clone.  The repository identity is verified by
+/// the controller before this is called, so rebinding `origin` avoids fetching
+/// a stale port while keeping credentials out of the URL.
+pub fn rebind_origin(
+    repository: &Path,
+    base: &str,
+    full_name: &str,
+    login: &str,
+) -> Result<(), WorkspaceError> {
+    let url = clone_url(base, full_name, login);
+    run_git(&["remote", "set-url", "origin", &url], repository, None)?;
+    Ok(())
+}
+
 /// Push the current branch to `origin`, as the agent.
 pub fn push(repository: &Path, credential: &GitCredential<'_>) -> Result<(), WorkspaceError> {
     run_git(
@@ -1070,6 +1087,30 @@ mod tests {
         )
         .expect_err("a non-git directory is refused");
         assert_eq!(error.class(), "destination_in_the_way");
+    }
+
+    #[test]
+    fn an_existing_clone_can_rebind_its_loopback_forgejo_port() {
+        let root = crate::test_support::scratch_root("workspace-rebind-origin");
+        let repository = root.join("repo");
+        std::fs::create_dir_all(&repository).expect("the repository directory");
+        git(&repository, &["init", "-q"]);
+        git(
+            &repository,
+            &["remote", "add", "origin", "http://127.0.0.1:3000/team/demo.git"],
+        );
+        rebind_origin(
+            &repository,
+            "http://127.0.0.1:3001",
+            "team/demo",
+            "gewu-author-01",
+        )
+        .expect("the origin is rebound");
+        assert_eq!(
+            remote_url(&repository).as_deref(),
+            Some("http://gewu-author-01@127.0.0.1:3001/team/demo.git")
+        );
+        assert!(!remote_url(&repository).unwrap().contains("token"));
     }
 }
 

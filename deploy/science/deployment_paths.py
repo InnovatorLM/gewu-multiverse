@@ -1,8 +1,20 @@
 """Explicit deployment identity; never silently select another universe."""
 import json
+import hashlib
 import os
 from pathlib import Path
 WORKSPACE=Path('/mnt/data/zhanglinfeng/workspace')
+
+def broker_socket_name(root):
+    """Return a short, collision-resistant abstract socket name.
+
+    Linux limits AF_UNIX names to 108 bytes.  A full CPFS workspace path can
+    exceed that limit, so putting the universe path directly in an abstract
+    socket silently makes startup fail.  The digest keeps two universes
+    separate without depending on the length of their path.
+    """
+    root=Path(root).resolve()
+    return '@gewu-broker-' + hashlib.sha256(str(root).encode()).hexdigest()[:32]
 
 def universe_root(workspace=WORKSPACE):
     workspace=Path(workspace).resolve()
@@ -19,6 +31,20 @@ def deployment_state_root(root=None):
     if not root.is_relative_to(WORKSPACE.resolve()) or root==WORKSPACE.resolve():
         raise ValueError('Deployment state root must be inside workspace')
     return root/'.state/gewu-multiverse'
+
+def _allowed_external_root():
+    """Optional stopped role-root donor used by the /tmp hot-runtime.
+
+    The donor must be an explicit workspace universe.  Its role roots remain
+    identity-isolated and are never accepted from an arbitrary host path.
+    """
+    value=os.environ.get('GEWU_EXTERNAL_ROLE_ROOTS')
+    if not value:
+        return None
+    path=Path(value).resolve()
+    if not path.is_relative_to(WORKSPACE.resolve()) or path==WORKSPACE.resolve():
+        raise ValueError('External role roots must be inside workspace')
+    return path
 
 def require_isolated_service_config(root=None, workspace=WORKSPACE):
     """Fail closed until each universe has its own broker and evaluator services."""
@@ -41,17 +67,25 @@ def require_isolated_service_config(root=None, workspace=WORKSPACE):
         broker_config=json.loads(broker.read_text())
         queue_config=json.loads(queue.read_text())
         expected_roles=(root/'.config/gewu-multiverse/agents').resolve()
+        external_root=_allowed_external_root()
+        external_roles=(external_root/'.config/gewu-multiverse/agents').resolve() if external_root else None
         socket=broker_config['socket']
-        socket_path=Path(socket[1:] if socket.startswith('@') else socket)
-        if not socket_path.resolve().is_relative_to(root):
-            raise ValueError
+        if socket.startswith('@'):
+            if socket != broker_socket_name(root):
+                raise ValueError
+        else:
+            socket_path=Path(socket)
+            if not socket_path.resolve().is_relative_to(root):
+                raise ValueError
         for role in broker_config['roles'].values():
-            if not Path(role['root']).resolve().is_relative_to(expected_roles):
+            role_path=Path(role['root']).resolve()
+            if not role_path.is_relative_to(expected_roles) and not (external_roles and role_path.is_relative_to(external_roles)):
                 raise ValueError
         queues=queue_config.get('role_queues') or [queue_config]
         for queue_entry in queues:
             for key in ('inbox','results','state','registry'):
-                if not Path(queue_entry.get(key,queue_config.get(key,''))).resolve().is_relative_to(root):
+                path=Path(queue_entry.get(key,queue_config.get(key,''))).resolve()
+                if not path.is_relative_to(root) and not (external_root and path.is_relative_to(external_root)):
                     raise ValueError
         for name,path in [('review dispatcher',required['review dispatcher']),
                           ('author selftest worker',required['author selftest worker']),

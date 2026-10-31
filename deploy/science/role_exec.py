@@ -65,10 +65,19 @@ def load_config(path):
     roots = [Path(value['root']) for value in config['roles'].values()]
     if any(a == b or a in b.parents or b in a.parents for i, a in enumerate(roots) for b in roots[i + 1:]):
         raise ValueError('Role roots must not overlap')
-    sock = Path(config['socket'].removeprefix('@'))
-    if not sock.is_absolute() or any(sock == root or root in sock.parents for root in roots):
-        raise ValueError('Socket must be outside role roots')
-    trusted(sock.parent, directory=True)
+    socket_name = config['socket']
+    if socket_name.startswith('@'):
+        # Abstract UNIX sockets are names, not filesystem paths.  They are
+        # deliberately short (the kernel limit is 108 bytes) and are already
+        # bound to one universe by deployment_paths.broker_socket_name().
+        name = socket_name[1:]
+        if not name or len(socket_name.encode()) > 107:
+            raise ValueError('Invalid abstract broker socket name')
+    else:
+        sock = Path(socket_name)
+        if not sock.is_absolute() or any(sock == root or root in sock.parents for root in roots):
+            raise ValueError('Socket must be outside role roots')
+        trusted(sock.parent, directory=True)
     return config
 
 
@@ -159,6 +168,7 @@ def execute_command(config, request, connection, gateway_env=()):
                'PATH=/home/role/.local/bin:/home/role/.local/env/bin:/usr/local/bin:/usr/bin:/bin', 'HOME=/home/role',
                'TMPDIR=/tmp', 'LD_LIBRARY_PATH=/home/role/.local/env/lib', 'PYTHONUSERBASE=/home/role/.local', 'PIP_CACHE_DIR=/home/role/.cache/pip', 'MAMBA_ROOT_PREFIX=/home/role/.local/mamba', 'CONDA_PREFIX=/home/role/.local/env', 'XDG_CACHE_HOME=/home/role/.cache',
                'XDG_CONFIG_HOME=/home/role/.config', 'XDG_STATE_HOME=/home/role/.state',
+               'GEWU_FORGEJO_URL=' + config.get('_forgejo_url', 'http://127.0.0.1:3000'),
                'LANG=C', 'LC_ALL=C',
                'GIT_ASKPASS=/usr/local/bin/role-askpass', 'GIT_TERMINAL_PROMPT=0',
                *gateway_env, '/bin/bash', '-c', 'cd -- "$1" || exit; shift; exec "$@"',
@@ -322,6 +332,7 @@ def main():
         raise SystemExit('Broker must be launched by root')
     config = load_config(args.config)
     config['_log_path'] = str(Path(args.config).resolve().parent / 'production-broker.log')
+    config['_forgejo_url'] = os.environ.get('GEWU_FORGEJO_URL', 'http://127.0.0.1:3000')
     abstract = config['socket'].startswith('@')
     path = Path(config['socket'].removeprefix('@'))
     if not abstract and path.exists():

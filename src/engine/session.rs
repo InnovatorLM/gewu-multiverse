@@ -211,6 +211,19 @@ impl SessionSpawner for RealSpawner {
                 Some(&credential),
             ) {
                 Ok((_, Prepared::AlreadyPresent)) => {
+                    workspace::rebind_origin(
+                        &destination,
+                        &request.forgejo_url,
+                        &repository.full_name,
+                        &request.login,
+                    )
+                    .map_err(|error| {
+                        format!(
+                            "`{}` could not be connected before the session: {}",
+                            repository.full_name,
+                            crate::model::excerpt(&error.detail(), 300)
+                        )
+                    })?;
                     workspace::fetch(&destination, &credential).map_err(|error| {
                         format!(
                             "`{}` could not be fetched before the session: {}",
