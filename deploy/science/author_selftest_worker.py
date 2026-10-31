@@ -48,6 +48,12 @@ def process(role,entry,request):
  save()
  try:
   q=json.loads(snapshot_upload(request,entry['uid'],16384));name=q['task_name'];archive=request.with_suffix('.tar')
+  if q.get('idea_id') is not None:
+   if not isinstance(q['idea_id'],str) or not re.fullmatch('[a-z0-9][a-z0-9-]{0,95}',q['idea_id']):raise ValueError('Invalid stable idea ID')
+   status['idea_id']=q['idea_id']
+  if q.get('request_review') is not None and q['request_review'] is not True:raise ValueError('Invalid review request')
+  if q.get('request_review') and not(q.get('idea_id') and q.get('iteration')):raise ValueError('Review request requires idea and iteration linkage')
+  atomic_json(work/'request.json',q)
   if q['job_id']!=job or not re.fullmatch('[a-z0-9][a-z0-9._-]{0,90}',name) or not re.fullmatch('[a-f0-9]{40}',q['source_commit']):raise ValueError('Invalid request identity')
   frozen=work/'upload.tar';snapshot_upload(archive,entry['uid'],140*1024*1024,frozen)
   if hashlib.sha256(frozen.read_bytes()).hexdigest()!=q['archive_sha256']:raise ValueError('Upload changed')
@@ -69,19 +75,20 @@ def process(role,entry,request):
   images=json.loads((work/'build/receipt.json').read_text())['images'];status['images']={k:v['published_digest'] for k,v in images.items()};status['trials']=[]
   for agent in ['oracle','nop']:
    status['status']='running_'+agent;save();c=json.loads((W/'.config/harbor-api/template.json').read_text());run='tbs-universe-linfeng-selftest-'+job[:12]+'-'+agent
-   c.update(job_name=run,jobs_dir=str(work/'runs'),n_attempts=1,n_concurrent_trials=1,datasets=[{'path':str(repo),'task_names':[name]}],agents=[{'name':agent,'override_timeout_sec':14400}]);c['retry']={'max_retries':0};c['environment']['delete']=True;c['environment']['import_path']=None;c['environment']['override_cpus']=4;c['environment']['override_memory_mb']=8192
+   c.update(job_name=run,jobs_dir=str(work/'runs'),n_attempts=1,n_concurrent_trials=1,datasets=[{'path':str(repo),'task_names':[name]}],agents=[{'name':agent,'override_timeout_sec':14400}]);c['retry']={'max_retries':0};c.setdefault('verifier',{}).update(include_logs=[],exclude_logs=[]);c['environment']['delete']=True;c['environment']['import_path']=None;c['environment']['override_cpus']=4;c['environment']['override_memory_mb']=8192
    kw=c['environment']['kwargs'];kw.update(use_sandbox_claim=False,runtime_image=images['official']['published_digest'],verifier_image=images['verifier']['published_digest']);kw.pop('verifier_image_manifest',None)
    spec=kw['pod_overrides']['spec'];spec.update(nodeName='virtual-kubelet-cn-beijing-i',activeDeadlineSeconds=14400);kw['pod_overrides'].setdefault('metadata',{}).setdefault('labels',{})['evaluation-run']=run
    for container in spec['containers']:
     container['image']=images['official']['published_digest']
     for k in ['requests','limits']:container['resources'][k].update(cpu='4',memory='8Gi')
    cfg=work/(agent+'.json');atomic_json(cfg,c);report=work/(agent+'-report.json')
+   acs_started_at=time.time()
    with (work/(agent+'.log')).open('w') as log:r=owned_run([str(Path(__file__).with_name('run-acs-evaluation')),str(cfg),str(report)],env=env,stdout=log,stderr=log,timeout=15000)
    d=json.loads(report.read_text()) if report.exists() else {};trials=[]
    if d.get('result_path'):
     for f in Path(d['result_path']).parent.glob('*/result.json'):
      t=json.loads(f.read_text());trials.append({'rewards':(t.get('verifier_result') or {}).get('rewards'),'exception_type':(t.get('exception_info') or {}).get('exception_type')})
-   status['trials'].append({'agent':agent,'exit_code':r.returncode,'cleanup_confirmed':d.get('cleanup',{}).get('confirmed',False),'results':trials});save()
+   status['trials'].append({'acs_started_at':acs_started_at,'acs_finished_at':time.time(),'agent':agent,'exit_code':r.returncode,'cleanup_confirmed':d.get('cleanup',{}).get('confirmed',False),'results':trials});save()
   def valid(t,reward):return t['exit_code']==0 and t['cleanup_confirmed'] and len(t['results'])==1 and not t['results'][0]['exception_type'] and (t['results'][0]['rewards'] or {}).get('reward')==reward
   status['status']='selftest_passed' if valid(status['trials'][0],1) and valid(status['trials'][1],0) else 'selftest_failed'
   status['note']='Author selftest only; iteration/rerun and independent evaluation still required.'
@@ -101,9 +108,19 @@ def main():
  with (STATE/'worker.lock').open('a') as lock:
   fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
   while True:
-   roles=json.loads(args.broker_config.read_text())['roles']
+   broker_config=json.loads(args.broker_config.read_text());roles=broker_config['roles']
    for role,entry in roles.items():
     if role.startswith('author-'):
-     for q in sorted((Path(entry['root'])/'selftest/inbox').glob('*.json')):process(role,entry,q)
+     for q in sorted((Path(entry['root'])/'selftest/inbox').glob('*.json')):
+      if not re.fullmatch('[a-f0-9]{32}',q.stem):continue
+      if not (STATE/q.stem).exists():
+       from iteration_lifecycle import scan_clocks
+       scan_clocks(dict(controller_uid=broker_config['controller_uid'],roles={role:entry}),state_root=STATE.parent,observation_root=STATE.parent/'command-watchdog/iteration-observations')
+      process(role,entry,q)
+      work=STATE/q.stem
+      if (work/'status.json').exists():
+       from selftest_handoff import reconcile
+       from deployment_paths import universe_root
+       reconcile(work,STATE,entry,universe_root(W))
    time.sleep(10)
 if __name__=='__main__':main()

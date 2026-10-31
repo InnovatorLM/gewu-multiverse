@@ -25,6 +25,8 @@ def validate(iteration, current, state, role):
     for key in ('source_repository', 'source_task_path'):
         if prior.get(key) != current.get(key):
             raise ValueError('Iteration must refer to the same task/repository')
+    if current.get('idea_id') is not None and prior.get('idea_id') != current['idea_id']:
+        raise ValueError('Iteration cannot change or introduce an unbound idea ID')
     end, start = prior.get('completed_at'), current.get('received_at')
     if any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) for v in (end, start)) or end > start:
         raise ValueError('Iteration must follow completed execution')

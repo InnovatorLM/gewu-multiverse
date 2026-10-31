@@ -30,6 +30,8 @@ class IterationTests(unittest.TestCase):
             for field in ('source_commit','snapshot_sha256'):
                 bad=dict(current);bad[field]=prior[field]
                 with self.subTest(field=field),self.assertRaises(ValueError):validate(link,bad,state,'author-01')
+            with self.assertRaisesRegex(ValueError,'idea ID'):
+                validate(link,dict(current,idea_id='new-unbound-idea'),state,'author-01')
             (task/'data').write_text('tampered')
             with self.assertRaises(ValueError):validate(link,current,state,'author-01')
 

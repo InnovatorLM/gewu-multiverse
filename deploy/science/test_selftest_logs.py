@@ -20,4 +20,16 @@ class LogTests(unittest.TestCase):
             self.assertIn('failure',content);self.assertEqual((work/'build.log').read_text(),original)
             self.assertEqual((root/path.lstrip('/')).stat().st_mode&0o777,0o640)
 
+    def test_verifier_failures_reach_author_with_run_context_and_redaction(self):
+        with tempfile.TemporaryDirectory(dir=W/'.tmp') as raw:
+            root=Path(raw);work=root/'work';verifier=work/'runs/oracle-run/task/verifier';verifier.mkdir(parents=True)
+            (root/'selftest/results').mkdir(parents=True)
+            (verifier/'test-stdout.txt').write_text('AssertionError: certificate expiry wrong; exact-secret')
+            (verifier/'ctrf.json').write_text('{"failed":1}')
+            path=publish(work,root,'a'*32,os.getgid(),['exact-secret'])
+            content=(root/path.lstrip('/')).read_text()
+            self.assertIn('runs/oracle-run/task/verifier/test-stdout.txt',content)
+            self.assertIn('certificate expiry wrong',content);self.assertNotIn('exact-secret',content)
+            self.assertIn('"failed":1',content)
+
 if __name__=='__main__':unittest.main()

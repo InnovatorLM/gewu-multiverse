@@ -1,5 +1,14 @@
 # 本轮宇宙问题总表（2026-10-30）
 
+## 作者自测至登记的自动衔接（2026-10-31，继续）
+
+- 作者客户端新增稳定idea ID与显式request-review，前后迭代必须属于相同idea；worker保存不可变原始请求和实际ACS执行起止。启动器在生命周期锁内安装当前作者客户端与计时客户端。
+- 新增自动handoff：重新核验原始作者版本、冻结执行、正负对照、mechanical回执及前一完成作业／题包修改；按operator观测起点减去实际ACS区间重算保守主动时间上界。未经证实的暂停不扣除；起点历史未独立证明，明确保留event_origin_attested=false。不可将此机制描述为完整抗伪造的工作计时。
+- 先生成Codex配置、完成准确版本登记，再发布作者审核资格。登记失败不发布，恢复后重试，已完成登记复用；可见handoff stage/reason与等待状态。中断worker的building残留不会覆盖已发布interrupted状态。
+- 作者诊断新增实际verifier stdout／CTRF尾部，按run路径区分，统一脱敏；自测配置取消历史reward-only日志过滤。
+- 28项自测联合离线回归通过。其中真实本机Git提交／freeze、实际登记子进程、schema、catalog、资格发布及dispatcher匹配已验证；该集成用合成cloud-control回执，没有新增ACS或模型执行。保留之前真实简单题五次ACS证据，不以此混称新作者自主交接通过。
+- 正式宇宙仍停止；需继续验证隔离角色使用新客户端和实际作业后自动衔接，以及reset／生命周期等剩余系统事项。
+
 ## 简单题并行平台回归已完成（2026-10-31）
 
 - 第二批 platform-openssl-parallel-v2 五次均 solver_complete、reward=1、n_errors=0、cleanup_confirmed=true；指定 DeepSeek／Codex模型身份经轨迹核对，五份session_id互不相同，五次执行起止区间共同重叠，确认不是顺序启动后拼成五份。

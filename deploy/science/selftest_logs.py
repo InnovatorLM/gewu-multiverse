@@ -54,12 +54,14 @@ def publish(work,root,job,gid,secrets=()):
     sections=[]
     paths=[work/name for name in ['build.log','oracle.log','nop.log']]
     paths+=sorted((work/'build').glob('docker-*.log'))
+    paths+=sorted((work/'runs').glob('*/*/verifier/test-stdout.txt'))
+    paths+=sorted((work/'runs').glob('*/*/verifier/ctrf.json'))
     for path in paths:
         if not path.is_file() or path.is_symlink():continue
         with path.open('rb') as stream:
             stream.seek(0,2);start=max(0,stream.tell()-16384);stream.seek(start);raw=stream.read(16384)
         if start:raw=raw.partition(b'\n')[2]
-        sections.append('## '+path.name+'\n'+sanitize(raw.decode(errors='replace'),secrets))
+        sections.append('## '+str(path.relative_to(work))+'\n'+sanitize(raw.decode(errors='replace'),secrets))
     text='Selftest diagnostics; bounded log tails, not a success attestation.\n'+'\n'.join(sections[-12:])
     pending=directory/(job+'.diagnostics.pending')
     fd=os.open(pending,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o640)
