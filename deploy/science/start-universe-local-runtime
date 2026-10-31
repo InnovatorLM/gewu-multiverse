@@ -28,7 +28,17 @@ SOURCE_FORGEJO="$SOURCE/.local/share/gewu-multiverse/forgejo/instance"
 # A newly prepared universe may intentionally contain only configuration.  In
 # that case recover the last stopped Forgejo instance, which carries the role
 # accounts, ACLs, and imported repository database.
-if [ ! -f "$SOURCE_FORGEJO/data/forgejo.db" ]; then
+if [ ! -f "$SOURCE_FORGEJO/data/forgejo.db" ] || ! python3 - "$SOURCE_FORGEJO/data/forgejo.db" <<'PY'
+import sqlite3
+import sys
+try:
+    with sqlite3.connect('file:' + sys.argv[1] + '?mode=ro', uri=True) as db:
+        ok = db.execute("select 1 from user where login_name = 'gewu-author-01' limit 1").fetchone()
+except Exception:
+    ok = None
+raise SystemExit(0 if ok else 1)
+PY
+then
   SOURCE_FORGEJO="$W/universes/my-terminal-bench-science/.local/share/gewu-multiverse/forgejo/instance"
 fi
 LOCAL_FORGEJO="$RUNTIME/.local/share/gewu-multiverse/forgejo/instance"
