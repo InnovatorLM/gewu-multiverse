@@ -21,7 +21,9 @@ done
 cp "$SOURCE/README.md" "$RUNTIME/README.md" 2>/dev/null || true
 ln -sfn "$SOURCE/import" "$RUNTIME/import"
 cp "$SOURCE/start" "$RUNTIME/start"
-sed -i "s#my-terminal-bench-science-v2#$(basename "$RUNTIME")#g" "$RUNTIME/start"
+# The copied launcher must point its universe root at the local runtime, not at
+# the source path (and not at a guessed basename under the CPFS universe tree).
+sed -i "s#^U=.*#U=\"$RUNTIME\"#" "$RUNTIME/start"
 # The runtime is owned by the controller UID; configuration is readable by it.
 mkdir -p "$RUNTIME/.local/share" "$RUNTIME/.state" "$RUNTIME/.cache" "$RUNTIME/.tmp"
 chown -R nobody:nogroup "$RUNTIME/.config" "$RUNTIME/workspaces" "$RUNTIME/.local" "$RUNTIME/.state" "$RUNTIME/.cache" "$RUNTIME/.tmp"
