@@ -46,6 +46,24 @@ class ArchiveTests(unittest.TestCase):
             self.assertEqual(row['state'],'waiting_author')
             self.assertNotIn('private-value',row['reason'])
 
+    def test_schedule_reason_requires_matching_controller_and_redacts(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory(dir=m.W/'.tmp') as raw:
+            root=Path(raw);(root/'author-01').mkdir();(root/'controller.pid').write_text('123')
+            p=root/'author-01/schedule-state.json'
+            row=dict(version=1,controller_pid=123,role='author-01',state='blocked',reason='missing token=private-value',next_at=None,last_session_outcome='refused',last_business_activity='opened pull request #33')
+            p.write_text(json.dumps(row))
+            with patch.object(m,'ROOT',root):
+                result=m.scheduling_state('author-01')
+                self.assertNotIn('private-value',result['reason'])
+                self.assertEqual(result['last_session_outcome'],'refused')
+                self.assertEqual(result['last_business_activity'],'opened pull request #33')
+                self.assertEqual(m.scheduling_status('等待调度',result),'调度受阻')
+                self.assertEqual(m.scheduling_status('控制器未运行',result),'控制器未运行')
+                self.assertEqual(m.scheduling_status('运行中',result),'运行中')
+                row['controller_pid']=124;p.write_text(json.dumps(row))
+                self.assertIsNone(m.scheduling_state('author-01'))
+
     def test_review_wait_is_distinguished_without_overriding_process_facts(self):
         for state,label in [('waiting_author','等待作者修复'),('waiting_platform','等待平台处理'),('completed','审核完成，等待新任务')]:
             self.assertEqual(m.review_role_status('等待调度',{'state':state}),label)

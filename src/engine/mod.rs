@@ -498,6 +498,7 @@ struct AgentRuntime {
     instruction: Option<String>,
     instruction_lines: usize,
     instruction_mtime: Option<SystemTime>,
+    schedule_snapshot: Option<String>,
     activity: Option<String>,
     activity_at: Option<SystemTime>,
     last_error: Option<String>,
@@ -928,6 +929,7 @@ impl AgentRuntime {
             instruction: instruction_text,
             instruction_lines: lines,
             instruction_mtime: mtime,
+            schedule_snapshot: None,
             activity,
             activity_at,
             last_error,
@@ -1261,6 +1263,31 @@ impl Inner {
                 && operator_role_held(self.options.layout.state_root(), &agent.name)
             {
                 acknowledge_operator_hold(self.options.layout.state_root(), &agent.name);
+            }
+            let agent = &mut self.agents[index];
+            let (state, reason, next_at) = match &agent.session {
+                SessionState::Idle => ("idle", None, None),
+                SessionState::Running { .. } => ("running", None, None),
+                SessionState::Blocked { reason } => ("blocked", Some(reason.as_str()), None),
+                SessionState::Restarting { next_at, .. } => ("restarting", None,
+                    next_at.duration_since(SystemTime::UNIX_EPOCH).ok().map(|v| v.as_secs())),
+            };
+            let last_outcome = agent.last_end.as_ref().map(|end| match end {
+                SessionEnd::Succeeded => "succeeded", SessionEnd::Refused { .. } => "refused",
+                SessionEnd::NoWork { .. } => "no_work", SessionEnd::Warned { .. } => "warned",
+                SessionEnd::Failed { .. } => "failed", SessionEnd::TimedOut => "timed_out",
+                SessionEnd::Stopped => "stopped",
+            });
+            let snapshot = serde_json::json!({"version":1,"controller_pid":std::process::id(),
+                "role":agent.name,"state":state,"reason":reason,"next_at":next_at,
+                "last_session_outcome":last_outcome,"last_business_activity":agent.activity}).to_string();
+            if agent.schedule_snapshot.as_ref() != Some(&snapshot) {
+                let directory = self.options.layout.state_root().join(&agent.name);
+                if fs::create_dir_all(&directory).is_ok()
+                    && crate::mode::write_private(directory.join("schedule-state.json"),snapshot.as_bytes()).is_ok()
+                {
+                    agent.schedule_snapshot = Some(snapshot);
+                }
             }
         }
     }
@@ -5003,6 +5030,11 @@ mod tests {
             other => panic!("expected Blocked, got {other:?}"),
         }
         assert_eq!(fake.counts().1, 0, "a blocked agent started a session");
+        let schedule = Layout::rooted_at(root.clone()).unwrap().state_root().join("agent-1/schedule-state.json");
+        let saved: serde_json::Value = serde_json::from_slice(&fs::read(schedule).unwrap()).unwrap();
+        assert_eq!(saved["state"], "blocked");
+        assert_eq!(saved["reason"], "needs a model");
+        assert_eq!(saved["controller_pid"], std::process::id());
         engine
             .send(Command::SetEndpoint {
                 url: "http://127.0.0.1:9/v1/chat/completions".to_owned(),

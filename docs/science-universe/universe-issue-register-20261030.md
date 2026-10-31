@@ -325,3 +325,10 @@ role_progress_review.py：读取最新轨迹，对反复失败、大上下文、
 - 该证据证明停止状态下核心配置/Forgejo打包、解包和SQLite/Git完整性；外部角色根、环境及历史轨迹保留原处，未宣称整套环境恢复或恢复服务已启动。私有证据`stopped-snapshot-v1/verified-evidence.json`，归档及恢复副本不提交Git。
 - 在线reset三个实际会话六份原始日志/轨迹按workspace controller/model/role已知凭证值扫描，匹配0；不声称检测全部未知秘密或实际恶意泄露测试。证据`online-reset-v1/raw-log-secret-scan.json`。
 - 新增逐项范围复核文档`repair-completion-audit-20261031.md`，明确CPFS位置、真实行为验收边界、网页未输出完整引擎阻塞原因及正常交接refused归因等仍待处理，不把历史未完成记录或累计测试数当作完成证书。正式宇宙仍停止。
+
+### 2026-10-31：历史交接refused定位及完整调度状态输出（待部署）
+
+- 原始author-04轨迹定位于私有`.state/backups/launch-fix-20261031T033720Z/universe-state/author-04/run-1793353639636-0005/`，不是当前donor路径。实际证据显示PR33创建和Issue19评论均ok；此前两次模拟运行尝试mkdir /root被拒绝（复合命令exit0），会话累计失败证据仍使终态refused。不得把该终态解读为PR未提交、题目质量被拒绝，也不得抹去真实工具失败。
+- 已增加控制器每角色schedule-state.json，仅内容变化时写入，输出当前controller PID、blocked原因、next_at、最近业务Git活动及上次会话结果。网页仅接收当前controller PID匹配的状态，统一脱敏，分别显示业务活动与会话结果，并提示不代表审核结论；停机或真实进程状态优先。冷启动无run也可读取调度原因。
+- 监控11项通过；Rust阻塞状态实际文件断言与原完整回归354通过，最后增加业务字段后的完整回归继续执行。尚未安装新版二进制或声称新网页实机展示通过。
+- 旧gewu-before-repair归档读取出现unexpected end of data；保留原件，不作为有效恢复证据。另一份gewu-after-repair可完整读取12830成员但不含目标轨迹，原始目标轨迹已在目录备份核实存在。三份顶层旧代码归档/Bundle权限收紧为0600，备份父目录0700。新停机快照的SQLite/Git恢复证明仍有效。定位证据`handoff-outcome-audit/verified-evidence.json`。
