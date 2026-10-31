@@ -19,6 +19,44 @@ for f in "$SOURCE/.config/gewu-multiverse/credentials.toml" \
          "$SOURCE/.config/science-evaluation/registry.json"; do
   [ -f "$f" ] && timeout 10 cp "$f" "$RUNTIME/.config/${f#*/.config/}" || true
 done
+# A hot runtime needs the Forgejo database, repository objects, and signing
+# secrets that belong together.  Seeding only the TOML credentials creates a
+# fresh owner-only Forgejo and makes every role's old token fail verification.
+# Copy the stopped universe's instance once into local storage; subsequent
+# starts reuse that local copy.  The source instance is never modified.
+SOURCE_FORGEJO="$SOURCE/.local/share/gewu-multiverse/forgejo/instance"
+# A newly prepared universe may intentionally contain only configuration.  In
+# that case recover the last stopped Forgejo instance, which carries the role
+# accounts, ACLs, and imported repository database.
+if [ ! -f "$SOURCE_FORGEJO/data/forgejo.db" ]; then
+  SOURCE_FORGEJO="$W/universes/my-terminal-bench-science/.local/share/gewu-multiverse/forgejo/instance"
+fi
+LOCAL_FORGEJO="$RUNTIME/.local/share/gewu-multiverse/forgejo/instance"
+if [ ! -f "$LOCAL_FORGEJO/data/forgejo.db" ] && [ -f "$SOURCE_FORGEJO/data/forgejo.db" ]; then
+  mkdir -p "$LOCAL_FORGEJO"
+  seed="$RUNTIME/.tmp/forgejo-seed-$$"
+  mkdir -p "$seed"
+  cp -a "$SOURCE_FORGEJO/data" "$seed/data"
+  cp -a "$SOURCE_FORGEJO/secrets" "$seed/secrets"
+  cp -a "$SOURCE_FORGEJO/home" "$seed/home" 2>/dev/null || true
+  cp -a "$SOURCE_FORGEJO/app.ini" "$seed/app.ini"
+  python3 - "$seed/app.ini" "$SOURCE_FORGEJO" "$RUNTIME" <<'PY'
+from pathlib import Path
+import sys
+p, old, new = Path(sys.argv[1]), sys.argv[2], sys.argv[3]
+text = p.read_text()
+text = text.replace(old, new)
+text = text.replace('HTTP_PORT = 3000', 'HTTP_PORT = 3001')
+text = text.replace('ROOT_URL = http://127.0.0.1:3000/', 'ROOT_URL = http://127.0.0.1:3001/')
+p.write_text(text)
+PY
+  mv "$LOCAL_FORGEJO/data" "$LOCAL_FORGEJO/data.initial" 2>/dev/null || true
+  mv "$seed/data" "$LOCAL_FORGEJO/data"
+  mv "$seed/secrets" "$LOCAL_FORGEJO/secrets"
+  mv "$seed/home" "$LOCAL_FORGEJO/home" 2>/dev/null || true
+  mv "$seed/app.ini" "$LOCAL_FORGEJO/app.ini"
+  rmdir "$seed" 2>/dev/null || true
+fi
 for role in curator author-01 author-02 author-03 author-04 evaluator-01 evaluator-02; do
   mkdir -p "$RUNTIME/.config/gewu-multiverse/agents/$role"
   [ -f "$W/gewu-multiverse/deploy/science/default-instructions/curator.md" ] && [ "$role" = curator ] && cp "$W/gewu-multiverse/deploy/science/default-instructions/curator.md" "$RUNTIME/.config/gewu-multiverse/agents/$role/instruction.md" 2>/dev/null || true
