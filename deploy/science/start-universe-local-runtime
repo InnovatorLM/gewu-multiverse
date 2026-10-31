@@ -52,8 +52,13 @@ sed -i "s#^U=.*#U=\"$RUNTIME\"#" "$RUNTIME/start"
 # The runtime is owned by the controller UID; configuration is readable by it.
 mkdir -p "$RUNTIME/.local/share" "$RUNTIME/.state" "$RUNTIME/.cache" "$RUNTIME/.tmp"
 chown -R nobody:nogroup "$RUNTIME/.config" "$RUNTIME/workspaces" "$RUNTIME/.local" "$RUNTIME/.state" "$RUNTIME/.cache" "$RUNTIME/.tmp"
-chmod 700 "$RUNTIME/.config/gewu-multiverse" "$RUNTIME/.config/science-evaluation" 2>/dev/null || true
-chmod 600 "$RUNTIME/.config/gewu-multiverse"/* "$RUNTIME/.config/science-evaluation"/* 2>/dev/null || true
+# Keep directories searchable by the dropped controller UID while restricting
+# configuration files themselves.  A glob over the agents directory would
+# otherwise chmod the directory to 0600, making instruction.md unreadable.
+find "$RUNTIME/.config/gewu-multiverse" "$RUNTIME/.config/science-evaluation" \
+  -type d -exec chmod 700 {} + 2>/dev/null || true
+find "$RUNTIME/.config/gewu-multiverse" "$RUNTIME/.config/science-evaluation" \
+  -type f -exec chmod 600 {} + 2>/dev/null || true
 backup() {
   local stamp
   stamp=$(date -u +%Y%m%dT%H%M%SZ)
