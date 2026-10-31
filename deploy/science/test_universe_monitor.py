@@ -17,6 +17,26 @@ class ArchiveTests(unittest.TestCase):
             self.assertIn('当前启用 1 个角色',state['brief']['text'])
             self.assertEqual(state['brief']['periods'],[])
 
+    def test_actual_startup_failure_is_visible_redacted_and_not_reported_running(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory(dir=m.W/'.tmp') as d:
+            root=Path(d);run=root/'author-01/run-failed';run.mkdir(parents=True)
+            (run/'startup-error.txt').write_text('clone permission denied token=private-value')
+            with patch.object(m,'ROOT',root), \
+                 patch.object(m,'desired_roles',return_value={'author-01':'started'}), \
+                 patch.object(m,'controller_live',return_value=True), \
+                 patch.object(m,'review_waits',return_value={}), \
+                 patch.object(m,'read_brief',return_value={}):
+                row=m.snapshot()['roles'][0]
+                self.assertEqual(row['status'],'启动失败')
+                self.assertIn('clone permission denied',row['startup_error'])
+                self.assertNotIn('private-value',json.dumps(row))
+                with patch.object(m,'controller_live',return_value=False):
+                    self.assertEqual(m.snapshot()['roles'][0]['status'],'控制器未运行')
+                with patch.object(m,'live_run',return_value=True):
+                    self.assertEqual(m.snapshot()['roles'][0]['status'],'运行中')
+        self.assertIn('esc(x.startup_error)',m.HTML)
+
     def test_review_wait_reason_is_latest_and_redacted(self):
         from unittest.mock import patch
         with tempfile.TemporaryDirectory(dir=m.W/'.tmp') as d,patch.object(m,'DISPATCH_STATE',Path(d)):
