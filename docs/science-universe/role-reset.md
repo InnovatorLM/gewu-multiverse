@@ -23,3 +23,15 @@ Current validation: eight reset tests pass, including real disposable-process te
 Reset currently requires the launcher and its supervisor to be stopped: the launcher holds a shared lifetime lock and reset requires exclusive access. This prevents concurrent controller starts during maintenance, but is not a hot, per-role controller transaction. A successful reset receipt still does not prove that the next real model session was scheduled or read the directive; verify that separately before claiming full behavioral acceptance.
 
 Real maintenance recovery validation (2026-10-31): a private upstream-fixture PR passed the actual author gate and immutable registration, received one exclusive assignment, and the controller cloned its new repository and started evaluator-02 after reset. Seven designated DeepSeek requests were retained; the initial request contained the exact reset ID, and the model wrote the expected nonce plus assignment identity and exited 0. Evidence is private under workspace `.state/universe-repair-20261031/reset-controller-v1/verified-evidence.json`. This verifies controller-managed recovery after maintenance, not hot per-role reset or scientific acceptance. The fixture PR/issue were closed and the test deployment stopped afterward.
+
+Controller hold groundwork (not yet an online reset CLI): the scheduler recognizes
+`<state-root>/operator-role-holds/<role>` as a fail-closed pause. The marker is
+operator-managed and contains no executable instructions. It leaves the saved
+started/stopped choice intact, stops a current local session through the existing
+session settlement path, and prevents a replacement while present. In-flight
+preparation and spawn handoff also check the hold. Removing it lets the normal
+scheduler resume. Other roles and operator-owned cloud jobs are unaffected by
+this gate. Do not use file presence or disappearance as proof that cleanup has
+finished: an acknowledged transaction and CLI integration are still required
+before claiming online reset support. This source change is not deployed by
+editing the file; the installed binary must be rebuilt and validated separately.

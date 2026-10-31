@@ -1206,6 +1206,15 @@ impl Engine {
     }
 }
 
+/// Presence is a fail-closed operator hold, including malformed files or links.
+/// No instruction or executable content is read from this marker.
+fn operator_role_held(state_root: &Path, name: &str) -> bool {
+    match fs::symlink_metadata(state_root.join("operator-role-holds").join(name)) {
+        Ok(_) => true,
+        Err(error) => error.kind() != std::io::ErrorKind::NotFound,
+    }
+}
+
 impl Inner {
     fn poll(&mut self, now: Instant) {
         if self.stopping {
@@ -1214,6 +1223,17 @@ impl Inner {
         self.refresh_instructions();
         self.poll_forgejo(now);
         for index in 0..self.agents.len() {
+            if operator_role_held(self.options.layout.state_root(), &self.agents[index].name) {
+                // Keep an in-flight prepare marked as starting until its worker
+                // reaches its cancellation boundary. Do not pretend it has settled.
+                if self.agents[index].running.as_ref().is_some_and(|run| !run.stopping) {
+                    let grace = self.options.stop_grace;
+                    stop_agent(&mut self.agents[index], grace);
+                }
+                if let Some(pid) = self.agents[index].starting_pid {
+                    signal_group(pid, nix::sys::signal::Signal::SIGTERM);
+                }
+            }
             self.poll_agent(index, now);
         }
     }
@@ -1394,6 +1414,9 @@ impl Inner {
 
     fn block_reason(&self, index: usize) -> Option<String> {
         let agent = &self.agents[index];
+        if operator_role_held(self.options.layout.state_root(), &agent.name) {
+            return Some("operator reset holds this role; awaiting explicit release".into());
+        }
         if std::env::var_os(crate::role_broker::CONFIG_ENV).is_some() {
             if self.options.confinement != crate::confinement::Method::RoleBroker {
                 return Some("configured role broker is unavailable; unconfined runs refused".into());
@@ -3179,6 +3202,7 @@ fn session_job(
         if guard.stopping
             || guard.generation != generation
             || guard.agents[index].desired != Desired::Started
+            || operator_role_held(guard.options.layout.state_root(), &request.agent)
             || !guard.agents[index].starting
         {
             guard.agents[index].starting = false;
@@ -3204,6 +3228,7 @@ fn session_job(
             if guard.stopping
                 || guard.generation != generation
                 || guard.agents[index].desired != Desired::Started
+                || operator_role_held(guard.options.layout.state_root(), &request.agent)
             {
                 guard.agents[index].starting = false;
                 guard.agents[index].starting_pid = None;
@@ -3262,6 +3287,7 @@ fn session_job(
     let called_off = guard.stopping
         || guard.generation != generation
         || guard.agents[index].desired != Desired::Started
+        || operator_role_held(guard.options.layout.state_root(), &request.agent)
         || !guard.agents[index].starting;
     if called_off {
         guard.agents[index].starting = false;
@@ -4842,6 +4868,74 @@ mod tests {
             .expect("stop");
         tick(&mut engine, &clock, Duration::from_secs(600));
         assert_eq!(fake.counts().1, 1, "a stopped back-off started a session");
+    }
+
+    #[test]
+    fn operator_hold_blocks_only_its_role_and_release_resumes_without_changing_desired() {
+        let root = scratch_root("engine-operator-hold");
+        let settings = write_ready(&root, &[("agent-1", Desired::Started), ("agent-2", Desired::Stopped)]);
+        let layout = Layout::rooted_at(root.clone()).unwrap();
+        let holds = layout.state_root().join("operator-role-holds");
+        fs::create_dir_all(&holds).unwrap();
+        let marker = holds.join("agent-1");
+        fs::write(&marker, "operator transaction nonce").unwrap();
+        let clock = Arc::new(FakeClock::new());
+        let fake = Arc::new(FakeSpawner::new());
+        let mut engine = open_test_engine(&root, settings, Arc::clone(&clock), Arc::clone(&fake));
+        tick(&mut engine, &clock, Duration::ZERO);
+        assert_eq!(fake.counts().1, 0);
+        let view = engine.board();
+        assert_eq!(view.agents[0].desired, Desired::Started);
+        assert!(matches!(&view.agents[0].session, SessionState::Blocked { reason } if reason.contains("operator reset")));
+        assert_eq!(view.agents[1].session, SessionState::Idle);
+        fs::remove_file(&marker).unwrap();
+        tick(&mut engine, &clock, Duration::ZERO);
+        wait_started(&fake, 1);
+        assert_eq!(fake.counts().1, 1);
+        fake.finish_current(0);
+        tick(&mut engine, &clock, Duration::ZERO);
+    }
+
+    #[test]
+    fn operator_hold_cancels_a_child_spawned_before_the_pause_was_observed() {
+        let root = scratch_root("engine-operator-hold-spawning");
+        let settings = write_ready(&root, &[("agent-1", Desired::Started)]);
+        let clock = Arc::new(FakeClock::new());
+        let fake = Arc::new(FakeSpawner::new());
+        let (pid_rx, release) = fake.block_next_spawn();
+        let mut engine = open_test_engine(&root, settings, Arc::clone(&clock), Arc::clone(&fake));
+        tick(&mut engine, &clock, Duration::ZERO);
+        let pid = pid_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        let holds = Layout::rooted_at(root.clone()).unwrap().state_root().join("operator-role-holds");
+        fs::create_dir_all(&holds).unwrap();
+        fs::write(holds.join("agent-1"), "hold").unwrap();
+        release.send(()).unwrap();
+        let deadline = Instant::now() + Duration::from_secs(3);
+        while fake.is_live(pid) && Instant::now() < deadline {
+            tick(&mut engine, &clock, Duration::ZERO);
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(!fake.is_live(pid), "a pre-pause child survived the cancelled handoff");
+        tick(&mut engine, &clock, Duration::from_secs(600));
+        assert_eq!(fake.counts().1, 1);
+    }
+
+    #[test]
+    fn operator_hold_stops_live_session_and_prevents_automatic_replacement() {
+        let root = scratch_root("engine-operator-hold-live");
+        let settings = write_ready(&root, &[("agent-1", Desired::Started)]);
+        let clock = Arc::new(FakeClock::new());
+        let fake = Arc::new(FakeSpawner::new());
+        let mut engine = open_test_engine(&root, settings, Arc::clone(&clock), Arc::clone(&fake));
+        tick(&mut engine, &clock, Duration::ZERO);
+        wait_started(&fake, 1);
+        let holds = Layout::rooted_at(root.clone()).unwrap().state_root().join("operator-role-holds");
+        fs::create_dir_all(&holds).unwrap();
+        fs::write(holds.join("agent-1"), "hold").unwrap();
+        tick(&mut engine, &clock, Duration::from_secs(60));
+        tick(&mut engine, &clock, Duration::from_secs(600));
+        assert_eq!(fake.counts().1, 1);
+        assert_eq!(engine.board().agents[0].desired, Desired::Started);
     }
 
     #[test]
