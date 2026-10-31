@@ -96,7 +96,7 @@ def update_instructions(root, universe, role, directory, receipt, reason, guidan
     receipt['instruction_copies_updated']=[str(path) for path,_,_ in versions]
 
 
-def reset(role, reason, guidance, apply=False, grace=5):
+def reset(role, reason, guidance, apply=False, grace=5, _online_nonce=None):
     if os.geteuid() != 0:
         raise PermissionError('Operator required')
     if not reason.strip() or not guidance.strip() or any(x in reason + guidance for x in (BEGIN, END)):
@@ -144,8 +144,13 @@ def reset(role, reason, guidance, apply=False, grace=5):
         return receipt
     directory = DEPLOYMENT_STATE / 'role-reset'
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
-    with maintenance_lock(directory), (directory / (role + '.lock')).open('a') as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    lifecycle=contextlib.nullcontext() if _online_nonce else maintenance_lock(directory)
+    role_lock=contextlib.nullcontext() if _online_nonce else (directory / (role + '.lock')).open('a')
+    with lifecycle, role_lock as lock:
+        if _online_nonce:
+            verify_pause(role,_online_nonce,config)
+        else:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         path = directory / (receipt['reset_id'] + '.json')
         def save():
             path.write_text(json.dumps(receipt, ensure_ascii=False, indent=2)); path.chmod(0o600)
@@ -170,12 +175,74 @@ def reset(role, reason, guidance, apply=False, grace=5):
             raise RuntimeError('Processes survived; inspect reset receipt')
         return receipt
 
+def verify_pause(role, nonce, config):
+    marker=DEPLOYMENT_STATE/'operator-role-holds'/role
+    if marker.is_symlink() or marker.read_text()!=nonce:
+        raise RuntimeError('Operator pause marker changed; role remains held')
+    path=DEPLOYMENT_STATE/role/'operator-hold-ack.json'
+    if path.is_symlink() or path.stat().st_uid!=config['controller_uid']:
+        raise RuntimeError('Pause acknowledgement ownership/type refused')
+    ack=json.loads(path.read_text())
+    pid=int((DEPLOYMENT_STATE/'controller.pid').read_text())
+    info=identity(pid)
+    if (ack.get('version')!=1 or ack.get('nonce')!=nonce or ack.get('role')!=role
+        or ack.get('quiescent') is not True or ack.get('controller_pid')!=pid
+        or info['uid']!=config['controller_uid'] or info['state']=='Z'
+        or b'--run-agent' in info['argv']
+        or b'gewu-multiverse' not in Path(os.fsdecode(info['argv'][0])).name.encode()):
+        raise RuntimeError('Pause acknowledgement/controller identity mismatch')
+    return info
+
+
+def online_reset(role, reason, guidance, apply=False, grace=5, wait_seconds=120):
+    if not apply:return reset(role,reason,guidance,False,grace)
+    # Validate the request before publishing a hold; no files or processes change.
+    reset(role,reason,guidance,False,grace)
+    config=json.loads((DEPLOYMENT_STATE/'role-broker/config.json').read_text())
+    directory=DEPLOYMENT_STATE/'role-reset';directory.mkdir(mode=0o700,parents=True,exist_ok=True)
+    fd=os.open(directory/'lifecycle.lock',os.O_CREAT|os.O_RDWR|os.O_NOFOLLOW,0o600)
+    try:
+        # Shares the live launcher's lock, but excludes maintenance mutations.
+        fcntl.flock(fd,fcntl.LOCK_SH|fcntl.LOCK_NB)
+        with (directory/(role+'.lock')).open('a') as lock:
+            fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            holds=DEPLOYMENT_STATE/'operator-role-holds'
+            if holds.is_symlink():raise ValueError('Symlink hold directory forbidden')
+            holds.mkdir(mode=0o755,exist_ok=True)
+            if holds.stat().st_uid!=0 or holds.stat().st_mode&0o022:
+                raise ValueError('Hold directory must be operator-owned and not writable by others')
+            marker=holds/role;nonce=uuid.uuid4().hex
+            hold_fd=os.open(marker,os.O_CREAT|os.O_EXCL|os.O_WRONLY|os.O_NOFOLLOW,0o644)
+            with os.fdopen(hold_fd,'w') as stream:stream.write(nonce)
+            deadline=time.monotonic()+wait_seconds
+            while True:
+                try:
+                    controller=verify_pause(role,nonce,config);break
+                except (OSError,ValueError,RuntimeError,IndexError):
+                    if time.monotonic()>=deadline:
+                        raise RuntimeError('Controller did not acknowledge pause; hold retained for operator recovery') from None
+                    time.sleep(.1)
+            # No automatic finally-release: failure must keep the role paused.
+            receipt=reset(role,reason,guidance,True,grace,_online_nonce=nonce)
+            if not alive(controller):raise RuntimeError('Controller changed during reset; hold retained')
+            verify_pause(role,nonce,config)
+            marker.unlink()
+            receipt.update(mode='online',pause_nonce=nonce,pause_controller_pid=controller['pid'],
+                hold_released=True,restart='controller-managed; new session not yet verified')
+            path=directory/(receipt['reset_id']+'.json')
+            path.write_text(json.dumps(receipt,ensure_ascii=False,indent=2));path.chmod(0o600)
+            return receipt
+    finally:os.close(fd)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('role'); parser.add_argument('--reason', required=True)
     parser.add_argument('--next-action', required=True); parser.add_argument('--apply', action='store_true')
+    parser.add_argument('--online',action='store_true',help='Pause one role through controller acknowledgement; retain hold on failure')
     args = parser.parse_args()
-    print(json.dumps(reset(args.role, args.reason, args.next_action, args.apply), ensure_ascii=False, indent=2))
+    action=online_reset if args.online else reset
+    print(json.dumps(action(args.role, args.reason, args.next_action, args.apply), ensure_ascii=False, indent=2))
 
 if __name__ == '__main__':
     main()

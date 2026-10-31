@@ -1215,6 +1215,26 @@ fn operator_role_held(state_root: &Path, name: &str) -> bool {
     }
 }
 
+fn acknowledge_operator_hold(state_root: &Path, name: &str) {
+    let marker = state_root.join("operator-role-holds").join(name);
+    let Ok(meta) = fs::symlink_metadata(&marker) else { return; };
+    if !meta.is_file() || meta.len() != 32 { return; }
+    let Ok(nonce) = fs::read_to_string(marker) else { return; };
+    if !nonce.bytes().all(|b| b.is_ascii_hexdigit()) { return; }
+    let ack = state_root.join(name).join("operator-hold-ack.json");
+    let bytes = serde_json::json!({"version":1,"role":name,"nonce":nonce,
+        "controller_pid":std::process::id(),"quiescent":true}).to_string();
+    if fs::read_to_string(&ack).is_ok_and(|old| old == bytes) { return; }
+    // This directory is controller-owned, inaccessible to role UIDs. Rename
+    // publishes a complete acknowledgement; never follow a target symlink.
+    let stage = ack.with_extension(format!("pending-{}-{}", std::process::id(), nonce));
+    if let Ok(mut file) = OpenOptions::new().write(true).create_new(true).mode(0o600).open(&stage) {
+        use std::io::Write;
+        if file.write_all(bytes.as_bytes()).is_ok() { let _ = fs::rename(&stage,&ack); }
+        let _ = fs::remove_file(stage);
+    }
+}
+
 impl Inner {
     fn poll(&mut self, now: Instant) {
         if self.stopping {
@@ -1235,6 +1255,13 @@ impl Inner {
                 }
             }
             self.poll_agent(index, now);
+            let agent = &self.agents[index];
+            if !agent.starting && agent.starting_pid.is_none() && agent.running.is_none()
+                && agent.leftover.is_none()
+                && operator_role_held(self.options.layout.state_root(), &agent.name)
+            {
+                acknowledge_operator_hold(self.options.layout.state_root(), &agent.name);
+            }
         }
     }
 
@@ -3290,8 +3317,8 @@ fn session_job(
         || operator_role_held(guard.options.layout.state_root(), &request.agent)
         || !guard.agents[index].starting;
     if called_off {
-        guard.agents[index].starting = false;
-        guard.agents[index].starting_pid = None;
+        // Keep the in-flight worker visible until child settlement finishes;
+        // otherwise a pause acknowledgement could race its final cleanup.
         let stopping = guard.stopping;
         drop(guard);
         if let Ok(mut handle) = spawned {
@@ -3323,6 +3350,11 @@ fn session_job(
                     }
                 }
             }
+        }
+        let mut guard = lock_inner(&inner);
+        if let Some(index) = guard.agent_index(&request.agent) {
+            guard.agents[index].starting = false;
+            guard.agents[index].starting_pid = None;
         }
         return;
     }
@@ -4908,7 +4940,10 @@ mod tests {
         let pid = pid_rx.recv_timeout(Duration::from_secs(5)).unwrap();
         let holds = Layout::rooted_at(root.clone()).unwrap().state_root().join("operator-role-holds");
         fs::create_dir_all(&holds).unwrap();
-        fs::write(holds.join("agent-1"), "hold").unwrap();
+        fs::write(holds.join("agent-1"), "0123456789abcdef0123456789abcdef").unwrap();
+        tick(&mut engine, &clock, Duration::ZERO);
+        let ack = holds.parent().unwrap().join("agent-1/operator-hold-ack.json");
+        assert!(!ack.exists(), "in-flight spawn must not be acknowledged as settled");
         release.send(()).unwrap();
         let deadline = Instant::now() + Duration::from_secs(3);
         while fake.is_live(pid) && Instant::now() < deadline {
@@ -4916,6 +4951,14 @@ mod tests {
             std::thread::sleep(Duration::from_millis(10));
         }
         assert!(!fake.is_live(pid), "a pre-pause child survived the cancelled handoff");
+        let deadline = Instant::now() + Duration::from_secs(3);
+        while !ack.exists() && Instant::now() < deadline {
+            tick(&mut engine, &clock, Duration::ZERO);
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        let receipt: serde_json::Value = serde_json::from_slice(&fs::read(ack).unwrap()).unwrap();
+        assert_eq!(receipt["nonce"], "0123456789abcdef0123456789abcdef");
+        assert_eq!(receipt["quiescent"], true);
         tick(&mut engine, &clock, Duration::from_secs(600));
         assert_eq!(fake.counts().1, 1);
     }

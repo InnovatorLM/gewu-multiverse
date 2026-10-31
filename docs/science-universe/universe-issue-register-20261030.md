@@ -298,3 +298,10 @@ role_progress_review.py：读取最新轨迹，对反复失败、大上下文、
 - 控制器新增按角色operator hold：保留desired，走现有停止/收尾流程，不自动补起；移除hold才恢复普通调度。准备结束、失败处理、spawn交接均检查hold，防止只kill后旧异步作业又交接为运行中。
 - 这只是在线事务的底层门闩；CLI尚未接通，尚缺带身份/代次的清理确认及完整在线实机回归。不得宣称已支持在线reset。现有维护式reset不受影响，安装二进制仍为原验收版本，正式宇宙停止。
 - 本次完整Rust lib回归354 passed、0 failed、1 ignored；新增3项覆盖暂停后显式释放、运行中停止不补起、已创建但未交接的子进程取消。忽略项仍需真实broker环境，未算通过。日志：工作区私有 `operator-hold-rust-regression.log`。没有新增模型/API或ACS调用。
+
+### 2026-10-31：在线reset确认协议与CLI接通（待实机部署）
+
+- 控制器仅在目标角色无running、无prepare/spawn、无未清理子进程时发布带角色、唯一nonce及controller PID的确认；修正取消spawn交接时过早清除starting标志的竞态，确认不能先于settle完成。
+- CLI新增显式--online，共享部署生命周期锁、独占角色锁；等待准确确认、核验实际控制器UID/进程身份，更新指令并清理目标角色后才释放hold。超时、旧确认、控制器变化或修改失败均不自动解除暂停；不终止平台ACS作业。
+- Python reset联合11项通过，含真实临时进程身份及共享launcher锁下的协议fixture、过期nonce/错误角色/错误PID/未静止拒绝、超时保留hold及拒绝覆盖。该协议fixture模拟控制器确认，成功路径使用实际本地reset、指令更新与回执保存，不是实际控制器在线重启证明。
+- Rust实际spawn竞态专项3项通过，其中阻塞的spawn未收尾时没有ack，释放并完成收尾后才出现准确ack。完整Rust回归354 passed、0 failed、1 ignored；尚未部署新二进制或宣布在线行为验收成功。正式宇宙仍停止。

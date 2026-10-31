@@ -20,7 +20,7 @@ Fresh model context is supplied by the controller's next native session. The CLI
 
 Current validation: eight reset tests pass, including real disposable-process termination, lifecycle lock contention and updates to both the isolated role instruction and the controller copy. Each copy keeps its own detailed policy, ownership and mode; private backups preserve both originals. Symlink/malformed copies are refused before instruction writes.
 
-Reset currently requires the launcher and its supervisor to be stopped: the launcher holds a shared lifetime lock and reset requires exclusive access. This prevents concurrent controller starts during maintenance, but is not a hot, per-role controller transaction. A successful reset receipt still does not prove that the next real model session was scheduled or read the directive; verify that separately before claiming full behavioral acceptance.
+The default maintenance reset requires the launcher and its supervisor to be stopped: the launcher holds a shared lifetime lock and reset requires exclusive access. This prevents concurrent controller starts during maintenance, but is not a hot, per-role controller transaction. A successful reset receipt still does not prove that the next real model session was scheduled or read the directive; verify that separately before claiming full behavioral acceptance.
 
 Real maintenance recovery validation (2026-10-31): a private upstream-fixture PR passed the actual author gate and immutable registration, received one exclusive assignment, and the controller cloned its new repository and started evaluator-02 after reset. Seven designated DeepSeek requests were retained; the initial request contained the exact reset ID, and the model wrote the expected nonce plus assignment identity and exited 0. Evidence is private under workspace `.state/universe-repair-20261031/reset-controller-v1/verified-evidence.json`. This verifies controller-managed recovery after maintenance, not hot per-role reset or scientific acceptance. The fixture PR/issue were closed and the test deployment stopped afterward.
 
@@ -35,3 +35,30 @@ this gate. Do not use file presence or disappearance as proof that cleanup has
 finished: an acknowledged transaction and CLI integration are still required
 before claiming online reset support. This source change is not deployed by
 editing the file; the installed binary must be rebuilt and validated separately.
+
+
+Online protocol implementation (not yet deployed or live-validated):
+
+```sh
+GEWU_UNIVERSE_ROOT=/absolute/workspace/runtime \
+python3 deploy/science/role_reset.py author-02 --online --apply \
+  --reason 'operator reviewed stalled exploration' \
+  --next-action 'preserve artifacts and pivot to the documented alternative'
+```
+
+`--online` takes a shared deployment lifecycle lock and an exclusive role lock,
+creates a unique operator hold, and waits for a matching controller acknowledgement.
+The controller acknowledges only after no active runner, preparation/spawn or
+unsettled child remains. The acknowledgement binds the role, nonce and live
+controller PID; the CLI also verifies controller UID, command and process identity.
+Only then does it update both instruction copies and clean dedicated-role
+processes. It releases the hold after successful cleanup and identity recheck.
+No cloud worker is signalled. Desired Start/Stop choices and histories are preserved.
+
+On timeout or failure the hold intentionally remains, and retries refuse to
+replace it. Inspect the acknowledgement, retained instruction backups and current
+processes before manual recovery; never remove an unexplained hold merely to
+make the dashboard active. An old installed controller does not acknowledge this
+protocol, so the CLI fails closed rather than attempting an uncoordinated reset.
+A successful receipt means the hold was released, not that the next model session
+has been observed; that requires a separate new-run/directive check.
