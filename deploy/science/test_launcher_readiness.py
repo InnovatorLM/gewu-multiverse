@@ -15,6 +15,33 @@ LAUNCHER = (Path(__file__).parent / 'start-universe').read_text()
 
 
 class ReadyFileTests(unittest.TestCase):
+    def test_restart_keeps_controller_plans_readable_and_operator_evidence_private(self):
+        import os
+        if os.geteuid() != 0:
+            self.skipTest('Actual ownership regression requires root')
+        from evaluation_queue import W
+        launcher=Path(__file__).with_name('start-universe-local-runtime').read_text()
+        block=launcher.split('# The runtime is owned by the controller UID;',1)[1].split('\n',1)[1].split('# Keep directories searchable',1)[0]
+        with tempfile.TemporaryDirectory(dir=W/'.tmp') as raw:
+            root=Path(raw);root.chmod(0o755)
+            for folder in ('.config/science-evaluation','workspaces','.local','.cache','.tmp'):
+                (root/folder).mkdir(parents=True,exist_ok=True)
+            for name in ('queue.json','registry.json'):
+                (root/'.config/science-evaluation'/name).write_text('{}')
+            state=root/'.state/gewu-multiverse'
+            for service in ('role-broker','review-dispatcher','author-selftest','command-watchdog'):
+                d=state/service;d.mkdir(parents=True)
+                (d/'config.json').write_text('{}')
+            private=state/'author-selftest/receipt.json';private.write_text('{}');private.chmod(0o600)
+            plan=state/'author-01/run-example/plan.json';plan.parent.mkdir(parents=True)
+            plan.write_text('{}');plan.chmod(0o600)
+            subprocess.run(['bash','-ec','RUNTIME="$1"\n'+block,'ownership',str(root)],check=True)
+            self.assertEqual(plan.stat().st_uid,65534)
+            self.assertEqual(private.stat().st_uid,0)
+            self.assertEqual(stat.S_IMODE(private.stat().st_mode),0o600)
+            from controller_readability import check
+            subprocess.run(['setpriv','--reuid=65534','--regid=65534','--clear-groups',sys.executable,'-B',str(Path(__file__).with_name('controller_readability.py')),str(state)],check=True)
+
     def test_fresh_controller_uses_cached_binary_without_overriding_operator(self):
         from evaluation_queue import W
         block=LAUNCHER.split('# Reuse the preinstalled workspace binary',1)[1].split('\nif [[ $(id -u)',1)[0]

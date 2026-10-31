@@ -13,6 +13,9 @@ DONOR=${GEWU_EXTERNAL_ROLE_ROOTS:-$W/universes/my-terminal-bench-science}
 RUNTIME=${GEWU_LOCAL_RUNTIME_ROOT:-$W/.tmp/gewu-terminal-bench-science-runtime}
 BACKUP_DIR=${GEWU_BACKUP_DIR:-$W/.state/backups/live}
 mkdir -p "$RUNTIME" "$BACKUP_DIR"
+# Keep only failure location and status, never terminal output or command text.
+# The controlling PTY intentionally discards screens which may contain secrets.
+trap 'startup_code=$?; printf "{\"phase\":\"local-runtime\",\"line\":%s,\"exit_code\":%s,\"launcher_pid\":%s}\n" "$LINENO" "$startup_code" "$$" > "$RUNTIME/startup-failure.json"' ERR
 LOCAL_PORT=$(python3 - "$RUNTIME" "${GEWU_FORGEJO_PORT:-}" <<'PY'
 import sys
 from deployment_paths import ensure_runtime_forgejo_port,select_forgejo_port
@@ -246,10 +249,16 @@ sed -i "s#^U=.*#U=\"$RUNTIME\"#" "$RUNTIME/start"
 sed -i "s#^export GEWU_EXTERNAL_ROLE_ROOTS=.*#export GEWU_EXTERNAL_ROLE_ROOTS=\"$DONOR\"#" "$RUNTIME/start"
 # The runtime is owned by the controller UID; configuration is readable by it.
 mkdir -p "$RUNTIME/.local/share" "$RUNTIME/.state" "$RUNTIME/.cache" "$RUNTIME/.tmp"
-chown -R nobody:nogroup "$RUNTIME/.config" "$RUNTIME/workspaces" "$RUNTIME/.local" "$RUNTIME/.state" "$RUNTIME/.cache" "$RUNTIME/.tmp"
+chown -R nobody:nogroup "$RUNTIME/.config" "$RUNTIME/workspaces" "$RUNTIME/.local" "$RUNTIME/.cache" "$RUNTIME/.tmp"
 # Operator service descriptors and their parent directories must remain
 # root-owned; role roots are deliberately owned by the controller/role UIDs.
-# The recursive ownership step above is only for Forgejo and controller data.
+# Never recursively reassign the shared state: it contains private operator
+# receipts as well as controller transcripts. Restore only controller role data.
+for role_state in "$RUNTIME/.state/gewu-multiverse"/author-[0-9]* \
+                  "$RUNTIME/.state/gewu-multiverse"/evaluator-[0-9]* \
+                  "$RUNTIME/.state/gewu-multiverse/curator"; do
+  [ ! -d "$role_state" ] || chown -R nobody:nogroup "$role_state"
+done
 chown root:root "$RUNTIME/.state" \
   "$RUNTIME/.state/gewu-multiverse/role-broker" \
   "$RUNTIME/.state/gewu-multiverse/review-dispatcher" \
@@ -261,10 +270,13 @@ chown root:root "$RUNTIME/.state" \
 # its transcript can be created.
 chown nobody:nogroup "$RUNTIME/.state/gewu-multiverse"
 chmod 700 "$RUNTIME/.state/gewu-multiverse"
-find "$RUNTIME/.state/gewu-multiverse" -type f -name '*.json' -exec chown root:root {} +
 chmod 755 "$RUNTIME/.state" "$RUNTIME/.state/gewu-multiverse"
-find "$RUNTIME/.state/gewu-multiverse" -type d -exec chmod 755 {} +
-find "$RUNTIME/.state/gewu-multiverse" -type f -name '*.json' -exec chmod 600 {} +
+for service in role-broker review-dispatcher author-selftest command-watchdog; do
+  descriptor="$RUNTIME/.state/gewu-multiverse/$service/config.json"
+  chown -R root:root "$(dirname "$descriptor")"
+  chmod 600 "$descriptor"
+  chmod 755 "$(dirname "$descriptor")"
+done
 # The controller runs as nobody and must read the non-secret broker descriptor
 # to route its commands. Keep it root-owned/non-writable, but searchable by the
 # designated controller; mode 0600 makes every run silently look unconfined.
