@@ -5,6 +5,8 @@ import stat
 import sys
 from types import SimpleNamespace
 import unittest
+import subprocess
+import tempfile
 from unittest.mock import patch
 
 
@@ -13,6 +15,46 @@ LAUNCHER = (Path(__file__).parent / 'start-universe').read_text()
 
 
 class ReadyFileTests(unittest.TestCase):
+    def test_runtime_keeps_full_instruction_and_skill_manifest_for_every_role(self):
+        from evaluation_queue import W
+        launcher=Path(__file__).with_name('start-universe-local-runtime').read_text()
+        seed=launcher.split('# Seed all configured role instructions,',1)[1].split("<<'PY'\n",1)[1].split('\nPY',1)[0]
+        with tempfile.TemporaryDirectory(dir=W/'.tmp') as raw:
+            root=Path(raw);runtime=root/'runtime';donor=root/'donor'
+            broker=runtime/'.state/gewu-multiverse/role-broker/config.json'
+            broker.parent.mkdir(parents=True)
+            roles=['author-01','author-10','evaluator-03','curator']
+            import json
+            broker.write_text(json.dumps({'roles':dict.fromkeys(roles,{})}))
+            for role in roles:
+                source=donor/'.config/gewu-multiverse/agents'/role/'instruction.md'
+                source.parent.mkdir(parents=True)
+                source.write_text('Full rules '+role+'\n/skills/harbor-acs-evaluation/SKILL.md\n')
+            subprocess.run([sys.executable,'-c',seed,str(root/'source'),str(runtime),str(donor)],check=True)
+            for role in roles:
+                path=Path('.config/gewu-multiverse/agents')/role/'instruction.md'
+                self.assertEqual((runtime/path).read_bytes(),(donor/path).read_bytes())
+        self.assertNotIn('default-instructions/',launcher)
+
+    def test_runtime_restart_preserves_controller_role_choices(self):
+        from evaluation_queue import W
+        launcher=Path(__file__).with_name('start-universe-local-runtime').read_text()
+        loop=launcher.split('for f in ',1)[1].split('\ndone',1)[0]
+        with tempfile.TemporaryDirectory(dir=W/'.tmp') as raw:
+            root=Path(raw)
+            for name in ('source','donor','runtime'):
+                for directory in ('.config/gewu-multiverse','.config/science-evaluation'):
+                    (root/name/directory).mkdir(parents=True)
+            source=root/'source/.config/gewu-multiverse/multiverse.toml'
+            target=root/'runtime/.config/gewu-multiverse/multiverse.toml'
+            source.write_text('desired = "stopped"\n')
+            script='set -eu\nSOURCE="$1/source"\nDONOR="$1/donor"\nRUNTIME="$1/runtime"\ncopy_control() { cp "$1" "$2"; }\nfor f in '+loop+'\ndone\n'
+            subprocess.run(['bash','-c',script,'check',str(root)],check=True)
+            self.assertEqual(target.read_text(),source.read_text())
+            target.write_text('desired = "started"\n')
+            subprocess.run(['bash','-c',script,'check',str(root)],check=True)
+            self.assertEqual(target.read_text(),'desired = "started"\n')
+
     def test_watchdog_is_owned_and_stopped_with_launcher(self):
         self.assertIn('command_watchdog.py',LAUNCHER)
         self.assertIn('watchdog_pid=$!',LAUNCHER)

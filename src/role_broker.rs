@@ -145,6 +145,7 @@ mod tests {
             controller_uid: 65534,
             socket: root.join("socket"),
             _lock_dir: None,
+            _forgejo_url: None,
             roles: ["author", "evaluator"]
                 .into_iter()
                 .enumerate()
