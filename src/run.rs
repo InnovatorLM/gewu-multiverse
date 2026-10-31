@@ -2111,6 +2111,11 @@ fn reap_leftover_run_inner(run_dir: &Path, grace: std::time::Duration) -> Result
         Some(pgid) => Some(pgid),
         None => match recorded_group(run_dir) {
             Some((_, pgid)) => Some(pgid),
+            // No process from an earlier kernel boot can still hold the
+            // inherited descriptor. Resolve this bounded stale case from the
+            // run's own records before scanning unrelated same-UID processes,
+            // whose /proc/<pid>/fd may be intentionally unreadable.
+            None if run_predates_boot(run_dir) => None,
             None => capability_group(run_dir)?,
         },
     };
