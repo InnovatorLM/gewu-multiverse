@@ -1,5 +1,12 @@
 # 本轮宇宙问题总表（2026-10-30）
 
+## 作者两轮真实容器自测与自动交接验收（2026-10-31，继续）
+
+- author-03实际隔离UID客户端提交已有上游openssl简单题；完成两轮实际ACR构建发布与ACS oracle/nop，每轮oracle=1、nop=0、exit=0、清理确认。第二轮使用第一轮回执后提交的实际修改，绑定同idea及previous-job。此为operator驱动平台回归，不是模型自主科学出题或科学接收。
+- 自动完成保守计时核验、不可变自测/迭代证据、准确作者版本到冻结执行身份桥接、Codex执行登记和作者审核资格发布；隔离角色实际读到ready_for_independent_review。重复交接回执不变。计时起点仍明确event_origin_attested=false，不夸大抗伪造能力。
+- 四次执行12份verifier stdout、CTRF及reward均存在并计算哈希。最终实查SandboxSet、SandboxClaim、Sandbox、Pod、Job、ConfigMap相关资源均0残留。证据保存在工作区私有`.state/universe-repair-20261031/author-handoff-live-v1/{verified-evidence,full-evidence-audit}.json`。
+- 使用实际Harbor环境完成自测交接、登记、恢复、派单和reset相关22项离线回归；均通过。审核新模型会话和完整控制器重调度仍待行为验收，正式宇宙继续停止。
+
 ## 启动时刷新实际技能副本（2026-10-31，继续）
 
 - 发现local-runtime仍从donor复制历史技能，最新作者自测参数和评测规则可能未进入实际角色。start-universe现于生命周期锁内、broker和角色启动前，从当前受版本控制的skills更新隔离root与controller两份技能，并保留详细指令，再注入共同质量规则和执行能力门检。
