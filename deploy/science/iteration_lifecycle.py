@@ -32,11 +32,13 @@ def terminal_time(run):
     return None
 
 
-def scan_clocks(config):
+def scan_clocks(config, state_root=None):
     errors=[]
     for name,entry in config['roles'].items():
         try:
-            _scan_clocks(dict(controller_uid=config['controller_uid'],roles={name:entry}))
+            scoped=dict(controller_uid=config['controller_uid'],roles={name:entry})
+            if state_root is not None:scoped['session_state_root']=str(state_root)
+            _scan_clocks(scoped)
         except (OSError,ValueError,KeyError,TypeError) as error:
             # No ledger contents or arbitrary role-controlled error text in logs.
             errors.append(dict(role=name,error_type=type(error).__name__))
@@ -67,8 +69,10 @@ def _scan_clocks(config):
                 info=os.fstat(stream.fileno())
                 if not stat.S_ISREG(info.st_mode) or info.st_size>1024*1024:raise ValueError('Invalid author ledger')
                 state=json.load(stream)
-            universe=root.parents[3]
-            runs=list((universe/'.state/gewu-multiverse'/name).glob('run-*'))
+            # A controller may reuse isolated workspaces from a stopped donor.
+            # Its model runners live in the selected deployment, not the donor.
+            sessions=Path(config['session_state_root']) if config.get('session_state_root') else root.parents[3]/'.state/gewu-multiverse'
+            runs=list((sessions/name).glob('run-*'))
             live=any(runner_state(run,config['controller_uid']) for run in runs)
             end=terminal_time(max(runs,key=lambda p:p.stat().st_mtime)) if runs and not live else None
             before=json.dumps(state,sort_keys=True)

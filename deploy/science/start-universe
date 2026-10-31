@@ -168,7 +168,7 @@ review_dispatch_pid=$!
 selftest_pid=$!
 mkdir -p "$SERVICE_STATE/command-watchdog"
 "$PY" "$W/gewu-multiverse/deploy/science/command_watchdog.py" \
-    --config "$GEWU_ROLE_BROKER_CONFIG" --state "$SERVICE_STATE/command-watchdog" \
+    --config "$GEWU_ROLE_BROKER_CONFIG" --state "$SERVICE_STATE/command-watchdog" --session-state "$SERVICE_STATE" \
     > "$SERVICE_STATE/command-watchdog/production.log" 2>&1 &
 watchdog_pid=$!
 # Refuse a controller start if any owned background service already failed.

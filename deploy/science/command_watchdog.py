@@ -69,7 +69,8 @@ def scan(config,limit=3600):
 def main():
     import fcntl
     global CONFIG,STATE
-    p=argparse.ArgumentParser();p.add_argument('--once',action='store_true');p.add_argument('--config',type=Path,default=CONFIG);p.add_argument('--state',type=Path,default=STATE);a=p.parse_args()
+    from deployment_paths import universe_root
+    p=argparse.ArgumentParser();p.add_argument('--once',action='store_true');p.add_argument('--config',type=Path,default=CONFIG);p.add_argument('--state',type=Path,default=STATE);p.add_argument('--session-state',type=Path,default=universe_root()/'.state/gewu-multiverse');a=p.parse_args()
     CONFIG,STATE=a.config,a.state
     STATE.mkdir(parents=True,exist_ok=True,mode=0o700)
     with (STATE/'watchdog.lock').open('a') as lock:
@@ -78,7 +79,7 @@ def main():
             config=json.loads(CONFIG.read_text())
             scan(config)
             from iteration_lifecycle import scan_clocks
-            scan_clocks(config)
+            scan_clocks(config,state_root=a.session_state)
             if a.once:return
             time.sleep(30)
 if __name__=='__main__':main()

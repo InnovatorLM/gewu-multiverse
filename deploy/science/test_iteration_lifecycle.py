@@ -11,6 +11,21 @@ import iteration_lifecycle as lifecycle
 
 
 class LifecycleTests(unittest.TestCase):
+    def test_external_workspace_uses_current_deployment_sessions(self):
+        with tempfile.TemporaryDirectory(dir=W/'.tmp') as raw:
+            base=Path(raw);root=base/'donor/.config/gewu-multiverse/agents/author-01'
+            directory=root/'home/role/.state/author-iteration';directory.mkdir(parents=True)
+            path=directory/'ledger.json';state={};transition(state,'start','idea-a',10)
+            path.write_text(json.dumps(state))
+            sessions=base/'runtime/.state/gewu-multiverse'
+            current=sessions/'author-01/run-current';current.mkdir(parents=True)
+            old=base/'donor/.state/gewu-multiverse/author-01/run-old';old.mkdir(parents=True)
+            config=dict(controller_uid=os.getuid(),roles={'author-01':dict(root=str(root),uid=os.getuid(),gid=os.getgid())})
+            with patch.object(lifecycle,'runner_state',side_effect=lambda run,uid:run==current) as observed,patch.object(lifecycle.time,'time',return_value=120):
+                self.assertEqual(lifecycle.scan_clocks(config,state_root=sessions),[])
+            self.assertEqual(json.loads(path.read_text())['ideas']['idea-a']['status'],'active')
+            self.assertEqual(observed.call_args.args[0],current)
+
     def test_busy_clock_does_not_block_global_watchdog(self):
         with tempfile.TemporaryDirectory(dir=W/'.tmp') as raw:
             root=Path(raw);directory=root/'home/role/.state/author-iteration';directory.mkdir(parents=True)
