@@ -57,6 +57,9 @@ def process(role,entry,request):
   commit=subprocess.check_output(['git','-C',str(repo),'rev-parse','HEAD'],text=True).strip();status.update(status='building',source_commit=q['source_commit'],execution_commit=commit,execution_task_path=name,snapshot_sha256=digest_tree(task));save()
   task_tmp=work/'tmp';task_home=work/'home';task_tmp.mkdir(mode=0o700,exist_ok=True);task_home.mkdir(mode=0o700,exist_ok=True)
   env=os.environ.copy();env.update(TMPDIR=str(task_tmp),PYTHONDONTWRITEBYTECODE='1',HOME=str(task_home))
+  # Explicit deployment transport for public Docker official images only.
+  # pin_bases retains the original reference and resolved immutable digest.
+  env.setdefault('GEWU_DOCKER_LIBRARY_MIRROR','public.ecr.aws/docker/library')
   with (work/'build.log').open('w') as log:
    r=owned_run(build_command(repo,commit,name,work/'build'),env=env,stdout=log,stderr=log,timeout=3600)
   if r.returncode:raise RuntimeError('Image build failed; operator evidence: '+str(work/'build.log'))

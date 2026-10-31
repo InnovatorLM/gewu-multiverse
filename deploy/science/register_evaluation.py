@@ -70,6 +70,7 @@ def main():
     for name in ['evaluation-id', 'repo', 'commit', 'task-path', 'template']:
         parser.add_argument('--' + name, required=True)
     parser.add_argument('--build-receipt', required=True, help='Root-owned source-bound publication receipt')
+    parser.add_argument('--selftest-work', type=Path, help='Preserve verified author-to-frozen-build identity bridge')
     parser.add_argument('--disabled', action='store_true', help='Retain provenance without exposing infrastructure fixtures for dispatch')
     args = parser.parse_args()
     if os.geteuid() != 0:
@@ -98,13 +99,26 @@ def main():
             template['datasets'] = [{'path': str(parent), 'task_names': [name]}]
             from build_task_images import validate_build_receipt
             receipt_path = root_file(args.build_receipt)
-            validate_build_receipt(json.loads(receipt_path.read_text()), snapshot, args.commit, args.task_path, template)
+            bridge = None
+            if getattr(args, 'selftest_work', None) is not None:
+                from selftest_registration import prepare
+                bridge = prepare(args.selftest_work, args.commit, args.task_path, template)
+                if (bridge['snapshot_sha256'] != sha or
+                        bridge['build_receipt_sha256'] != hashlib.sha256(receipt_path.read_bytes()).hexdigest()):
+                    raise ValueError('Registration differs from verified selftest task/publication')
+                validate_build_receipt(json.loads(receipt_path.read_text()), snapshot,
+                                       bridge['execution_commit'], bridge['execution_task_path'], template)
+                atomic_json(parent / 'selftest-binding.json', bridge)
+            else:
+                validate_build_receipt(json.loads(receipt_path.read_text()), snapshot, args.commit, args.task_path, template)
             template_path = parent / 'template.json'
             atomic_json(template_path, template)
             receipt_copy = parent / 'build-receipt.json'
             atomic_json(receipt_copy, json.loads(receipt_path.read_text()))
             entry = {'snapshot': str(snapshot), 'snapshot_sha256': sha, 'template': str(template_path), 'template_sha256': hashlib.sha256(template_path.read_bytes()).hexdigest(), 'source_commit': args.commit, 'source_task_path': args.task_path, 'build_receipt_sha256': hashlib.sha256(receipt_copy.read_bytes()).hexdigest(), 'enabled': not args.disabled}
             entry['mechanical_check_sha256'] = hashlib.sha256((parent / 'mechanical-check.json').read_bytes()).hexdigest()
+            if bridge is not None:
+                entry['selftest_binding_sha256'] = hashlib.sha256((parent / 'selftest-binding.json').read_bytes()).hexdigest()
             validated_template(entry, {'snapshot_sha256': sha})
             atomic_json(parent / 'provenance.json', {**entry, 'scientific_acceptance': False})
             registry[args.evaluation_id] = entry
