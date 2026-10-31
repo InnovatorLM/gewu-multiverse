@@ -305,3 +305,10 @@ role_progress_review.py：读取最新轨迹，对反复失败、大上下文、
 - CLI新增显式--online，共享部署生命周期锁、独占角色锁；等待准确确认、核验实际控制器UID/进程身份，更新指令并清理目标角色后才释放hold。超时、旧确认、控制器变化或修改失败均不自动解除暂停；不终止平台ACS作业。
 - Python reset联合11项通过，含真实临时进程身份及共享launcher锁下的协议fixture、过期nonce/错误角色/错误PID/未静止拒绝、超时保留hold及拒绝覆盖。该协议fixture模拟控制器确认，成功路径使用实际本地reset、指令更新与回执保存，不是实际控制器在线重启证明。
 - Rust实际spawn竞态专项3项通过，其中阻塞的spawn未收尾时没有ack，释放并完成收尾后才出现准确ack。完整Rust回归354 passed、0 failed、1 ignored；尚未部署新二进制或宣布在线行为验收成功。正式宇宙仍停止。
+
+### 2026-10-31：真实在线reset生命周期通过
+
+- 构建并原子安装92f6b1f，保留旧二进制及哈希回执。隔离部署实际模型写before标记并执行300秒本地命令时，显式online reset通过控制器静止确认，旧runner及命令退出，更新两份指令并解除门闩；同一controller PID/起始身份和desired配置保持不变。
+- 自动新会话首个实际请求包含准确reset ID与AFTER指令，指定DeepSeek实际3次请求，按要求写after回执，自然exit=0。原始前后轨迹均计算SHA256。另一次无副作用AFTER会话在fixture wake置completed前开始，保留其2次请求与成功终态；不能声称只产生一个新会话。
+- 此测试只启用evaluator-02，不证明其它活跃角色同时运行时的非干扰；没有提交ACS任务，不作新题科学接收。私有证据`online-reset-v1/verified-evidence.json`及`restoration.json`。
+- 完成后实际监督器/控制器停止，3000/8765连接均拒绝；两份详细指令、settings和wakes恢复原文，全部历史保留。正式宇宙尚未重新创建；继续剩余完整范围与最终启动审计。

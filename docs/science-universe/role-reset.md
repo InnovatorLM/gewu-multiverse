@@ -62,3 +62,17 @@ make the dashboard active. An old installed controller does not acknowledge this
 protocol, so the CLI fails closed rather than attempting an uncoordinated reset.
 A successful receipt means the hold was released, not that the next model session
 has been observed; that requires a separate new-run/directive check.
+
+Real online lifecycle validation (2026-10-31): installed binary `92f6b1f`
+kept the same actual controller PID while evaluator-02 was executing a model-issued
+300-second local command. `--online` received the exact quiescent acknowledgement,
+updated both instruction copies, and released the role. The old runner/command
+were gone; an automatically scheduled new designated DeepSeek session contained
+the exact reset ID in its initial request, wrote the AFTER marker, and exited 0.
+Saved desired settings were unchanged and prior trajectories remained readable.
+Only evaluator-02 was enabled in this isolated test: concurrent active-role
+noninterference is not established by this evidence. No cloud jobs were submitted.
+One additional harmless AFTER session started before the fixture wake was marked
+completed; both histories are retained. The isolated deployment was then stopped,
+original instructions/settings/wakes restored, and loopback ports verified closed.
+Private evidence: `.state/universe-repair-20261031/online-reset-v1/verified-evidence.json`.
