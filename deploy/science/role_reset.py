@@ -67,6 +67,35 @@ def alive(info):
     except (FileNotFoundError, ProcessLookupError):
         return False
 
+def instruction_paths(root, universe, role):
+    """The model controller and chroot may read different instruction copies."""
+    candidates=[Path(root)/'instruction.md',Path(universe)/'.config/gewu-multiverse/agents'/role/'instruction.md']
+    result=[]
+    for path in candidates:
+        if path.is_symlink():raise ValueError('Symlink instruction forbidden')
+        if path.exists() and path.resolve() not in [p.resolve() for p in result]:
+            if not path.is_file():raise ValueError('Invalid role instruction')
+            result.append(path)
+    if not result or not candidates[0].is_file():raise ValueError('Missing isolated role instruction')
+    return result
+
+
+def update_instructions(root, universe, role, directory, receipt, reason, guidance):
+    # Read and validate every copy before mutating any. Keep distinct detailed
+    # policies while replacing the same bounded operator directive in both.
+    versions=[]
+    for instruction in instruction_paths(root,universe,role):
+        original=instruction.read_text()
+        versions.append((instruction,original,directive(original,receipt['reset_id'],reason,guidance)))
+    for index,(instruction,original,updated) in enumerate(versions):
+        suffix='.instruction.before' if index==0 else '.controller-instruction.before'
+        backup=directory/(receipt['reset_id']+suffix)
+        backup.write_text(original);backup.chmod(0o600)
+    for instruction,original,updated in versions:
+        instruction.write_text(updated)
+    receipt['instruction_copies_updated']=[str(path) for path,_,_ in versions]
+
+
 def reset(role, reason, guidance, apply=False, grace=5):
     if os.geteuid() != 0:
         raise PermissionError('Operator required')
@@ -117,18 +146,12 @@ def reset(role, reason, guidance, apply=False, grace=5):
     directory.mkdir(mode=0o700, parents=True, exist_ok=True)
     with maintenance_lock(directory), (directory / (role + '.lock')).open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        instruction = root / 'instruction.md'
-        if instruction.is_symlink():
-            raise ValueError('Symlink instruction forbidden')
-        original = instruction.read_text()
-        backup = directory / (receipt['reset_id'] + '.instruction.before')
-        backup.write_text(original); backup.chmod(0o600)
         path = directory / (receipt['reset_id'] + '.json')
         def save():
             path.write_text(json.dumps(receipt, ensure_ascii=False, indent=2)); path.chmod(0o600)
         receipt['status'] = 'prepared'; save()
         # Preserve instruction ownership/mode for the unprivileged controller.
-        instruction.write_text(directive(original, receipt['reset_id'], reason, guidance))
+        update_instructions(root,U,role,directory,receipt,reason,guidance)
         for info in targets:
             signal_identity(info, signal.SIGTERM)
         end = time.monotonic() + grace

@@ -5,7 +5,7 @@ import role_reset as r
 
 class ResetTests(unittest.TestCase):
     def test_active_launcher_blocks_reset_and_restart_can_follow(self):
-        with tempfile.TemporaryDirectory() as tmp:
+        with tempfile.TemporaryDirectory(dir=r.W/'.tmp') as tmp:
             directory = Path(tmp)
             with (directory / 'lifecycle.lock').open('a') as launcher:
                 fcntl.flock(launcher, fcntl.LOCK_SH | fcntl.LOCK_NB)
@@ -20,7 +20,7 @@ class ResetTests(unittest.TestCase):
                 fcntl.flock(restart, fcntl.LOCK_SH | fcntl.LOCK_NB)
 
     def test_lifecycle_lock_refuses_symlink(self):
-        with tempfile.TemporaryDirectory() as tmp:
+        with tempfile.TemporaryDirectory(dir=r.W/'.tmp') as tmp:
             directory = Path(tmp)
             (directory / 'other').touch()
             (directory / 'lifecycle.lock').symlink_to(directory / 'other')
@@ -35,6 +35,23 @@ class ResetTests(unittest.TestCase):
         self.assertIn('original policy', second)
         self.assertNotIn('Operator reset: one', second)
         self.assertIn('same idea', second)
+
+    def test_reset_updates_controller_and_chroot_without_erasing_either_policy(self):
+        with tempfile.TemporaryDirectory(dir=r.W/'.tmp') as raw:
+            root=Path(raw);isolated=root/'donor';isolated.mkdir()
+            first=isolated/'instruction.md';first.write_text('isolated detailed rules');first.chmod(0o644)
+            controller=root/'universe/.config/gewu-multiverse/agents/author-01/instruction.md';controller.parent.mkdir(parents=True);controller.write_text('controller detailed rules');controller.chmod(0o640)
+            backup=root/'backup';backup.mkdir();receipt={'reset_id':'one'}
+            r.update_instructions(isolated,root/'universe','author-01',backup,receipt,'stalled','preserve files and pivot')
+            self.assertEqual(len(receipt['instruction_copies_updated']),2)
+            for path,policy,mode in [(first,'isolated detailed rules',0o644),(controller,'controller detailed rules',0o640)]:
+                self.assertIn(policy,path.read_text());self.assertIn('Operator reset: one',path.read_text())
+                self.assertEqual(path.stat().st_mode&0o777,mode)
+            self.assertEqual(len(list(backup.iterdir())),2)
+            for path in backup.iterdir():self.assertEqual(path.stat().st_mode&0o777,0o600)
+            before=first.read_bytes();controller.unlink();controller.symlink_to(first)
+            with self.assertRaises(ValueError):r.update_instructions(isolated,root/'universe','author-01',backup,{'reset_id':'two'},'reason','next')
+            self.assertEqual(first.read_bytes(),before)
 
     def test_invalid_block_refused(self):
         with self.assertRaises(ValueError):
