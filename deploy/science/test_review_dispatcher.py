@@ -27,6 +27,28 @@ class FakeApi:
         return issue
 
 class DispatchTests(unittest.TestCase):
+    def test_execution_lookup_matches_exact_version_and_rejects_changed_snapshot(self):
+        import tempfile,json,os
+        from pathlib import Path
+        import review_dispatcher as m
+        from evaluation_queue import digest_tree
+        with tempfile.TemporaryDirectory(dir=m.W/'.tmp') as raw:
+            root=Path(raw);settings=root/'.config/science-evaluation';settings.mkdir(parents=True)
+            task=root/'snapshot';task.mkdir();(task/'data').write_text('frozen')
+            registry=settings/'registry.json'
+            entry=dict(source_commit='a'*40,source_task_path='tasks/example',snapshot=str(task),snapshot_sha256=digest_tree(task))
+            registry.write_text(json.dumps({'example-v1':entry}))
+            (settings/'queue.json').write_text(json.dumps({'registry':str(registry)}))
+            with patch.dict(os.environ,GEWU_UNIVERSE_ROOT=str(root)):
+                self.assertEqual(m.registered_execution('a'*40,'tasks/example')['evaluation_id'],'example-v1')
+                self.assertIsNone(m.registered_execution('b'*40,'tasks/example'))
+                self.assertIsNone(m.registered_execution('a'*40,'tasks/other'))
+                registry.write_text(json.dumps({'example-v1':entry,'ambiguous':entry}))
+                with self.assertRaises(ValueError):m.registered_execution('a'*40,'tasks/example')
+                registry.write_text(json.dumps({'example-v1':entry}))
+                (task/'data').write_text('changed')
+                with self.assertRaises(ValueError):m.registered_execution('a'*40,'tasks/example')
+
     @patch('author_submission_gate.approved',side_effect=[ValueError('private evidence details'),False])
     def test_invalid_receipt_does_not_block_other_prs(self,approved):
         import tempfile,json
@@ -42,8 +64,9 @@ class DispatchTests(unittest.TestCase):
             self.assertNotIn('private evidence details',json.dumps(pending))
             self.assertEqual(api.issues,[])
 
+    @patch('review_dispatcher.registered_execution',return_value={'evaluation_id':'example-v1','snapshot_sha256':'a'*64})
     @patch("author_submission_gate.approved", return_value=True)
-    def test_exclusive_wait_resume_and_revision(self, approved):
+    def test_exclusive_wait_resume_and_revision(self, approved, execution):
         import tempfile,json,os
         from pathlib import Path
         import review_dispatcher as m
@@ -58,6 +81,8 @@ class DispatchTests(unittest.TestCase):
                 m.reconcile(api,cfg,ledger);m.reconcile(api,cfg,ledger)
                 self.assertEqual(len(api.issues),1)
                 row=ledger['30:abc'];self.assertEqual(row['role'],'evaluator-01')
+                self.assertEqual(row['evaluation_id'],'example-v1')
+                self.assertEqual(row['snapshot_sha256'],'a'*64)
                 receipt=Path(cfg['roles'][row['role']]['root'])/'home/role/review-status.json'
                 receipt.write_text(json.dumps({'key':'30:abc','generation':0,'state':'waiting_author','stage':'completeness'}))
                 m.reconcile(api,cfg,ledger);self.assertEqual(api.issues[0]['state'],'closed')
@@ -68,6 +93,21 @@ class DispatchTests(unittest.TestCase):
                 api.pulls[0]['head']['sha']='def';m.reconcile(api,cfg,ledger)
                 self.assertNotIn('30:def',ledger) # No simultaneous revision ownership.
             finally:m.STATE=original
+
+    @patch('review_dispatcher.registered_execution',return_value=None)
+    @patch('author_submission_gate.approved',return_value=True)
+    def test_missing_execution_waits_for_platform_without_assigning(self,approved,execution):
+        import tempfile,json
+        from pathlib import Path
+        import review_dispatcher as m
+        with tempfile.TemporaryDirectory(dir=m.W/'.tmp') as d,patch.object(m,'STATE',Path(d)):
+            api=FakeApi();ledger={}
+            m.reconcile(api,{'roles':{}},ledger)
+            self.assertEqual(api.issues,[])
+            self.assertEqual(ledger,{})
+            pending=json.loads((Path(d)/'pending-submissions.json').read_text())['30:abc']
+            self.assertEqual(pending['state'],'waiting_platform')
+            self.assertEqual(pending['stage'],'immutable_execution_registration')
 
     @patch("author_submission_gate.approved", return_value=False)
     def test_unverified_author_never_dispatched(self, approved):

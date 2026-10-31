@@ -15,6 +15,21 @@ def fingerprint(pr,comments):
     relevant=[(c['id'],c.get('updated_at')) for c in comments if not c.get('user',{}).get('login','').startswith('gewu-evaluator')]
     return hashlib.sha256(json.dumps([pr['head']['sha'],relevant],sort_keys=True).encode()).hexdigest()
 
+def registered_execution(commit, task):
+    from deployment_paths import universe_root
+    from evaluation_queue import root_file, digest_tree
+    queue=json.loads(root_file(universe_root(W)/'.config/science-evaluation/queue.json').read_text())
+    registry=json.loads(root_file(queue['registry']).read_text())
+    matches=[]
+    for identifier,entry in registry.items():
+        if (entry.get('enabled',True) is True and entry.get('dispatch','solver')=='solver'
+                and entry.get('source_commit')==commit and entry.get('source_task_path')==task):
+            if digest_tree(entry['snapshot'])!=entry.get('snapshot_sha256'):
+                raise ValueError('Registered task changed')
+            matches.append(dict(evaluation_id=identifier,snapshot_sha256=entry['snapshot_sha256']))
+    if len(matches)>1:raise ValueError('Ambiguous registered execution for author version')
+    return matches[0] if matches else None
+
 class Api:
     def __init__(self,token,base_url=None):self.token=token;self.base_url=base_url
     def call(self,method,path,data=None):
@@ -55,6 +70,13 @@ def reconcile(api,config,ledger):
                 wake=Path(config['roles'][old['role']]['root'])/'review-dispatch.json'
                 atomic(wake,dict(key=key,generation=old['generation'],state=old['state']));wake.chmod(0o644)
             continue
+        try:execution=registered_execution(pr['head']['sha'],task)
+        except (OSError,ValueError,KeyError,TypeError):execution=None
+        if execution is None:
+            pending[key]=dict(pr=pr['number'],commit=pr['head']['sha'],task=task,
+                state='waiting_platform',stage='immutable_execution_registration',
+                reason='Exact author version requires a registered immutable solver execution',evaluator_assigned=False)
+            continue
         comments=api.pages('/issues/'+str(pr['number'])+'/comments');event=fingerprint(pr,comments)
         if any(v['pr']==pr['number'] and k!=key and v['state']=='reviewing' for k,v in ledger.items()):
             continue  # Finish or park prior revision before assigning the new one.
@@ -64,13 +86,12 @@ def reconcile(api,config,ledger):
             roles=[n for n in config['roles'] if n.startswith('evaluator-') and n not in busy]
             if not roles:continue
             role=sorted(roles)[0]
-            # Task subtree identity, not a claim of image or tarball digest.
-            entries=api.call('GET','/contents/'+task+'?ref='+pr['head']['sha'])
-            if not isinstance(entries,list):continue
-            inventory=sorted((e['name'],e['sha'],e['type']) for e in entries)
-            snap=hashlib.sha256(json.dumps(inventory,separators=(',',':')).encode()).hexdigest()
-            row={'pr':pr['number'],'commit':pr['head']['sha'],'task':task,'snapshot_sha256':snap,'snapshot_kind':'sha256-of-git-entry-inventory','role':role,'state':'reviewing','stage':'completeness','event':event,'generation':0,'issue':None,'updated_at':time.time()}
+            row={'pr':pr['number'],'commit':pr['head']['sha'],'task':task,**execution,'snapshot_kind':'registered-task-content-sha256','role':role,'state':'reviewing','stage':'completeness','event':event,'generation':0,'issue':None,'updated_at':time.time()}
             ledger[key]=row;atomic(STATE/'ledger.json',ledger)
+        elif any(row.get(k)!=execution[k] for k in ('evaluation_id','snapshot_sha256')):
+            # Never silently change an active assignment to a different image/task.
+            pending[key]=dict(pr=pr['number'],state='waiting_platform',stage='assignment_binding_mismatch',evaluator_assigned=False)
+            continue
         root=Path(config['roles'][row['role']]['root']);receipt=root/'home/role/review-status.json'
         if receipt.exists():
             try:
