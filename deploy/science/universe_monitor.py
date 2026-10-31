@@ -130,11 +130,32 @@ def snapshot():
                 except Exception: pass
         status=role_status(desired.get(role_dir.name),live_run(run),controller)
         out.append({'status':status,'desired':desired.get(role_dir.name),'role':role_dir.name,'run':run.name,'updated':max((p.stat().st_mtime for p in run.iterdir() if p.is_file()),default=run.stat().st_mtime),'model':MODEL,'log':safe(text),'events':events[-12:],'review':waits.get(role_dir.name)})
-    return {'now':time.time(),'controller_running':controller,'roles':out,'brief':read_brief()}
+    now=time.time(); brief=read_brief()
+    # The persisted brief intentionally updates every ten minutes, but the live
+    # API must not report an old zero-activity snapshot while roles are working.
+    # Refresh only the displayed sentence; the persisted timeline remains on its
+    # ten-minute cadence.
+    generated=brief.get('generated_at')
+    if not isinstance(generated,(int,float)) or now-generated > 60:
+        brief=dict(brief)
+        brief['text']=brief_text(out,now)
+    return {'now':now,'controller_running':controller,'roles':out,'brief':brief}
 
 def read_brief():
     try: return json.loads(BRIEF_FILE.read_text(encoding='utf-8'))
     except Exception: return {'text':'简报正在生成…','generated_at':None,'periods':[]}
+
+def brief_text(roles, now):
+    active=[]; replies=tools=0
+    for x in roles:
+        for event in x.get('events',[]):
+            try: recent=now-600 <= datetime.fromisoformat(event['ts'].replace('Z','+00:00')).timestamp() <= now
+            except (ValueError,KeyError,TypeError): recent=False
+            if recent and event.get('event')=='model_reply': replies+=1
+            if recent and event.get('event') in ('tool_call','tool_result'): tools+=1
+        if x.get('status')=='运行中': active.append(x['role'])
+    return (f"当前启用 {sum(x.get('desired')=='started' for x in roles)} 个角色，运行中 {sum(x.get('status')=='运行中' for x in roles)} 个，"
+            f"最近摘要中包含 {replies} 次模型回复和 {tools} 次工具活动。正在活跃推进的角色包括：{', '.join(active[:12]) or '暂无'}。")
 
 def write_brief():
     data=snapshot()
@@ -151,8 +172,7 @@ def write_brief():
         age=now-x.get('updated',now)
         if x.get('status')=='运行中':
             (stalled if age>900 else active).append(x['role'])
-    text=(f"当前启用 {sum(x.get('desired')=='started' for x in roles)} 个角色，运行中 {sum(x.get('status')=='运行中' for x in roles)} 个，最近摘要中包含 {replies} 次模型回复和 {tools} 次工具活动。"
-          f"正在活跃推进的角色包括：{', '.join(active[:12]) or '暂无'}。")
+    text=brief_text(roles,now)
     if stalled: text+=f" {', '.join(stalled[:8])} 最近活动较少，需继续观察。"
     brief={'text':text,'generated_at':now,'periods':[]}
     old=read_brief(); brief['periods']=(old.get('periods') or [])[-5:]
