@@ -84,7 +84,9 @@ class QualityQueueTests(unittest.TestCase):
                                 'scientific_acceptance': False, 'release_eligible': False,
                                 'factual_verification_required': True, 'acs_launched': True}))
                     def wait(self, timeout=None):
-                        assert timeout == 2400
+                        # Five sequential four-hour rollouts plus setup/cleanup;
+                        # the outer worker must not cut them off at 40 minutes.
+                        assert timeout == 5 * 4 * 3600 + 3600
                         return 0
                     def poll(self): return 0
                 template = json.loads(Path(entry['template']).read_text())
