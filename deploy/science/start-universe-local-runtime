@@ -6,6 +6,20 @@ SOURCE=${GEWU_UNIVERSE_SOURCE:-$W/universes/my-terminal-bench-science-v2}
 RUNTIME=${GEWU_LOCAL_RUNTIME_ROOT:-/tmp/gewu-terminal-bench-science-runtime}
 BACKUP_DIR=${GEWU_BACKUP_DIR:-$W/.state/backups/live}
 mkdir -p "$RUNTIME" "$BACKUP_DIR"
+# Pick a free loopback port for this runtime. Existing test instances must not
+# make Forgejo fail after its database has already been copied.
+if [ -n "${GEWU_FORGEJO_PORT:-}" ]; then
+  LOCAL_PORT="$GEWU_FORGEJO_PORT"
+else
+  LOCAL_PORT=$(python3 - <<'PY'
+import socket
+s = socket.socket()
+s.bind(('127.0.0.1', 0))
+print(s.getsockname()[1])
+s.close()
+PY
+)
+fi
 # Copy only small, authoritative configuration and role workspace metadata.
 mkdir -p "$RUNTIME/.config/gewu-multiverse" "$RUNTIME/.config/science-evaluation" "$RUNTIME/workspaces"
 mkdir -p "$RUNTIME/.config/gewu-multiverse/agents"
@@ -50,14 +64,15 @@ if [ ! -f "$LOCAL_FORGEJO/data/forgejo.db" ] && [ -f "$SOURCE_FORGEJO/data/forge
   cp -a "$SOURCE_FORGEJO/secrets" "$seed/secrets"
   cp -a "$SOURCE_FORGEJO/home" "$seed/home" 2>/dev/null || true
   cp -a "$SOURCE_FORGEJO/app.ini" "$seed/app.ini"
-  python3 - "$seed/app.ini" "$SOURCE_FORGEJO" "$LOCAL_FORGEJO" <<'PY'
+  python3 - "$seed/app.ini" "$SOURCE_FORGEJO" "$LOCAL_FORGEJO" "$LOCAL_PORT" <<'PY'
 from pathlib import Path
+import re
 import sys
-p, old, new = Path(sys.argv[1]), sys.argv[2], sys.argv[3]
+p, old, new, port = Path(sys.argv[1]), sys.argv[2], sys.argv[3], sys.argv[4]
 text = p.read_text()
 text = text.replace(old, new)
-text = text.replace('HTTP_PORT = 3000', 'HTTP_PORT = 3001')
-text = text.replace('ROOT_URL = http://127.0.0.1:3000/', 'ROOT_URL = http://127.0.0.1:3001/')
+text = re.sub(r'^HTTP_PORT\s*=\s*\d+', 'HTTP_PORT = ' + port, text, flags=re.M)
+text = re.sub(r'^ROOT_URL\s*=\s*http://127\.0\.0\.1:\d+/', 'ROOT_URL = http://127.0.0.1:' + port + '/', text, flags=re.M)
 p.write_text(text)
 PY
   mv "$LOCAL_FORGEJO/data" "$LOCAL_FORGEJO/data.initial" 2>/dev/null || true
