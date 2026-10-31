@@ -34,8 +34,10 @@ backup() {
   stamp=$(date -u +%Y%m%dT%H%M%SZ)
   tar --exclude='*.sock' --exclude='*.pid' -czf "$BACKUP_DIR/runtime-$stamp.tar.gz" -C "$(dirname "$RUNTIME")" "$(basename "$RUNTIME")" || true
 }
-backup
+# Never delay controller startup on a CPFS archive. The local runtime is the
+# authoritative live copy; an archive is best-effort and independently timed.
+backup &
 ( while sleep 600; do backup; done ) & backup_pid=$!
-cleanup() { kill "$backup_pid" 2>/dev/null || true; backup; }
+cleanup() { kill "$backup_pid" 2>/dev/null || true; backup & }
 trap cleanup EXIT INT TERM
 exec "$RUNTIME/start" "$@"
