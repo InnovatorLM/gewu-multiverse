@@ -76,7 +76,8 @@ def main():
         raise SystemExit('Operator/root required')
     if not re.fullmatch(r'[a-z0-9][a-z0-9-]{0,63}', args.evaluation_id):
         raise ValueError('Invalid evaluation ID')
-    settings = W / '.config/science-evaluation'
+    from deployment_paths import universe_root
+    settings = universe_root(W) / '.config/science-evaluation'
     config = json.loads(root_file(settings / 'queue.json').read_text())
     state = Path(config['state'])
     with (state / 'registration.lock').open('a') as lock:

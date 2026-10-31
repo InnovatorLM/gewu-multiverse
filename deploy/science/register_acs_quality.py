@@ -98,7 +98,8 @@ def main():
     source = source_inventory(args.repo, args.commit, args.task_path)
     if source != task_inventory(task):
         raise ValueError('Task differs from original public source commit')
-    queue = json.loads(root_file(W / '.config/science-evaluation/queue.json').read_text())
+    from deployment_paths import universe_root
+    queue = json.loads(root_file(universe_root(W) / '.config/science-evaluation/queue.json').read_text())
     state = Path(queue['state'])
     with (state / 'registration.lock').open('a') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
