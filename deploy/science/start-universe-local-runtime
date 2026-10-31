@@ -8,6 +8,7 @@ BACKUP_DIR=${GEWU_BACKUP_DIR:-$W/.state/backups/live}
 mkdir -p "$RUNTIME" "$BACKUP_DIR"
 # Copy only small, authoritative configuration and role workspace metadata.
 mkdir -p "$RUNTIME/.config/gewu-multiverse" "$RUNTIME/.config/science-evaluation" "$RUNTIME/workspaces"
+mkdir -p "$RUNTIME/.config/gewu-multiverse/agents"
 # Avoid recursive CPFS directory walks. These are the only configuration files
 # required by the launcher; each copy is bounded independently.
 for f in "$SOURCE/.config/gewu-multiverse/credentials.toml" \
@@ -17,6 +18,13 @@ for f in "$SOURCE/.config/gewu-multiverse/credentials.toml" \
          "$SOURCE/.config/science-evaluation/queue.json" \
          "$SOURCE/.config/science-evaluation/registry.json"; do
   [ -f "$f" ] && timeout 10 cp "$f" "$RUNTIME/.config/${f#*/.config/}" || true
+done
+for role in curator author-01 author-02 author-03 author-04 evaluator-01 evaluator-02; do
+  mkdir -p "$RUNTIME/.config/gewu-multiverse/agents/$role"
+  [ -f "$W/gewu-multiverse/deploy/science/default-instructions/curator.md" ] && [ "$role" = curator ] && cp "$W/gewu-multiverse/deploy/science/default-instructions/curator.md" "$RUNTIME/.config/gewu-multiverse/agents/$role/instruction.md" 2>/dev/null || true
+  case "$role" in author-*) src="$W/gewu-multiverse/deploy/science/default-instructions/author.md";; evaluator-*) src="$W/gewu-multiverse/deploy/science/default-instructions/evaluator.md";; esac
+  [ -n "${src:-}" ] && mkdir -p "$RUNTIME/.config/gewu-multiverse/agents/$role" && cp "$src" "$RUNTIME/.config/gewu-multiverse/agents/$role/instruction.md" 2>/dev/null || true
+  unset src
 done
 cp "$SOURCE/README.md" "$RUNTIME/README.md" 2>/dev/null || true
 ln -sfn "$SOURCE/import" "$RUNTIME/import"
