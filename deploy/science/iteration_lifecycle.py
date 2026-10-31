@@ -32,12 +32,13 @@ def terminal_time(run):
     return None
 
 
-def scan_clocks(config, state_root=None):
+def scan_clocks(config, state_root=None, observation_root=None):
     errors=[]
     for name,entry in config['roles'].items():
         try:
             scoped=dict(controller_uid=config['controller_uid'],roles={name:entry})
             if state_root is not None:scoped['session_state_root']=str(state_root)
+            if observation_root is not None:scoped['observation_root']=str(observation_root)
             _scan_clocks(scoped)
         except (OSError,ValueError,KeyError,TypeError) as error:
             # No ledger contents or arbitrary role-controlled error text in logs.
@@ -76,7 +77,11 @@ def _scan_clocks(config):
             live=any(runner_state(run,config['controller_uid']) for run in runs)
             end=terminal_time(max(runs,key=lambda p:p.stat().st_mtime)) if runs and not live else None
             before=json.dumps(state,sort_keys=True)
-            reconcile_session(state,live,time.time(),end)
+            now=time.time()
+            reconcile_session(state,live,now,end)
+            if config.get('observation_root'):
+                from iteration_observation import observe
+                observe(Path(config['observation_root']),name,state,live,now)
             if json.dumps(state,sort_keys=True)!=before:
                 pending=directory/('lifecycle-'+str(os.getpid())+'.pending')
                 out=os.open(pending,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)

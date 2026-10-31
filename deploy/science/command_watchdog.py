@@ -79,7 +79,7 @@ def main():
             config=json.loads(CONFIG.read_text())
             scan(config)
             from iteration_lifecycle import scan_clocks
-            scan_clocks(config,state_root=a.session_state)
+            scan_clocks(config,state_root=a.session_state,observation_root=STATE/'iteration-observations')
             if a.once:return
             time.sleep(30)
 if __name__=='__main__':main()

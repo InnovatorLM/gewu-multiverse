@@ -1,0 +1,39 @@
+import unittest
+from author_iteration_clock import transition
+from iteration_budget import verify
+
+
+class BudgetTests(unittest.TestCase):
+    def test_recomputes_and_ignores_forged_total(self):
+        state={};transition(state,'start','idea',0)
+        row=state['ideas']['idea'];row['active_seconds']=0
+        self.assertEqual(verify(row,18000,{})['active_iteration_seconds'],18000)
+        with self.assertRaises(ValueError):verify(row,18001,{})
+
+    def test_acs_wait_requires_actual_interval_not_just_run_name(self):
+        state={};transition(state,'start','idea',0)
+        transition(state,'acs-wait','idea',100,run_id='claimed-run')
+        transition(state,'resume','idea',30000)
+        row=state['ideas']['idea']
+        with self.assertRaises(ValueError):verify(row,30100,{})
+        with self.assertRaises(ValueError):verify(row,30100,{'acs-wait':[(101,30000)]})
+        self.assertEqual(verify(row,30100,{'acs-wait':[(100,20000),(20000,30000)]})['active_iteration_seconds'],200)
+
+    def test_session_reset_preserves_original_time(self):
+        state={};transition(state,'start','idea',0)
+        transition(state,'session-pause','idea',17000,reason='stopped')
+        transition(state,'resume','idea',40000)
+        row=state['ideas']['idea'];proof={'session-pause':[(17000,40000)]}
+        self.assertEqual(verify(row,41000,proof)['active_iteration_seconds'],18000)
+        with self.assertRaises(ValueError):verify(row,41001,proof)
+
+    def test_invalid_or_closed_ideas_refused(self):
+        for row in (None, [], {'events':[None]}, {'events':[]},{'events':[{'action':'resume','at':0}]},
+                    {'events':[{'action':'start','at':0},{'action':'start','at':1}]},
+                    {'events':[{'action':'start','at':0},{'action':'abandon','at':1}]},
+                    {'events':[{'action':'start','at':float('nan')}]},
+                    {'events':[{'action':'start','at':10},{'action':'finish','at':9}]}):
+            with self.subTest(row=row),self.assertRaises(ValueError):verify(row,100,{})
+
+
+if __name__=='__main__':unittest.main()

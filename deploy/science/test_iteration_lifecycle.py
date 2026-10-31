@@ -11,6 +11,20 @@ import iteration_lifecycle as lifecycle
 
 
 class LifecycleTests(unittest.TestCase):
+    def test_watchdog_reconciliation_publishes_operator_observation(self):
+        with tempfile.TemporaryDirectory(dir=W/'.tmp') as raw:
+            base=Path(raw);root=base/'role';directory=root/'home/role/.state/author-iteration'
+            directory.mkdir(parents=True);ledger={};transition(ledger,'start','idea-a',10)
+            (directory/'ledger.json').write_text(json.dumps(ledger))
+            config=dict(controller_uid=os.getuid(),roles={'author-01':dict(root=str(root),uid=os.getuid(),gid=os.getgid())})
+            observations=base/'operator-observations'
+            with patch.object(lifecycle,'runner_state',return_value=False),patch.object(lifecycle.time,'time',return_value=20):
+                self.assertEqual(lifecycle.scan_clocks(config,state_root=base/'sessions',observation_root=observations),[])
+            proof=json.loads((observations/'author-01.json').read_text())
+            self.assertFalse(proof['runner_live'])
+            self.assertEqual(proof['ideas']['idea-a']['status'],'session_paused')
+            self.assertEqual(proof['ideas']['idea-a']['events'][-1]['action'],'session-pause')
+
     def test_external_workspace_uses_current_deployment_sessions(self):
         with tempfile.TemporaryDirectory(dir=W/'.tmp') as raw:
             base=Path(raw);root=base/'donor/.config/gewu-multiverse/agents/author-01'

@@ -1,0 +1,46 @@
+"""Operator-owned clock observations; never copy author notes or command output."""
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import stat
+from evaluation_queue import W, atomic_json
+from author_submission_gate import read_operator_file
+from iteration_budget import number
+
+
+def observe(directory, role, ledger, live, at):
+    directory=Path(directory)
+    if not re.fullmatch(r'author-[0-9]+',role) or not directory.resolve().is_relative_to(W):
+        raise ValueError('Invalid observation destination')
+    directory.mkdir(parents=True,exist_ok=True,mode=0o700)
+    info=directory.lstat()
+    if directory.is_symlink() or info.st_uid!=0 or not stat.S_ISDIR(info.st_mode) or info.st_mode&0o077:
+        raise ValueError('Observations require operator-private directory')
+    at=number(at);path=directory/(role+'.json')
+    previous=json.loads(read_operator_file(path)) if path.exists() else {'role':role,'ideas':{}}
+    ideas=ledger.get('ideas')
+    if not isinstance(ideas,dict):raise ValueError('Invalid idea ledger')
+    if set(previous['ideas'])-set(ideas):raise ValueError('Previously observed idea removed')
+    result={'role':role,'observed_at':at,'runner_live':bool(live),'ideas':{}}
+    for idea,row in ideas.items():
+        if not re.fullmatch(r'[a-z0-9][a-z0-9-]{0,95}',idea):raise ValueError('Invalid idea identity')
+        events=[]
+        for event in row['events']:
+            if event.get('action') not in ('start','acs-wait','platform-wait','session-pause','resume','finish','abandon'):
+                raise ValueError('Invalid observed event action')
+            instant=number(event['at'])
+            if instant>at:raise ValueError('Future idea event')
+            # Reasons may contain arbitrary role text. Only structural facts persist.
+            events.append({'action':event['action'],'at':instant})
+        old=previous['ideas'].get(idea)
+        if old and events[:len(old['events'])]!=old['events']:
+            raise ValueError('Previously observed idea events rewritten')
+        if row.get('status') not in ('active','acs_wait','platform_wait','session_paused','finished','abandoned'):
+            raise ValueError('Invalid observed idea status')
+        result['ideas'][idea]={'events':events,'first_observed_at':old['first_observed_at'] if old else at,
+                              'status':row['status']}
+    result['previous_observation_sha256']=hashlib.sha256(read_operator_file(path)).hexdigest() if path.exists() else None
+    atomic_json(path,result)
+    return result
