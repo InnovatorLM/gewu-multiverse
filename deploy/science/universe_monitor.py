@@ -80,6 +80,12 @@ def role_status(desired, running, controller):
     if desired!='started':return '已停用'
     return '等待调度' if controller else '控制器未运行'
 
+def review_role_status(status, review):
+    # Historical assignment state must never override actual process/controller facts.
+    if status!='等待调度':return status
+    return {'waiting_author':'等待作者修复','waiting_platform':'等待平台处理',
+            'completed':'审核完成，等待新任务'}.get((review or {}).get('state'),status)
+
 def desired_roles():
     text=SETTINGS.read_text()
     roles={}
@@ -122,7 +128,7 @@ def snapshot():
         role_dir=ROOT/name
         runs=sorted(role_dir.glob('run-*'),key=lambda p:p.stat().st_mtime,reverse=True)
         if not runs:
-            out.append({'status':role_status(desired.get(name),False,controller),
+            out.append({'status':review_role_status(role_status(desired.get(name),False,controller),waits.get(name)),
                 'desired':desired.get(name),'role':name,'run':'尚无会话','updated':0,
                 'model':MODEL,'log':'','events':[],'review':waits.get(name)})
             continue
@@ -140,6 +146,7 @@ def snapshot():
         startup_error=safe(tail_text(failure,8192)) if failure.exists() else ''
         if startup_error and not running and desired.get(role_dir.name)=='started' and controller:
             status='启动失败'
+        status=review_role_status(status,waits.get(role_dir.name))
         out.append({'status':status,'desired':desired.get(role_dir.name),'role':role_dir.name,'run':run.name,'updated':max((p.stat().st_mtime for p in run.iterdir() if p.is_file()),default=run.stat().st_mtime),'model':MODEL,'log':safe(text),'startup_error':startup_error,'events':events[-12:],'review':waits.get(role_dir.name)})
     now=time.time(); brief=read_brief()
     # The persisted brief intentionally updates every ten minutes, but the live

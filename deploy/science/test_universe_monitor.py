@@ -46,6 +46,14 @@ class ArchiveTests(unittest.TestCase):
             self.assertEqual(row['state'],'waiting_author')
             self.assertNotIn('private-value',row['reason'])
 
+    def test_review_wait_is_distinguished_without_overriding_process_facts(self):
+        for state,label in [('waiting_author','等待作者修复'),('waiting_platform','等待平台处理'),('completed','审核完成，等待新任务')]:
+            self.assertEqual(m.review_role_status('等待调度',{'state':state}),label)
+            for status in ['运行中','启动失败','已停用','控制器未运行']:
+                self.assertEqual(m.review_role_status(status,{'state':state}),status)
+        self.assertEqual(m.review_role_status('等待调度',None),'等待调度')
+        self.assertEqual(m.review_role_status('等待调度',{'state':'reviewing'}),'等待调度')
+
     def test_stopped_controller_is_not_presented_as_scheduling_wait(self):
         self.assertEqual(m.role_status('started',False,False),'控制器未运行')
         self.assertEqual(m.role_status('started',False,True),'等待调度')
