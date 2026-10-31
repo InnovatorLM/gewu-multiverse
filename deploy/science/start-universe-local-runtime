@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Run a universe with hot state on local /tmp; CPFS receives periodic archives only.
+set -euo pipefail
+W=/mnt/data/zhanglinfeng/workspace
+SOURCE=${GEWU_UNIVERSE_SOURCE:-$W/universes/my-terminal-bench-science-v2}
+RUNTIME=${GEWU_LOCAL_RUNTIME_ROOT:-/tmp/gewu-terminal-bench-science-runtime}
+BACKUP_DIR=${GEWU_BACKUP_DIR:-$W/.state/backups/live}
+mkdir -p "$RUNTIME" "$BACKUP_DIR"
+# Copy only small, authoritative configuration and role workspace metadata.
+mkdir -p "$RUNTIME/.config" "$RUNTIME/workspaces"
+cp -a "$SOURCE/.config/." "$RUNTIME/.config/"
+cp -a "$SOURCE/workspaces/." "$RUNTIME/workspaces/" 2>/dev/null || true
+cp "$SOURCE/README.md" "$RUNTIME/README.md" 2>/dev/null || true
+ln -sfn "$SOURCE/import" "$RUNTIME/import"
+cp "$SOURCE/start" "$RUNTIME/start"
+sed -i "s#my-terminal-bench-science-v2#$(basename "$RUNTIME")#g" "$RUNTIME/start"
+# The runtime is owned by the controller UID; configuration is readable by it.
+mkdir -p "$RUNTIME/.local/share" "$RUNTIME/.state" "$RUNTIME/.cache" "$RUNTIME/.tmp"
+chown -R nobody:nogroup "$RUNTIME/.config" "$RUNTIME/workspaces" "$RUNTIME/.local" "$RUNTIME/.state" "$RUNTIME/.cache" "$RUNTIME/.tmp"
+chmod 700 "$RUNTIME/.config/gewu-multiverse" "$RUNTIME/.config/science-evaluation" 2>/dev/null || true
+chmod 600 "$RUNTIME/.config/gewu-multiverse"/* "$RUNTIME/.config/science-evaluation"/* 2>/dev/null || true
+backup() {
+  local stamp
+  stamp=$(date -u +%Y%m%dT%H%M%SZ)
+  tar --exclude='*.sock' --exclude='*.pid' -czf "$BACKUP_DIR/runtime-$stamp.tar.gz" -C "$(dirname "$RUNTIME")" "$(basename "$RUNTIME")" || true
+}
+backup
+( while sleep 600; do backup; done ) & backup_pid=$!
+cleanup() { kill "$backup_pid" 2>/dev/null || true; backup; }
+trap cleanup EXIT INT TERM
+exec "$RUNTIME/start" "$@"
