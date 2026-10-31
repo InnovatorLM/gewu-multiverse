@@ -52,6 +52,11 @@ SERVICE_STATE="$U/.state/gewu-multiverse"
 QUEUE_CONFIG="$U/.config/science-evaluation/queue.json"
 QUEUE_STATE="$SERVICE_STATE/evaluation-queue"
 PRODUCT="$W/.local/libexec/gewu-multiverse"
+# Reuse the preinstalled workspace binary for fresh universes. The product's
+# installer still verifies its pinned SHA256 before accepting the local file.
+if [[ -z "${GEWU_FORGEJO_BINARY:-}" && -r "$W/.local/share/gewu-multiverse/forgejo/forgejo-17.0.0-linux-amd64" ]]; then
+    export GEWU_FORGEJO_BINARY="$W/.local/share/gewu-multiverse/forgejo/forgejo-17.0.0-linux-amd64"
+fi
 if [[ $(id -u) != 0 ]]; then
     echo 'Start this deployment as the root operator; its controller drops privileges.' >&2
     exit 1

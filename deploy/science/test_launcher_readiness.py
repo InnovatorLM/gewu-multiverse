@@ -15,6 +15,21 @@ LAUNCHER = (Path(__file__).parent / 'start-universe').read_text()
 
 
 class ReadyFileTests(unittest.TestCase):
+    def test_fresh_controller_uses_cached_binary_without_overriding_operator(self):
+        from evaluation_queue import W
+        block=LAUNCHER.split('# Reuse the preinstalled workspace binary',1)[1].split('\nif [[ $(id -u)',1)[0]
+        block=block[block.index('\nif [['):]
+        with tempfile.TemporaryDirectory(dir=W/'.tmp') as raw:
+            root=Path(raw);cached=root/'.local/share/gewu-multiverse/forgejo/forgejo-17.0.0-linux-amd64'
+            cached.parent.mkdir(parents=True);cached.write_bytes(b'fixture: product verifies digest')
+            script='W="$1"\n'+block+'\nprintf "%s" "${GEWU_FORGEJO_BINARY:-}"'
+            import os
+            env=dict(os.environ);env.pop('GEWU_FORGEJO_BINARY',None)
+            result=subprocess.check_output(['bash','-c',script,'check',str(root)],env=env,text=True)
+            self.assertEqual(result,str(cached))
+            env['GEWU_FORGEJO_BINARY']=str(root/'explicit')
+            self.assertEqual(subprocess.check_output(['bash','-c',script,'check',str(root)],env=env,text=True),env['GEWU_FORGEJO_BINARY'])
+
     def test_runtime_keeps_full_instruction_and_skill_manifest_for_every_role(self):
         from evaluation_queue import W
         launcher=Path(__file__).with_name('start-universe-local-runtime').read_text()
@@ -30,10 +45,19 @@ class ReadyFileTests(unittest.TestCase):
                 source=donor/'.config/gewu-multiverse/agents'/role/'instruction.md'
                 source.parent.mkdir(parents=True)
                 source.write_text('Full rules '+role+'\n/skills/harbor-acs-evaluation/SKILL.md\n')
+                from install_role_skills import selected
+                for name in selected(role):
+                    skill=source.parent/'skills'/name
+                    skill.mkdir(parents=True)
+                    (skill/'SKILL.md').write_text('Complete '+name+'\n')
             subprocess.run([sys.executable,'-c',seed,str(root/'source'),str(runtime),str(donor)],check=True)
             for role in roles:
                 path=Path('.config/gewu-multiverse/agents')/role/'instruction.md'
                 self.assertEqual((runtime/path).read_bytes(),(donor/path).read_bytes())
+                for name in selected(role):
+                    path=path.parent/'skills'/name/'SKILL.md'
+                    self.assertEqual((runtime/path).read_bytes(),(donor/path).read_bytes())
+                    path=Path('.config/gewu-multiverse/agents')/role/'instruction.md'
         self.assertNotIn('default-instructions/',launcher)
 
     def test_runtime_restart_preserves_controller_role_choices(self):

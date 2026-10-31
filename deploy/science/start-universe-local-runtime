@@ -143,6 +143,20 @@ for role in broker['roles']:
     dst = runtime / '.config/gewu-multiverse/agents' / role / 'instruction.md'
     dst.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(src, dst)
+    # Native sessions discover and inject skills from the controller layout,
+    # while shell tools see the donor chroot. Both must hold the same files.
+    from install_role_skills import selected
+    target_skills=dst.parent/'skills'
+    if target_skills.is_symlink():
+        raise SystemExit(f'linked controller skill directory: {role}')
+    if target_skills.exists():
+        shutil.rmtree(target_skills)
+    target_skills.mkdir()
+    for name in selected(role):
+        origin=src.parent/'skills'/name
+        if not (origin/'SKILL.md').is_file() or any(p.is_symlink() for p in [origin,*origin.rglob('*')]):
+            raise SystemExit(f'missing or linked skill: {role}/{name}')
+        shutil.copytree(origin,target_skills/name)
 PY
 # A hot runtime needs the Forgejo database, repository objects, and signing
 # secrets that belong together.  Seeding only the TOML credentials creates a
